@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams, Link } from 'react-router-dom'
 import api from '../../api/client';
 import { ESignaturePad } from '../../components/ESignaturePad';
 import { numberToWords } from '../../utils/numberToWords';
+import { downloadEnquiryPDF } from '../../utils/pdfMakerService';
 import {
   FileText,
   Building2,
@@ -20,7 +21,8 @@ import {
   Calculator,
   ShieldCheck,
   Truck,
-  RotateCcw
+  RotateCcw,
+  Download
 } from 'lucide-react';
 
 export const EnquiryForm = () => {
@@ -524,6 +526,37 @@ export const EnquiryForm = () => {
     }
   };
 
+  // Instant Client-Side PDF Download using SPSG Letterpad Template
+  const handleDownloadPDF = async () => {
+    const activeClient =
+      clientMode === 'new'
+        ? {
+            companyName: newClient.companyName || 'Sivili Engineering Construction',
+            customerType: newClient.customerType || 'Contractor',
+            contactPerson: newClient.contactPerson || 'Sivili S.',
+            mobile: newClient.mobile || '9840198401',
+            email: newClient.email || 'sales.skypower@gmail.com',
+            siteAddress: newClient.siteAddress || 'Salem, Tamil Nadu'
+          }
+        : clients.find((c) => c._id === formData.clientId) || {
+            companyName: 'Selected Client',
+            customerType: formData.customerType,
+            clientLocation: formData.project.projectLocation
+          };
+
+    const pdfData = {
+      ...formData,
+      ern: formData.ern || (isEdit ? `ERN-2026-0001` : 'SG-ERN-DRAFT'),
+      clientId: activeClient,
+      project: formData.project,
+      products: formData.products,
+      commercialPricing: formData.commercialPricing,
+      eSignature: formData.eSignature
+    };
+
+    await downloadEnquiryPDF(pdfData);
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-6 pb-28">
       {/* 1. Header Toolbar */}
@@ -545,7 +578,7 @@ export const EnquiryForm = () => {
           </div>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2">
           {!isEdit && (
             <button
               type="button"
@@ -553,9 +586,18 @@ export const EnquiryForm = () => {
               className="inline-flex items-center px-3.5 py-1.5 rounded-xl text-xs font-black bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white shadow-xs transition-all cursor-pointer"
             >
               <Sparkles className="w-3.5 h-3.5 mr-1.5 text-amber-300" />
-              ⚡ Auto-Fill Sample Enquiry (Sivili Engg)
+              ⚡ Auto-Fill Sample Enquiry
             </button>
           )}
+
+          <button
+            type="button"
+            onClick={handleDownloadPDF}
+            className="inline-flex items-center px-3.5 py-1.5 rounded-xl text-xs font-black bg-[#1E3A5F] hover:bg-[#152843] text-white shadow-xs transition-all cursor-pointer"
+          >
+            <Download className="w-3.5 h-3.5 mr-1.5 text-amber-300" />
+            Download Filled Form (PDF)
+          </button>
 
           <button
             type="button"
@@ -1650,25 +1692,34 @@ export const EnquiryForm = () => {
             Cancel
           </Link>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              type="button"
+              onClick={handleDownloadPDF}
+              className="inline-flex items-center px-4 py-2.5 border-2 border-[#1E3A5F] bg-[#1E3A5F] hover:bg-[#152843] text-white text-xs font-black rounded-xl shadow-xs transition-all cursor-pointer"
+            >
+              <Download className="w-4 h-4 mr-1.5 text-amber-300" />
+              Download Filled Form (PDF)
+            </button>
+
             <button
               type="button"
               disabled={loading}
               onClick={() => handleSubmit('save')}
-              className="inline-flex items-center px-5 py-2.5 border border-slate-300 text-xs font-bold rounded-xl text-slate-700 hover:bg-slate-50 shadow-2xs transition-all cursor-pointer"
+              className="inline-flex items-center px-4 py-2.5 border border-slate-300 text-xs font-bold rounded-xl text-slate-700 hover:bg-slate-50 shadow-2xs transition-all cursor-pointer"
             >
               <Save className="w-4 h-4 mr-1.5" />
-              Save Requisition Draft
+              Save Draft
             </button>
 
             <button
               type="button"
               disabled={loading}
               onClick={() => handleSubmit('submit')}
-              className="inline-flex items-center px-6 py-2.5 btn-primary text-white text-xs font-black rounded-xl shadow-md transition-all cursor-pointer"
+              className="inline-flex items-center px-5 py-2.5 btn-primary text-white text-xs font-black rounded-xl shadow-md transition-all cursor-pointer"
             >
               <Send className="w-4 h-4 mr-1.5" />
-              {loading ? 'Processing Requisition...' : 'Submit for Admin Approval →'}
+              {loading ? 'Processing...' : 'Submit for Admin Approval →'}
             </button>
           </div>
         </div>

@@ -4,6 +4,7 @@ import api from '../../api/client';
 import { StatusBadge } from '../../components/StatusBadge';
 import { useAuth } from '../../context/AuthContext';
 import { numberToWords } from '../../utils/numberToWords';
+import { downloadEnquiryPDF } from '../../utils/pdfMakerService';
 import {
   FileSpreadsheet,
   Building2,
@@ -192,6 +193,14 @@ export const EnquiryDetails = () => {
 
         {/* Action Controls Toolbar */}
         <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => downloadEnquiryPDF(enquiry)}
+            className="inline-flex items-center px-4 py-2 bg-[#1E3A5F] hover:bg-[#152843] text-white text-xs font-black rounded-xl shadow-xs transition-all cursor-pointer"
+          >
+            <Download className="w-4 h-4 mr-1.5 text-amber-300" /> Download Filled Form (PDF)
+          </button>
+
           <button
             type="button"
             onClick={() => window.print()}
