@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { User } from '../models/User.js';
 import { SystemSetting } from '../models/SystemSetting.js';
 import { Client } from '../models/Client.js';
@@ -5,6 +6,12 @@ import { Enquiry } from '../models/Enquiry.js';
 import { USER_ROLES } from '../constants/roles.js';
 import { APPROVAL_STATUSES, COMMERCIAL_STATUSES, ENQUIRY_TYPES } from '../constants/statuses.js';
 import { generateNextERN, generateNextClientID } from './counterService.js';
+
+export const SEED_USER_IDS = {
+  ADMIN: new mongoose.Types.ObjectId('000000000000000000000001'),
+  SALES: new mongoose.Types.ObjectId('000000000000000000000002'),
+  PO:    new mongoose.Types.ObjectId('000000000000000000000003')
+};
 
 export const seedInitialData = async () => {
   try {
@@ -27,6 +34,7 @@ export const seedInitialData = async () => {
     }
     if (!admin) {
       admin = await User.create({
+        _id: SEED_USER_IDS.ADMIN,
         name: 'Executive Director (Admin)',
         email: 'admin@skypower.co.in',
         password: 'Admin@123',
@@ -44,6 +52,7 @@ export const seedInitialData = async () => {
     }
     if (!salesUser) {
       salesUser = await User.create({
+        _id: SEED_USER_IDS.SALES,
         name: 'Rajesh Sharma (Sr. Sales Engineer)',
         email: 'sales@skypower.co.in',
         password: 'Sales@123',
@@ -58,6 +67,7 @@ export const seedInitialData = async () => {
     let poUser = await User.findOne({ email: 'po@skypower.co.in' });
     if (!poUser) {
       poUser = await User.create({
+        _id: SEED_USER_IDS.PO,
         name: 'Suresh Kumar (PO Team Lead)',
         email: 'po@skypower.co.in',
         password: 'Po@123',

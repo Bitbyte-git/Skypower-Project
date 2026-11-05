@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useWorkflow } from '../../../context/WorkflowContext';
 import { Calculator, Edit3, ArrowRight, ArrowLeft, Truck, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { formatIndianCommas, parseIndianCommas } from '../../../utils/pricingRules';
 
 export const Step4PricingOffering = () => {
   const {
@@ -17,16 +18,23 @@ export const Step4PricingOffering = () => {
   } = useWorkflow();
 
   const [editingBasicPrice, setEditingBasicPrice] = useState(false);
-  const [basicPriceInput, setBasicPriceInput] = useState(pricing.basicPrice || 0);
+  const displayBasicPrice = Number(pricing.basicPrice) || (Number(products[0]?.basicPrice) || 50000);
+  const [basicPriceInput, setBasicPriceInput] = useState(formatIndianCommas(displayBasicPrice));
 
   const totalBasic = products.reduce(
-    (acc, p) => acc + (Number(p.totalBasicPrice) || (Number(p.basicPrice || 500000) * Number(p.quantity || 1))),
+    (acc, p) => acc + (p.totalBasicPrice !== undefined ? Number(p.totalBasicPrice) : ((Number(p.basicPrice) || 0) * (Number(p.quantity) || 1))),
     0
   );
   const totalQuantity = products.reduce((acc, p) => acc + (Number(p.quantity) || 1), 0);
 
+  const handleBasicPriceInputChange = (e) => {
+    const raw = e.target.value;
+    const num = parseIndianCommas(raw);
+    setBasicPriceInput(raw === '' ? '' : formatIndianCommas(num));
+  };
+
   const handleUpdateBasicPrice = () => {
-    const newPrice = Math.max(0, Number(basicPriceInput) || 0);
+    const newPrice = Math.max(0, parseIndianCommas(basicPriceInput));
     // Update all products' basicPrice and totals
     const updatedProducts = products.map((p) => ({
       ...p,
@@ -109,32 +117,19 @@ export const Step4PricingOffering = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 p-5 bg-slate-50/70 rounded-xl border border-slate-200">
-            {/* 1. Basic Price (EX-Works Salem) */}
+            {/* 1. Basic Price (EX-Works Salem) - Always Editable */}
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-slate-700">
-                Basic Price (EX-Works – Salem)
-                {pricing.forBasis === 'Client Own Transport' ? (
-                  <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
-                    Locked
-                  </span>
-                ) : (
-                  <span className="text-rose-500"> *</span>
-                )}
+                Basic Price (EX-Works – Salem) <span className="text-rose-500">*</span>
               </label>
               <div className="relative flex items-center">
                 <span className="absolute left-3 text-slate-500 font-bold text-xs">₹</span>
-                {pricing.forBasis === 'Client Own Transport' ? (
-                  /* Disabled / locked view when client uses own transport */
-                  <div className="w-full pl-7 pr-9 py-2.5 text-sm font-mono font-bold rounded-lg border border-dashed border-slate-300 bg-slate-100 text-slate-400 flex items-center justify-between cursor-not-allowed select-none">
-                    <span>{Number(pricing.basicPrice || 500000).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                    <ShieldCheck className="w-3.5 h-3.5 text-slate-400" />
-                  </div>
-                ) : editingBasicPrice ? (
+                {editingBasicPrice ? (
                   <div className="flex items-center w-full space-x-1">
                     <input
-                      type="number"
+                      type="text"
                       value={basicPriceInput}
-                      onChange={(e) => setBasicPriceInput(e.target.value)}
+                      onChange={handleBasicPriceInputChange}
                       className="w-full pl-7 pr-2 py-2 text-xs font-mono font-bold rounded-lg border border-[#EE6F2D] bg-white focus:outline-hidden"
                       autoFocus
                     />
@@ -149,12 +144,12 @@ export const Step4PricingOffering = () => {
                 ) : (
                   <div
                     onClick={() => {
-                      setBasicPriceInput(pricing.basicPrice || 500000);
+                      setBasicPriceInput(formatIndianCommas(displayBasicPrice));
                       setEditingBasicPrice(true);
                     }}
                     className="w-full pl-7 pr-9 py-2.5 text-sm font-mono font-bold rounded-lg border border-slate-300 bg-white cursor-pointer hover:border-[#EE6F2D] transition-colors flex items-center justify-between"
                   >
-                    <span>{Number(pricing.basicPrice || 500000).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    <span>{Number(displayBasicPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     <Edit3 className="w-3.5 h-3.5 text-slate-400 hover:text-[#EE6F2D]" />
                   </div>
                 )}
@@ -265,7 +260,7 @@ export const Step4PricingOffering = () => {
               <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
                 <tr>
                   <td className="py-2.5 px-4">
-                    Basic Price × Quantity ({Number(pricing.basicPrice || 500000).toLocaleString('en-IN')} × {totalQuantity})
+                    Basic Price × Quantity ({Number(displayBasicPrice).toLocaleString('en-IN')} × {totalQuantity})
                   </td>
                   <td className="py-2.5 px-4 text-right font-mono font-semibold">
                     ₹ {totalBasic.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
