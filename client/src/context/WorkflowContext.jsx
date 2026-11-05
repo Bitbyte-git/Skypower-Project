@@ -75,7 +75,10 @@ export const WorkflowProvider = ({ children, initialEnquiryId = null }) => {
 
   // Recalculate Pricing dynamically whenever products, transport, forBasis, or GST change
   useEffect(() => {
-    const totalBasic = products.reduce((acc, p) => acc + (Number(p.totalBasicPrice) || (Number(p.basicPrice || 500000) * Number(p.quantity || 1))), 0);
+    const totalBasic = products.reduce(
+      (acc, p) => acc + (p.totalBasicPrice !== undefined ? Number(p.totalBasicPrice) : ((Number(p.basicPrice) || 0) * (Number(p.quantity) || 1))),
+      0
+    );
     // When client arranges their own transport, Sky Power does NOT charge transport fees
     const isClientOwnTransport = pricing.forBasis === 'Client Own Transport';
     const transport = isClientOwnTransport ? 0 : (Number(pricing.transportPrice) || 0);
@@ -156,9 +159,9 @@ export const WorkflowProvider = ({ children, initialEnquiryId = null }) => {
             eq.products.map((p, idx) => ({
               ...p,
               id: p._id || `prod-loaded-${idx}`,
-              basicPrice: Number(p.basicPrice) || 500000,
+              basicPrice: p.basicPrice !== undefined ? Number(p.basicPrice) : 0,
               quantity: Number(p.quantity) || 1,
-              totalBasicPrice: (Number(p.basicPrice) || 500000) * (Number(p.quantity) || 1)
+              totalBasicPrice: (p.basicPrice !== undefined ? Number(p.basicPrice) : 0) * (Number(p.quantity) || 1)
             }))
           );
         }
@@ -227,6 +230,11 @@ export const WorkflowProvider = ({ children, initialEnquiryId = null }) => {
   // Step 3 -> Step 4: Save Products
   const submitStep3Products = async (productsPayload) => {
     setProducts(productsPayload);
+    const benchmark = productsPayload && productsPayload.length > 0 ? Number(productsPayload[0].basicPrice) || 50000 : 50000;
+    setPricing((prev) => ({
+      ...prev,
+      basicPrice: prev.basicPrice > 0 ? prev.basicPrice : benchmark
+    }));
     setCurrentStep(4);
   };
 
@@ -274,8 +282,26 @@ export const WorkflowProvider = ({ children, initialEnquiryId = null }) => {
     setSaving(true);
     setError('');
     try {
+      let activeEnquiryId = enquiryId;
+      if (!activeEnquiryId) {
+        const payload = {
+          clientId: client._id,
+          clientData: client,
+          project,
+          products,
+          commercialPricing: pricing,
+          step: 4
+        };
+        const draftRes = await api.post('/workflow/draft', payload);
+        if (draftRes.success && draftRes.enquiry) {
+          activeEnquiryId = draftRes.enquiry._id;
+          setEnquiryId(activeEnquiryId);
+          setErn(draftRes.enquiry.ern);
+        }
+      }
+
       const res = await api.post('/workflow/offering-revision', {
-        enquiryId,
+        enquiryId: activeEnquiryId,
         changeSummary,
         revisedProducts: revisedProducts || products,
         revisedPricing: revisedPricing || pricing
@@ -301,8 +327,26 @@ export const WorkflowProvider = ({ children, initialEnquiryId = null }) => {
     setSaving(true);
     setError('');
     try {
+      let activeEnquiryId = enquiryId;
+      if (!activeEnquiryId) {
+        const payload = {
+          clientId: client._id,
+          clientData: client,
+          project,
+          products,
+          commercialPricing: pricing,
+          step: 4
+        };
+        const draftRes = await api.post('/workflow/draft', payload);
+        if (draftRes.success && draftRes.enquiry) {
+          activeEnquiryId = draftRes.enquiry._id;
+          setEnquiryId(activeEnquiryId);
+          setErn(draftRes.enquiry.ern);
+        }
+      }
+
       const res = await api.post('/workflow/offering-send', {
-        enquiryId,
+        enquiryId: activeEnquiryId,
         versionId: versionId || currentVersion
       });
       if (res.success) {
@@ -324,8 +368,26 @@ export const WorkflowProvider = ({ children, initialEnquiryId = null }) => {
     setSaving(true);
     setError('');
     try {
+      let activeEnquiryId = enquiryId;
+      if (!activeEnquiryId) {
+        const payload = {
+          clientId: client._id,
+          clientData: client,
+          project,
+          products,
+          commercialPricing: pricing,
+          step: 5
+        };
+        const draftRes = await api.post('/workflow/draft', payload);
+        if (draftRes.success && draftRes.enquiry) {
+          activeEnquiryId = draftRes.enquiry._id;
+          setEnquiryId(activeEnquiryId);
+          setErn(draftRes.enquiry.ern);
+        }
+      }
+
       const res = await api.post('/workflow/finalize-to-po', {
-        enquiryId,
+        enquiryId: activeEnquiryId,
         offeringVersionId: currentVersion
       });
       if (res.success) {

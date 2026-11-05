@@ -1,30 +1,70 @@
 import React, { useState } from 'react';
 import { useWorkflow } from '../../../context/WorkflowContext';
-import { Cpu, Plus, Minus, Trash2, Edit2, ArrowRight, ArrowLeft, Check, Layers, AlertCircle } from 'lucide-react';
+import { Cpu, Plus, Minus, Trash2, Edit2, ArrowRight, ArrowLeft, Check, Layers, AlertCircle, RotateCcw } from 'lucide-react';
+import { getStandardUnitPrice, formatIndianCommas, parseIndianCommas } from '../../../utils/pricingRules';
 
 export const Step3AddProducts = () => {
   const { products, setProducts, submitStep3Products, prevStep, client, project } = useWorkflow();
 
+  const defaultKv = '11 kV';
+  const defaultAmp = '630 A';
+  const defaultUsage = 'Indoor';
+  const defaultPrice = getStandardUnitPrice(defaultKv, defaultAmp, defaultUsage); // ₹ 50,000
+
   const [currentProduct, setCurrentProduct] = useState({
     productName: 'VCB Switchboard',
     customProductName: '',
-    kilovolt: '11 kV',
+    kilovolt: defaultKv,
     customKilovolt: '',
-    ampere: '630 A',
+    ampere: defaultAmp,
     customAmpere: '',
     kiloampere: '26.3 kA',
     customKiloampere: '',
     durationSec: 'For 3 Sec',
     customDurationSec: '',
-    usage: 'Indoor',
+    usage: defaultUsage,
     ebMetering: 'Transformer Control',
     customEbMetering: '',
     quantity: 1,
-    basicPrice: 500000
+    basicPrice: defaultPrice
   });
 
+  const [priceInputStr, setPriceInputStr] = useState(formatIndianCommas(defaultPrice));
   const [editingIndex, setEditingIndex] = useState(null);
   const [error, setError] = useState('');
+
+  // Auto-calculate unit price when kV, Ampere, or Usage changes
+  const handleCategoryChange = (field, value) => {
+    const nextProd = { ...currentProduct, [field]: value };
+    const kv = field === 'kilovolt' ? value : nextProd.kilovolt;
+    const amp = field === 'ampere' ? value : nextProd.ampere;
+    const usage = field === 'usage' ? value : nextProd.usage;
+
+    const dynamicRate = getStandardUnitPrice(kv, amp, usage);
+    nextProd.basicPrice = dynamicRate;
+
+    setCurrentProduct(nextProd);
+    setPriceInputStr(formatIndianCommas(dynamicRate));
+  };
+
+  // User manual price input handler (formats with commas)
+  const handlePriceInputChange = (e) => {
+    const rawVal = e.target.value;
+    const parsedNum = parseIndianCommas(rawVal);
+    setCurrentProduct((prev) => ({ ...prev, basicPrice: parsedNum }));
+    if (rawVal.trim() === '') {
+      setPriceInputStr('');
+    } else {
+      setPriceInputStr(formatIndianCommas(parsedNum));
+    }
+  };
+
+  // Reset to the exact standard rate for current category
+  const handleResetToStandardRate = () => {
+    const stdRate = getStandardUnitPrice(currentProduct.kilovolt, currentProduct.ampere, currentProduct.usage);
+    setCurrentProduct((prev) => ({ ...prev, basicPrice: stdRate }));
+    setPriceInputStr(formatIndianCommas(stdRate));
+  };
 
   // Auto-generate description
   const generateDescription = (p) => {
@@ -43,7 +83,7 @@ export const Step3AddProducts = () => {
     setError('');
 
     const desc = generateDescription(currentProduct);
-    const basicPrice = Number(currentProduct.basicPrice) || 500000;
+    const basicPrice = Number(currentProduct.basicPrice) || 0;
     const qty = Math.max(1, Number(currentProduct.quantity) || 1);
     const totalBasicPrice = basicPrice * qty;
 
@@ -65,29 +105,33 @@ export const Step3AddProducts = () => {
       setProducts([...products, newProductObj]);
     }
 
-    // Reset form to defaults
+    // Reset form to defaults starting from ₹ 50,000
+    const resetPrice = getStandardUnitPrice(defaultKv, defaultAmp, defaultUsage);
     setCurrentProduct({
       productName: 'VCB Switchboard',
       customProductName: '',
-      kilovolt: '11 kV',
+      kilovolt: defaultKv,
       customKilovolt: '',
-      ampere: '630 A',
+      ampere: defaultAmp,
       customAmpere: '',
       kiloampere: '26.3 kA',
       customKiloampere: '',
       durationSec: 'For 3 Sec',
       customDurationSec: '',
-      usage: 'Indoor',
+      usage: defaultUsage,
       ebMetering: 'Transformer Control',
       customEbMetering: '',
       quantity: 1,
-      basicPrice: 500000
+      basicPrice: resetPrice
     });
+    setPriceInputStr(formatIndianCommas(resetPrice));
   };
 
   const handleEdit = (idx) => {
     setEditingIndex(idx);
-    setCurrentProduct(products[idx]);
+    const p = products[idx];
+    setCurrentProduct(p);
+    setPriceInputStr(formatIndianCommas(p.basicPrice));
   };
 
   const handleDelete = (idx) => {
@@ -102,7 +146,7 @@ export const Step3AddProducts = () => {
     const updated = [...products];
     const newQty = Math.max(1, (updated[idx].quantity || 1) + delta);
     updated[idx].quantity = newQty;
-    updated[idx].totalBasicPrice = (Number(updated[idx].basicPrice) || 500000) * newQty;
+    updated[idx].totalBasicPrice = (Number(updated[idx].basicPrice) || 0) * newQty;
     setProducts(updated);
   };
 
@@ -195,7 +239,7 @@ export const Step3AddProducts = () => {
                 </label>
                 <select
                   value={currentProduct.kilovolt}
-                  onChange={(e) => setCurrentProduct({ ...currentProduct, kilovolt: e.target.value })}
+                  onChange={(e) => handleCategoryChange('kilovolt', e.target.value)}
                   className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 bg-white focus:outline-hidden focus:ring-2 focus:ring-[#EE6F2D]/20 focus:border-[#EE6F2D]"
                 >
                   <option value="11 kV">11 kV</option>
@@ -221,7 +265,7 @@ export const Step3AddProducts = () => {
                 </label>
                 <select
                   value={currentProduct.ampere}
-                  onChange={(e) => setCurrentProduct({ ...currentProduct, ampere: e.target.value })}
+                  onChange={(e) => handleCategoryChange('ampere', e.target.value)}
                   className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 bg-white focus:outline-hidden focus:ring-2 focus:ring-[#EE6F2D]/20 focus:border-[#EE6F2D]"
                 >
                   <option value="630 A">630 A</option>
@@ -297,7 +341,7 @@ export const Step3AddProducts = () => {
                 </label>
                 <select
                   value={currentProduct.usage}
-                  onChange={(e) => setCurrentProduct({ ...currentProduct, usage: e.target.value })}
+                  onChange={(e) => handleCategoryChange('usage', e.target.value)}
                   className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 bg-white focus:outline-hidden focus:ring-2 focus:ring-[#EE6F2D]/20 focus:border-[#EE6F2D]"
                 >
                   <option value="Indoor">Indoor</option>
@@ -360,6 +404,41 @@ export const Step3AddProducts = () => {
                   </button>
                 </div>
               </div>
+
+              {/* 9. Unit Basic Price (₹) with Category Standard & Indian Commas */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-700">
+                    Unit Basic Price (₹) <span className="text-rose-500">*</span>
+                  </label>
+                  <span className="text-[10px] font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    Std: ₹ {formatIndianCommas(getStandardUnitPrice(currentProduct.kilovolt, currentProduct.ampere, currentProduct.usage))}
+                  </span>
+                </div>
+                <div className="relative flex items-center">
+                  <span className="absolute left-2.5 text-slate-500 font-bold text-xs">₹</span>
+                  <input
+                    type="text"
+                    placeholder="e.g. 50,000"
+                    value={priceInputStr}
+                    onChange={handlePriceInputChange}
+                    className="w-full pl-6 pr-2 py-2 text-xs font-mono font-bold rounded-lg border border-slate-300 bg-white focus:outline-hidden focus:ring-2 focus:ring-[#EE6F2D]/20 focus:border-[#EE6F2D]"
+                  />
+                </div>
+                <div className="flex items-center justify-between text-[10px] text-slate-500 pt-0.5">
+                  <span>Formatted with commas</span>
+                  {currentProduct.basicPrice !== getStandardUnitPrice(currentProduct.kilovolt, currentProduct.ampere, currentProduct.usage) && (
+                    <button
+                      type="button"
+                      onClick={handleResetToStandardRate}
+                      className="text-[#EE6F2D] hover:underline font-bold flex items-center space-x-1 cursor-pointer"
+                    >
+                      <RotateCcw className="w-2.5 h-2.5" />
+                      <span>Reset to Std</span>
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Add Button */}
@@ -369,25 +448,27 @@ export const Step3AddProducts = () => {
                   type="button"
                   onClick={() => {
                     setEditingIndex(null);
+                    const resetRate = getStandardUnitPrice(defaultKv, defaultAmp, defaultUsage);
                     setCurrentProduct({
                       productName: 'VCB Switchboard',
                       customProductName: '',
-                      kilovolt: '11 kV',
+                      kilovolt: defaultKv,
                       customKilovolt: '',
-                      ampere: '630 A',
+                      ampere: defaultAmp,
                       customAmpere: '',
                       kiloampere: '26.3 kA',
                       customKiloampere: '',
                       durationSec: 'For 3 Sec',
                       customDurationSec: '',
-                      usage: 'Indoor',
+                      usage: defaultUsage,
                       ebMetering: 'Transformer Control',
                       customEbMetering: '',
                       quantity: 1,
-                      basicPrice: 500000
+                      basicPrice: resetRate
                     });
+                    setPriceInputStr(formatIndianCommas(resetRate));
                   }}
-                  className="px-4 py-2 rounded-lg border border-slate-300 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                  className="px-4 py-2 rounded-lg border border-slate-300 text-slate-600 text-xs font-bold hover:bg-slate-100 cursor-pointer"
                 >
                   Cancel Edit
                 </button>
@@ -425,7 +506,9 @@ export const Step3AddProducts = () => {
                   <tr className="bg-slate-100/80 border-b border-slate-200 text-slate-700 font-bold">
                     <th className="py-2.5 px-3 w-10 text-center">#</th>
                     <th className="py-2.5 px-4">Product Description</th>
+                    <th className="py-2.5 px-3 text-right">Unit Price (₹)</th>
                     <th className="py-2.5 px-3 w-28 text-center">Quantity</th>
+                    <th className="py-2.5 px-3 text-right">Total (₹)</th>
                     <th className="py-2.5 px-3 w-24 text-center">Action</th>
                   </tr>
                 </thead>
@@ -440,6 +523,9 @@ export const Step3AddProducts = () => {
                         <span className="inline-block mt-0.5 text-[10px] font-mono text-slate-400">
                           {p.kilovolt} • {p.ampere} • {p.kiloampere} • {p.durationSec} • {p.usage}
                         </span>
+                      </td>
+                      <td className="py-3 px-3 text-right font-mono font-bold text-slate-700">
+                        ₹ {Number(p.basicPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </td>
                       <td className="py-3 px-3 text-center">
                         <div className="inline-flex items-center space-x-1.5 bg-slate-100 px-2 py-1 rounded-md border border-slate-200">
@@ -461,6 +547,9 @@ export const Step3AddProducts = () => {
                             <Plus className="w-3 h-3" />
                           </button>
                         </div>
+                      </td>
+                      <td className="py-3 px-3 text-right font-mono font-black text-[#1E5BB8]">
+                        ₹ {Number(p.totalBasicPrice || ((p.basicPrice || 0) * (p.quantity || 1))).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </td>
                       <td className="py-3 px-3 text-center">
                         <div className="inline-flex items-center space-x-2">

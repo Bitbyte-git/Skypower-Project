@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { User } from '../models/User.js';
 import { SystemSetting } from '../models/SystemSetting.js';
 import { Client } from '../models/Client.js';
@@ -84,6 +85,12 @@ export const initializeProjectWorkflow = async (enquiry, creatorUser = null) => 
   return workflow;
 };
 
+export const SEED_USER_IDS = {
+  ADMIN: new mongoose.Types.ObjectId('000000000000000000000001'),
+  SALES: new mongoose.Types.ObjectId('000000000000000000000002'),
+  PO: new mongoose.Types.ObjectId('000000000000000000000003')
+};
+
 export const seedInitialData = async () => {
   try {
     // 0. Ensure master departments exist
@@ -108,6 +115,7 @@ export const seedInitialData = async () => {
     }
     if (!admin) {
       admin = await User.create({
+        _id: SEED_USER_IDS.ADMIN,
         name: 'Executive Director (Admin)',
         email: 'admin@skypower.co.in',
         password: 'Admin@123',
@@ -139,6 +147,7 @@ export const seedInitialData = async () => {
     }
     if (!salesUser) {
       salesUser = await User.create({
+        _id: SEED_USER_IDS.SALES,
         name: 'Rajesh Sharma (Sr. Sales Engineer)',
         email: 'sales@skypower.co.in',
         password: 'Sales@123',
@@ -151,7 +160,20 @@ export const seedInitialData = async () => {
 
     // Clean up any legacy PO Team login accounts (Only 3 roles: SALES, MANAGER, ADMIN)
     await User.deleteMany({ email: 'po@skypower.co.in' });
-
+    // 3.1 Ensure PO Team Lead exists
+    let poUser = await User.findOne({ email: 'po@skypower.co.in' });
+    if (!poUser) {
+      poUser = await User.create({
+        _id: SEED_USER_IDS.PO,
+        name: 'Suresh Kumar (PO Team Lead)',
+        email: 'po@skypower.co.in',
+        password: 'Po@123',
+        role: USER_ROLES.PO_TEAM,
+        phone: '9840984098',
+        department: 'Purchase Order & Execution'
+      });
+      console.log('[Seed] Sky Power PO Team user created: po@skypower.co.in / Po@123');
+    }
     // 4. Ensure initial clients exist
     const clientCount = await Client.countDocuments();
     if (clientCount === 0) {
