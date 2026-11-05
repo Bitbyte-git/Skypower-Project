@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useWorkflow } from '../../../context/WorkflowContext';
 import { downloadEnquiryPDF } from '../../../utils/pdfMakerService';
 import {
@@ -42,8 +42,53 @@ export const Step5OfferingManagement = () => {
   const [successMsg, setSuccessMsg] = useState('');
   const [showRevisionModal, setShowRevisionModal] = useState(false);
   const [revisionSummary, setRevisionSummary] = useState('');
-  const [newBasicPrice, setNewBasicPrice] = useState(pricing.basicPrice || 500000);
-  const [newTransportPrice, setNewTransportPrice] = useState(pricing.transportPrice || 20000);
+
+  // ── Revision modal state: seed from actual pricing ──
+  const [reductionAmount, setReductionAmount] = useState('');
+  const [newTransportPrice, setNewTransportPrice] = useState(0);
+  const [newForBasis, setNewForBasis] = useState('Client Own Transport');
+
+  const openRevisionModal = () => {
+    setError('');
+    setRevisionSummary('');
+    setReductionAmount('');
+    const basis = pricing.forBasis || 'Client Own Transport';
+    setNewForBasis(basis);
+    setNewTransportPrice(basis === 'Client Own Transport' ? 0 : (pricing.transportPrice || 0));
+    setShowRevisionModal(true);
+  };
+
+  // Live recalculation inside revision modal
+  const revisionPreview = useMemo(() => {
+    const currentBasePrice = Number(pricing.basicPrice) || (Number(products[0]?.basicPrice) || 0);
+    const reduction = Math.max(0, Number(reductionAmount) || 0);
+    const effectiveBasicPrice = Math.max(0, currentBasePrice - reduction);
+
+    const transport = newForBasis === 'Client Own Transport' ? 0 : (Number(newTransportPrice) || 0);
+    const totalBasic = products.reduce((acc, p) => acc + effectiveBasicPrice * (p.quantity || 1), 0);
+    const subTotal   = totalBasic + transport;
+    const isIntra    = pricing.gstType === 'INTRA_STATE';
+    const cgst       = isIntra ? Math.round(subTotal * 0.09) : 0;
+    const sgst       = isIntra ? Math.round(subTotal * 0.09) : 0;
+    const igst       = !isIntra ? Math.round(subTotal * 0.18) : 0;
+    const tax        = cgst + sgst + igst;
+    const total      = subTotal + tax;
+
+    return {
+      currentBasePrice,
+      reduction,
+      effectiveBasicPrice,
+      totalBasic,
+      transport,
+      subTotal,
+      cgst,
+      sgst,
+      igst,
+      tax,
+      total,
+      isIntra
+    };
+  }, [pricing.basicPrice, reductionAmount, newTransportPrice, newForBasis, products, pricing.gstType]);
 
   // Fallback demo revisions if brand new
   const displayRevisions =
@@ -101,38 +146,41 @@ export const Step5OfferingManagement = () => {
 
   const handleCreateRevisionSubmit = async (e) => {
     e.preventDefault();
-    if (!revisionSummary.trim()) {
-      setError('Please provide a reason or summary for this revision.');
-      return;
-    }
+    const effectiveSummary = revisionSummary.trim() || (
+      revisionPreview.reduction > 0
+        ? `Client requested price reduction of ₹ ${revisionPreview.reduction.toLocaleString('en-IN')} per unit`
+        : 'Commercial revision requested'
+    );
 
     try {
-      // Compute revised subtotal and GST
+      const effectiveBasicPrice = revisionPreview.effectiveBasicPrice;
+
       const updatedProducts = products.map((p) => ({
         ...p,
-        basicPrice: Number(newBasicPrice),
-        totalBasicPrice: Number(newBasicPrice) * (p.quantity || 1)
+        basicPrice: effectiveBasicPrice,
+        totalBasicPrice: effectiveBasicPrice * (p.quantity || 1)
       }));
 
-      const totalBasic = updatedProducts.reduce((acc, p) => acc + p.totalBasicPrice, 0);
-      const subTotal = totalBasic + Number(newTransportPrice);
-      const taxRate = pricing.gstType === 'INTRA_STATE' ? 18 : 18;
-      const taxTotal = Math.round(subTotal * 0.18);
-      const totalAmount = subTotal + taxTotal;
-
+      // Use live-computed preview values so the snapshot is always consistent
       const revisedPricing = {
         ...pricing,
-        basicPrice: Number(newBasicPrice),
-        transportPrice: Number(newTransportPrice),
-        subTotal,
-        totalTaxAmount: taxTotal,
-        totalAmount
+        forBasis: newForBasis,
+        basicPrice: effectiveBasicPrice,
+        reductionAmount: revisionPreview.reduction,
+        transportPrice: revisionPreview.transport,
+        subTotal: revisionPreview.subTotal,
+        cgstAmount: revisionPreview.cgst,
+        sgstAmount: revisionPreview.sgst,
+        igstAmount: revisionPreview.igst,
+        totalTaxAmount: revisionPreview.tax,
+        totalAmount: revisionPreview.total
       };
 
-      await submitNewRevision(revisionSummary, updatedProducts, revisedPricing);
+      await submitNewRevision(effectiveSummary, updatedProducts, revisedPricing);
       setShowRevisionModal(false);
       setRevisionSummary('');
-      setSuccessMsg(`New revision created successfully with updated commercial pricing.`);
+      setReductionAmount('');
+      setSuccessMsg('New revision created successfully with updated commercial pricing.');
     } catch (err) {
       // error handled in context
     }
@@ -234,7 +282,7 @@ export const Step5OfferingManagement = () => {
 
             <button
               type="button"
-              onClick={() => setShowRevisionModal(true)}
+              onClick={openRevisionModal}
               className="text-xs font-bold text-[#EE6F2D] hover:text-[#D95B1B] flex items-center space-x-1 cursor-pointer"
             >
               <PlusCircle className="w-3.5 h-3.5" />
@@ -324,7 +372,7 @@ export const Step5OfferingManagement = () => {
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
-              onClick={() => setShowRevisionModal(true)}
+              onClick={openRevisionModal}
               className="px-4 py-2.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer"
             >
               <Edit2 className="w-3.5 h-3.5 text-slate-500" />
@@ -376,6 +424,7 @@ export const Step5OfferingManagement = () => {
               </div>
 
               <form onSubmit={handleCreateRevisionSubmit} className="space-y-4">
+                {/* Revision Reason */}
                 <div className="space-y-1.5">
                   <label className="block text-xs font-bold text-slate-700">
                     Revision Reason / Change Summary <span className="text-rose-500">*</span>
@@ -390,26 +439,151 @@ export const Step5OfferingManagement = () => {
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-slate-700">Revised Unit Basic Price (₹)</label>
-                    <input
-                      type="number"
-                      value={newBasicPrice}
-                      onChange={(e) => setNewBasicPrice(e.target.value)}
-                      className="w-full px-3 py-2 text-xs font-mono font-bold rounded-lg border border-slate-300"
-                    />
+                {/* FOR Basis selector */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-700">FOR Basis</label>
+                  <select
+                    value={newForBasis}
+                    onChange={(e) => setNewForBasis(e.target.value)}
+                    className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 bg-white focus:outline-hidden focus:ring-2 focus:ring-[#EE6F2D]/20 focus:border-[#EE6F2D]"
+                  >
+                    <option value="Client Own Transport">Client Own Transport</option>
+                    <option value="Sky Power Needs">Sky Power Needs</option>
+                  </select>
+                </div>
+
+                {/* Price and Reduction Controls */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-slate-50/80 rounded-xl border border-slate-200">
+                  {/* Original Base Price (Read-only as entered in Step 4) */}
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                      Current Basic Price (Step 4)
+                    </label>
+                    <div className="px-3 py-2 text-xs font-mono font-bold rounded-lg border border-slate-300 bg-white text-slate-800 flex items-center justify-between select-none">
+                      <span>₹ {revisionPreview.currentBasePrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      <span className="text-[10px] font-semibold text-slate-400">Fixed</span>
+                    </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-slate-700">Revised Transport (₹)</label>
+                  {/* Reduce Amount Input */}
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold text-rose-600 uppercase tracking-wider">
+                      Reduce Amount (₹) <span className="text-slate-400 font-normal">per unit</span>
+                    </label>
+                    <div className="relative flex items-center">
+                      <span className="absolute left-2.5 text-slate-500 font-bold text-xs">₹</span>
+                      <input
+                        type="number"
+                        min="0"
+                        placeholder="e.g. 500 or 1000"
+                        value={reductionAmount}
+                        onChange={(e) => setReductionAmount(e.target.value)}
+                        className="w-full pl-6 pr-2 py-2 text-xs font-mono font-bold rounded-lg border border-rose-300 focus:border-rose-500 bg-white focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 text-rose-900"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Effective Basic Price display after reduction */}
+                  <div className="sm:col-span-2 p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-between text-xs">
+                    <span className="font-bold text-emerald-900">Effective Basic Price / Unit:</span>
+                    <span className="font-mono font-black text-emerald-700 text-sm flex items-center space-x-1.5">
+                      <span>₹ {revisionPreview.effectiveBasicPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      {revisionPreview.reduction > 0 && (
+                        <span className="text-[10px] font-bold text-rose-600 bg-white px-1.5 py-0.5 rounded border border-rose-200">
+                          -₹ {revisionPreview.reduction.toLocaleString('en-IN')}
+                        </span>
+                      )}
+                    </span>
+                  </div>
+
+                  {/* Revised Transport */}
+                  <div className="sm:col-span-2 space-y-1">
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                      Transport (₹)
+                      {newForBasis === 'Client Own Transport' && (
+                        <span className="ml-1.5 text-[10px] font-bold text-emerald-600">(Not Charged)</span>
+                      )}
+                    </label>
                     <input
                       type="number"
-                      value={newTransportPrice}
+                      value={newForBasis === 'Client Own Transport' ? 0 : newTransportPrice}
                       onChange={(e) => setNewTransportPrice(e.target.value)}
-                      className="w-full px-3 py-2 text-xs font-mono font-bold rounded-lg border border-slate-300"
+                      disabled={newForBasis === 'Client Own Transport'}
+                      className={`w-full px-3 py-2 text-xs font-mono font-bold rounded-lg border ${
+                        newForBasis === 'Client Own Transport'
+                          ? 'border-dashed border-slate-300 bg-slate-100 text-slate-400 cursor-not-allowed'
+                          : 'border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-[#EE6F2D]/20 focus:border-[#EE6F2D]'
+                      }`}
                     />
                   </div>
+                </div>
+
+                {/* Live calculation preview */}
+                <div className="rounded-lg border border-slate-200 overflow-hidden text-xs">
+                  <div className="bg-slate-100 px-3 py-1.5 font-black uppercase tracking-wider text-slate-600 text-[10px]">
+                    Live Amount Preview
+                  </div>
+                  <table className="w-full">
+                    <tbody className="divide-y divide-slate-100">
+                      <tr>
+                        <td className="px-3 py-1.5 text-slate-600">
+                          Basic Price × Units ({Number(revisionPreview.effectiveBasicPrice).toLocaleString('en-IN')} × {products.reduce((a, b) => a + (Number(b.quantity) || 1), 0)})
+                        </td>
+                        <td className="px-3 py-1.5 text-right font-mono font-semibold text-slate-800">
+                          ₹ {revisionPreview.totalBasic.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="px-3 py-1.5 text-slate-600">
+                          Transport
+                          {newForBasis === 'Client Own Transport' && (
+                            <span className="ml-1 text-emerald-600 font-bold">(Client Own)</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-1.5 text-right font-mono font-semibold">
+                          {newForBasis === 'Client Own Transport'
+                            ? <span className="text-emerald-600">₹ 0.00</span>
+                            : `₹ ${revisionPreview.transport.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+                          }
+                        </td>
+                      </tr>
+                      <tr className="bg-slate-50 font-bold">
+                        <td className="px-3 py-1.5 text-slate-800">Subtotal</td>
+                        <td className="px-3 py-1.5 text-right font-mono text-slate-900">
+                          ₹ {revisionPreview.subTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                      {revisionPreview.isIntra ? (
+                        <>
+                          <tr>
+                            <td className="px-3 py-1 text-slate-500">CGST 9%</td>
+                            <td className="px-3 py-1 text-right font-mono text-slate-500">
+                              ₹ {revisionPreview.cgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </td>
+                          </tr>
+                          <tr>
+                            <td className="px-3 py-1 text-slate-500">SGST 9%</td>
+                            <td className="px-3 py-1 text-right font-mono text-slate-500">
+                              ₹ {revisionPreview.sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            </td>
+                          </tr>
+                        </>
+                      ) : (
+                        <tr>
+                          <td className="px-3 py-1 text-slate-500">IGST 18%</td>
+                          <td className="px-3 py-1 text-right font-mono text-slate-500">
+                            ₹ {revisionPreview.igst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      )}
+                      <tr className="bg-orange-50 border-t-2 border-[#EE6F2D] font-black text-sm">
+                        <td className="px-3 py-2 text-[#0A1E3F]">Total Amount</td>
+                        <td className="px-3 py-2 text-right font-mono text-[#EE6F2D]">
+                          ₹ {revisionPreview.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
 
                 <div className="p-3 bg-amber-50 rounded-lg border border-amber-200 text-xs text-amber-900 leading-relaxed">

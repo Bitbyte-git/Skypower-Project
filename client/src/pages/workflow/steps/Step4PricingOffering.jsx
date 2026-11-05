@@ -17,7 +17,7 @@ export const Step4PricingOffering = () => {
   } = useWorkflow();
 
   const [editingBasicPrice, setEditingBasicPrice] = useState(false);
-  const [basicPriceInput, setBasicPriceInput] = useState(pricing.basicPrice || 500000);
+  const [basicPriceInput, setBasicPriceInput] = useState(pricing.basicPrice || 0);
 
   const totalBasic = products.reduce(
     (acc, p) => acc + (Number(p.totalBasicPrice) || (Number(p.basicPrice || 500000) * Number(p.quantity || 1))),
@@ -51,6 +51,14 @@ export const Step4PricingOffering = () => {
       transportType: option,
       transportPrice: price
     });
+  };
+
+  // When FOR Basis changes: if Client Own Transport → lock basic price edit & zero out transport
+  const handleForBasisChange = (basis) => {
+    if (basis === 'Client Own Transport') {
+      setEditingBasicPrice(false); // close any open edit panel
+    }
+    setPricing({ ...pricing, forBasis: basis });
   };
 
   const handleCreateOffering = async (e) => {
@@ -104,11 +112,24 @@ export const Step4PricingOffering = () => {
             {/* 1. Basic Price (EX-Works Salem) */}
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-slate-700">
-                Basic Price (EX-Works – Salem) <span className="text-rose-500">*</span>
+                Basic Price (EX-Works – Salem)
+                {pricing.forBasis === 'Client Own Transport' ? (
+                  <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-500 border border-slate-200">
+                    Locked
+                  </span>
+                ) : (
+                  <span className="text-rose-500"> *</span>
+                )}
               </label>
               <div className="relative flex items-center">
                 <span className="absolute left-3 text-slate-500 font-bold text-xs">₹</span>
-                {editingBasicPrice ? (
+                {pricing.forBasis === 'Client Own Transport' ? (
+                  /* Disabled / locked view when client uses own transport */
+                  <div className="w-full pl-7 pr-9 py-2.5 text-sm font-mono font-bold rounded-lg border border-dashed border-slate-300 bg-slate-100 text-slate-400 flex items-center justify-between cursor-not-allowed select-none">
+                    <span>{Number(pricing.basicPrice || 500000).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    <ShieldCheck className="w-3.5 h-3.5 text-slate-400" />
+                  </div>
+                ) : editingBasicPrice ? (
                   <div className="flex items-center w-full space-x-1">
                     <input
                       type="number"
@@ -140,32 +161,44 @@ export const Step4PricingOffering = () => {
               </div>
             </div>
 
-            {/* 2. Transport Charges */}
+            {/* 2. Transport Charges — hidden when client uses own transport */}
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-slate-700">
-                Transport Charges <span className="text-rose-500">*</span>
+                Transport Charges
+                {pricing.forBasis === 'Client Own Transport' && (
+                  <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
+                    Not Applicable
+                  </span>
+                )}
               </label>
-              <div className="grid grid-cols-2 gap-1.5">
-                <select
-                  value={pricing.transportType}
-                  onChange={(e) => handleTransportChange(e.target.value)}
-                  className="px-2.5 py-2.5 text-xs rounded-lg border border-slate-300 bg-white focus:outline-hidden focus:ring-2 focus:ring-[#EE6F2D]/20 focus:border-[#EE6F2D]"
-                >
-                  <option value="Up & Down">Up &amp; Down (₹20k)</option>
-                  <option value="One Way">One Way (₹10k)</option>
-                  <option value="Custom Amount">Custom</option>
-                </select>
-
-                <div className="relative flex items-center">
-                  <span className="absolute left-2.5 text-slate-500 font-bold text-xs">₹</span>
-                  <input
-                    type="number"
-                    value={pricing.transportPrice}
-                    onChange={(e) => setPricing({ ...pricing, transportPrice: Number(e.target.value) || 0 })}
-                    className="w-full pl-6 pr-2 py-2 text-xs font-mono font-bold rounded-lg border border-slate-300 bg-white"
-                  />
+              {pricing.forBasis === 'Client Own Transport' ? (
+                <div className="flex items-center space-x-2 px-3 py-2.5 rounded-lg border border-dashed border-slate-300 bg-slate-50 text-xs text-slate-500 font-medium">
+                  <Truck className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Client arranges own transport — no charge applied</span>
                 </div>
-              </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-1.5">
+                  <select
+                    value={pricing.transportType}
+                    onChange={(e) => handleTransportChange(e.target.value)}
+                    className="px-2.5 py-2.5 text-xs rounded-lg border border-slate-300 bg-white focus:outline-hidden focus:ring-2 focus:ring-[#EE6F2D]/20 focus:border-[#EE6F2D]"
+                  >
+                    <option value="Up & Down">Up &amp; Down (₹20k)</option>
+                    <option value="One Way">One Way (₹10k)</option>
+                    <option value="Custom Amount">Custom</option>
+                  </select>
+
+                  <div className="relative flex items-center">
+                    <span className="absolute left-2.5 text-slate-500 font-bold text-xs">₹</span>
+                    <input
+                      type="number"
+                      value={pricing.transportPrice}
+                      onChange={(e) => setPricing({ ...pricing, transportPrice: Number(e.target.value) || 0 })}
+                      className="w-full pl-6 pr-2 py-2 text-xs font-mono font-bold rounded-lg border border-slate-300 bg-white"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* 3. FOR Basis */}
@@ -175,12 +208,11 @@ export const Step4PricingOffering = () => {
               </label>
               <select
                 value={pricing.forBasis}
-                onChange={(e) => setPricing({ ...pricing, forBasis: e.target.value })}
+                onChange={(e) => handleForBasisChange(e.target.value)}
                 className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-slate-300 bg-white focus:outline-hidden focus:ring-2 focus:ring-[#EE6F2D]/20 focus:border-[#EE6F2D]"
               >
-                <option value="Client Own Transport">Client Own Transport (Default)</option>
-                <option value="FOR Destination">FOR Destination</option>
-                <option value="Sky Power Logistics">Sky Power Logistics</option>
+                <option value="Client Own Transport">Client Own Transport</option>
+                <option value="Sky Power Needs">Sky Power Needs</option>
               </select>
             </div>
           </div>
@@ -241,9 +273,20 @@ export const Step4PricingOffering = () => {
                 </tr>
 
                 <tr>
-                  <td className="py-2.5 px-4">Transport ({pricing.transportType})</td>
+                  <td className="py-2.5 px-4">
+                    Transport
+                    {pricing.forBasis === 'Client Own Transport' ? (
+                      <span className="ml-2 text-[10px] text-emerald-600 font-bold">(Client Own — Not Charged)</span>
+                    ) : (
+                      <span className="text-slate-500"> ({pricing.transportType})</span>
+                    )}
+                  </td>
                   <td className="py-2.5 px-4 text-right font-mono font-semibold">
-                    ₹ {Number(pricing.transportPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    {pricing.forBasis === 'Client Own Transport' ? (
+                      <span className="text-emerald-600">₹ 0.00</span>
+                    ) : (
+                      `₹ ${Number(pricing.transportPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+                    )}
                   </td>
                 </tr>
 

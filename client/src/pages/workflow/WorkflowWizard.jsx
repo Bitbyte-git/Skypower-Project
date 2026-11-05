@@ -107,10 +107,12 @@ const WizardContent = () => {
 
 export const WorkflowWizard = () => {
   const [searchParams] = useSearchParams();
-  const enquiryId = searchParams.get('enquiryId') || searchParams.get('id');
+  const enquiryId = searchParams.get('enquiryId') || searchParams.get('id') || '';
 
   return (
-    <WorkflowProvider initialEnquiryId={enquiryId}>
+    // key forces a full remount when switching between new workflow vs loading an existing enquiry,
+    // which guarantees useState([]) re-runs and no stale products from a previous session appear.
+    <WorkflowProvider key={enquiryId || 'new'} initialEnquiryId={enquiryId || null}>
       <WizardContent />
     </WorkflowProvider>
   );

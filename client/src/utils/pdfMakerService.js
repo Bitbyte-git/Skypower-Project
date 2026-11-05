@@ -107,13 +107,55 @@ export async function downloadEnquiryPDF(enquiryData) {
     products[0]?.productDescription?.slice(0, 75) ||
     '11kV Outdoor Type Standalone VCB Switchboard';
 
-  // Transport details
-  const transportPrice = Number(comm.transportPrice || 0);
-  const transportOption = comm.transportOption;
-  const transportNote =
-    transportPrice > 0 || transportOption === 'salem_transport'
-      ? 'Transport Up & Down: ₹ 20,000'
-      : null;
+  // Transport details — fully dynamic from form data
+  const forBasis        = comm.forBasis || 'Client Own Transport';
+  const transportType   = comm.transportType || 'Up & Down';
+  const transportPrice  = Number(comm.transportPrice || 0);
+  const isClientOwn     = forBasis === 'Client Own Transport';
+
+  // Point 2 – Price Basis line
+  let priceBasisLine;
+  if (isClientOwn) {
+    priceBasisLine = 'Ex-Works: Salem, Tamil Nadu (Client Own Transport — No freight charged by Sky Power)';
+  } else {
+    const tLabel  = transportType === 'One Way' ? 'One Way' : 'Up & Down';
+    const tAmount = transportPrice > 0 ? 'Rs. ' + transportPrice.toLocaleString('en-IN') : 'At Actual';
+    priceBasisLine = 'Ex-Works: Salem, Tamil Nadu (Transport ' + tLabel + ': ' + tAmount + ')';
+  }
+
+  // Point 4 – Sales Tax (CGST+SGST vs IGST)
+  const gstType      = comm.gstType || 'INTRA_STATE';
+  const salesTaxLine = gstType === 'INTRA_STATE'
+    ? 'GST @18% extra at actual (CGST 9% + SGST 9%).'
+    : 'GST @18% extra at actual (IGST 18%).';
+
+  // Point 5 – Freight & Transit Insurance
+  let freightLine;
+  if (isClientOwn) {
+    freightLine = 'Not applicable — client arranges own transport and bears freight / transit insurance.';
+  } else {
+    const tLabel = transportType === 'One Way' ? 'One Way' : 'Up and Down';
+    freightLine  = transportPrice > 0
+      ? 'Extra at actual / Rs. ' + transportPrice.toLocaleString('en-IN') + ' (' + tLabel + ')'
+      : 'Extra at actual';
+  }
+
+  // Point 6 – Payment Terms
+  const paymentTermsLine = comm.paymentTerms ||
+    '50% as advance along with your valued purchase order and balance 50% against proforma Invoice after inspection and before dispatch.';
+
+  // Point 7 – Delivery weeks
+  const deliveryWeeks = comm.deliveryWeeks || 4;
+  const deliveryLine  = 'Within ' + deliveryWeeks + ' weeks from the date of receipt of approved drawing, our drawing will be submitted within three working days from the date of receipt of purchase order.';
+
+  // Point 8 – Warranty months
+  const warrantyMonthsDispatch   = comm.warrantyMonthsDispatch   || 18;
+  const warrantyMonthsCommission = comm.warrantyMonthsCommission || 12;
+  const warrantyLine = 'We offer a warranty period of ' + warrantyMonthsDispatch + ' Months from the date of dispatch or ' + warrantyMonthsCommission + ' Months from the date of commissioning whichever is earlier';
+
+  // Point 12 – Validity days
+  const validityDays = comm.validityDays || 7;
+  const validityLine = 'The above price & Terms are valid for ' + validityDays + ' calendar days from the date of this offer. Hence, request you to get revalidated price, if finalized after the validity.';
 
   // Signature image
   const signatureData =
@@ -289,7 +331,7 @@ export async function downloadEnquiryPDF(enquiryData) {
         stack: [
           { text: '2.  Price Basis:-', fontSize: 8.5, bold: true, color: '#000000' },
           {
-            text: `Ex-Works: Salem, Tamil Nadu${transportNote ? ` (${transportNote})` : ''}`,
+            text: priceBasisLine,
             fontSize: 8,
             color: '#1F2937',
             margin: [20, 3, 0, 0]
@@ -329,7 +371,7 @@ export async function downloadEnquiryPDF(enquiryData) {
       {
         text: [
           { text: '4.  Sales Tax:- ', bold: true },
-          { text: 'GST @18% extra at actual.' }
+          { text: salesTaxLine }
         ],
         fontSize: 8.5,
         margin: [0, 15, 0, 14]
@@ -337,12 +379,7 @@ export async function downloadEnquiryPDF(enquiryData) {
       {
         text: [
           { text: '5.  Freight & Transit Insurance: ', bold: true },
-          {
-            text:
-              transportPrice > 0
-                ? `Extra at actual / ₹ ${transportPrice.toLocaleString('en-IN')} (Up and Down)`
-                : 'Extra at actual'
-          }
+          { text: freightLine }
         ],
         fontSize: 8.5,
         margin: [0, 0, 0, 14]
@@ -352,7 +389,7 @@ export async function downloadEnquiryPDF(enquiryData) {
           { text: '6.  Payment Terms: ', bold: true },
           {
             text:
-              '50% as advance along with your valued purchase order and balance 50% against proforma Invoice after inspection and before dispatch.'
+              paymentTermsLine
           }
         ],
         fontSize: 8.5,
@@ -364,7 +401,7 @@ export async function downloadEnquiryPDF(enquiryData) {
           { text: '7.  Delivery: ', bold: true },
           {
             text:
-              'Within 4 weeks from the date of receipt of approved drawing, our drawing will be submitted within three working days from the date of receipt of purchase order.'
+              deliveryLine
           }
         ],
         fontSize: 8.5,
@@ -376,7 +413,7 @@ export async function downloadEnquiryPDF(enquiryData) {
           { text: '8.  Warranty: ', bold: true },
           {
             text:
-              'We offer a warranty period of 18 Months from the date of dispatch or 12 Months from the date of commissioning whichever is earlier'
+              warrantyLine
           }
         ],
         fontSize: 8.5,
@@ -424,7 +461,7 @@ export async function downloadEnquiryPDF(enquiryData) {
           { text: '12. Validity: ', bold: true },
           {
             text:
-              'The above price & Terms are valid for 7 calendar days from the date of this offer. Hence, request you to get revalidated price, if finalized after the validity.'
+              validityLine
           }
         ],
         fontSize: 8.5,

@@ -44,27 +44,12 @@ export const WorkflowProvider = ({ children, initialEnquiryId = null }) => {
     customSubSegment: ''
   });
 
-  // Step 3: Products (Multiple Products)
-  const [products, setProducts] = useState([
-    {
-      id: 'prod-init-1',
-      productName: 'VCB Switchboard',
-      kilovolt: '11 kV',
-      ampere: '630 A',
-      kiloampere: '26.3 kA',
-      durationSec: 'For 3 Sec',
-      usage: 'Indoor',
-      ebMetering: 'Transformer Control',
-      quantity: 2,
-      basicPrice: 500000,
-      totalBasicPrice: 1000000,
-      productDescription: '11kV, 630A, 26.3 kA, 3 Sec, Indoor VCB Switchboard (Transformer Control)'
-    }
-  ]);
+  // Step 3: Products (Multiple Products) — start empty; user adds products from scratch
+  const [products, setProducts] = useState([]);
 
-  // Step 4: Pricing & Offering
+  // Step 4: Pricing & Offering — basicPrice starts at 0 (user must enter it explicitly)
   const [pricing, setPricing] = useState({
-    basicPrice: 500000,
+    basicPrice: 0,
     transportType: 'Up & Down',
     transportPrice: 20000,
     forBasis: 'Client Own Transport',
@@ -72,13 +57,13 @@ export const WorkflowProvider = ({ children, initialEnquiryId = null }) => {
     cgstRate: 9,
     sgstRate: 9,
     igstRate: 18,
-    subTotal: 1020000,
-    cgstAmount: 91800,
-    sgstAmount: 91800,
+    subTotal: 0,
+    cgstAmount: 0,
+    sgstAmount: 0,
     igstAmount: 0,
-    totalTaxAmount: 183600,
-    totalAmount: 1203600,
-    amountInWords: 'Rupees Twelve Lakh Three Thousand Six Hundred Only.'
+    totalTaxAmount: 0,
+    totalAmount: 0,
+    amountInWords: 'Zero Rupees Only.'
   });
 
   // Step 5: Offering Versions & History
@@ -88,10 +73,12 @@ export const WorkflowProvider = ({ children, initialEnquiryId = null }) => {
   // Step 6: PO Handover
   const [poData, setPoData] = useState(null);
 
-  // Recalculate Pricing dynamically whenever products, transport, or GST change
+  // Recalculate Pricing dynamically whenever products, transport, forBasis, or GST change
   useEffect(() => {
     const totalBasic = products.reduce((acc, p) => acc + (Number(p.totalBasicPrice) || (Number(p.basicPrice || 500000) * Number(p.quantity || 1))), 0);
-    const transport = Number(pricing.transportPrice) || 0;
+    // When client arranges their own transport, Sky Power does NOT charge transport fees
+    const isClientOwnTransport = pricing.forBasis === 'Client Own Transport';
+    const transport = isClientOwnTransport ? 0 : (Number(pricing.transportPrice) || 0);
     const subTotal = totalBasic + transport;
 
     let cgstAmount = 0;
@@ -121,7 +108,7 @@ export const WorkflowProvider = ({ children, initialEnquiryId = null }) => {
       totalAmount,
       amountInWords: words
     }));
-  }, [products, pricing.transportPrice, pricing.gstType]);
+  }, [products, pricing.transportPrice, pricing.forBasis, pricing.gstType]);
 
   // Load existing enquiry if initialEnquiryId provided
   useEffect(() => {
