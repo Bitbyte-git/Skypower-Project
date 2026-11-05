@@ -134,6 +134,8 @@ export const UserManagement = () => {
                         className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
                           u.role === 'ADMIN'
                             ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                            : u.role === 'MANAGER'
+                            ? 'bg-purple-100 text-purple-900 border border-purple-300'
                             : 'bg-blue-100 text-blue-900 border border-blue-300'
                         }`}
                       >
@@ -234,6 +236,7 @@ export const UserManagement = () => {
                   className="w-full px-2 py-1.5 text-xs border border-slate-300 rounded bg-white"
                 >
                   <option value="SALES">SALES</option>
+                  <option value="MANAGER">MANAGER</option>
                   <option value="ADMIN">ADMIN</option>
                 </select>
               </div>

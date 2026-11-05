@@ -29,6 +29,9 @@ import { Profile } from '../pages/shared/Profile';
 // 6-Step Multi-Page Workflow Wizard & PO Tracking Portal
 import { WorkflowWizard } from '../pages/workflow/WorkflowWizard';
 import { POTrackingView } from '../pages/po/POTrackingView';
+import { DepartmentWorkflowView } from '../pages/workflow/DepartmentWorkflowView';
+import { ProjectTrackingTimeline } from '../pages/workflow/ProjectTrackingTimeline';
+import { ManagerDashboard } from '../pages/manager/ManagerDashboard';
 
 export const AppRoutes = () => {
   const { user, isAuthenticated, loading } = useAuth();
@@ -43,7 +46,7 @@ export const AppRoutes = () => {
 
   const getHomeRoute = () => {
     if (user?.role === 'ADMIN') return '/admin/dashboard';
-    if (user?.role === 'PO_TEAM') return '/po/tracking';
+    if (user?.role === 'MANAGER') return '/manager/dashboard';
     return '/sales/dashboard';
   };
 
@@ -61,8 +64,8 @@ export const AppRoutes = () => {
         }
       />
 
-      {/* Protected Routes Layout */}
-      <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'SALES', 'PO_TEAM']} />}>
+      {/* Protected Routes Layout - ONLY 3 ROLES: ADMIN, MANAGER, SALES */}
+      <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'SALES']} />}>
         <Route element={<MainLayout />}>
           {/* Default Root Redirect */}
           <Route path="/" element={<Navigate to={getHomeRoute()} replace />} />
@@ -70,11 +73,21 @@ export const AppRoutes = () => {
           {/* Shared Profile */}
           <Route path="/profile" element={<Profile />} />
 
+          {/* Department Workflow & Tracking Views (Accessible to all authorized roles) */}
+          <Route path="/departments/workflow" element={<DepartmentWorkflowView />} />
+          <Route path="/projects/tracking/:trackingId" element={<ProjectTrackingTimeline />} />
+          <Route path="/reports" element={<ReportsAnalytics />} />
+
           {/* PO Team & Execution Tracking Portal */}
           <Route path="/po/tracking" element={<POTrackingView />} />
 
+          {/* Manager Operations */}
+          <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']} />}>
+            <Route path="/manager/dashboard" element={<ManagerDashboard />} />
+          </Route>
+
           {/* 6-Step Multi-Page Client Enquiry -> Offering -> PO Team Workflow */}
-          <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'SALES']} />}>
+          <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'SALES']} />}>
             <Route path="/workflow" element={<WorkflowWizard />} />
             <Route path="/enquiries/new" element={<WorkflowWizard />} />
             <Route path="/enquiries/:id/workflow" element={<WorkflowWizard />} />

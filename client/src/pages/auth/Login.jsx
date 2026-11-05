@@ -20,8 +20,8 @@ export const Login = () => {
       const loggedUser = await login(email, password);
       if (loggedUser.role === 'ADMIN') {
         navigate('/admin/dashboard');
-      } else if (loggedUser.role === 'PO_TEAM') {
-        navigate('/po/tracking');
+      } else if (loggedUser.role === 'MANAGER') {
+        navigate('/manager/dashboard');
       } else {
         navigate('/workflow');
       }
@@ -38,15 +38,15 @@ export const Login = () => {
     setError('');
   };
 
-  const setSalesCredentials = () => {
-    setEmail('sales@skypower.co.in');
-    setPassword('Sales@123');
+  const setManagerCredentials = () => {
+    setEmail('manager@skypower.co.in');
+    setPassword('Manager@123');
     setError('');
   };
 
-  const setPOTeamCredentials = () => {
-    setEmail('po@skypower.co.in');
-    setPassword('Po@123');
+  const setSalesCredentials = () => {
+    setEmail('sales@skypower.co.in');
+    setPassword('Sales@123');
     setError('');
   };
 
@@ -161,11 +161,11 @@ export const Login = () => {
 
               <button
                 type="button"
-                onClick={setPOTeamCredentials}
+                onClick={setManagerCredentials}
                 className="flex flex-col items-center justify-center py-2 px-1 bg-[#F5F3FF] hover:bg-[#EDE9FE] text-purple-700 border border-purple-200 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer shadow-xs"
               >
                 <ClipboardList className="w-4 h-4 text-purple-700 mb-0.5" />
-                <span>PO Team</span>
+                <span>Manager</span>
               </button>
 
               <button

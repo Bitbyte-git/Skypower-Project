@@ -18,40 +18,51 @@ import {
 import heroImg from '../assets/hero.png';
 
 export const Sidebar = () => {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isManager } = useAuth();
   const location = useLocation();
-  const isPOTeam = user?.role === 'PO_TEAM';
 
-  const navItems = isPOTeam
-    ? [
-        { name: 'PO Tracking', path: '/po/tracking', icon: ClipboardList, badge: 'ACTIVE' },
-        { name: 'Production Queue', path: '/po/tracking?filter=production', icon: Factory },
-        { name: 'Quality Handover', path: '/po/tracking?filter=qc', icon: ShieldCheck }
-      ]
-    : [
-        { name: 'Dashboard', path: isAdmin ? '/admin/dashboard' : '/sales/dashboard', icon: LayoutDashboard },
-        {
-          name: 'Enquiry & CRM',
-          path: '/workflow',
-          icon: FileSpreadsheet,
-          badge: '6-STEP'
-        },
-        { name: 'Projects', path: '/enquiries', icon: FolderGit2 },
-        { name: 'Product Master', path: isAdmin ? '/admin/settings' : '/enquiries', icon: Cpu },
-        { name: 'Production', path: '/po/tracking', icon: Factory },
-        { name: 'Quality Control', path: '/po/tracking', icon: ShieldCheck },
-        { name: 'Dispatch & Delivery', path: '/po/tracking', icon: Truck },
-        { name: 'Accounts & Finance', path: '/quotations', icon: CreditCard },
-        { name: 'Reports & Analytics', path: isAdmin ? '/admin/reports' : '/followups', icon: BarChart3 },
-        { name: 'System Setup', path: isAdmin ? '/admin/settings' : '/profile', icon: Settings }
-      ];
+  const getDashboardPath = () => {
+    if (isAdmin) return '/admin/dashboard';
+    if (isManager) return '/manager/dashboard';
+    return '/sales/dashboard';
+  };
+
+  const navItems = [
+    { name: isManager ? 'Manager Console' : 'Dashboard', path: getDashboardPath(), icon: LayoutDashboard },
+    {
+      name: '10-Dept Workflow',
+      path: '/departments/workflow',
+      icon: Factory,
+      badge: '10-DEPT'
+    },
+    {
+      name: 'Enquiry & CRM',
+      path: '/workflow',
+      icon: FileSpreadsheet,
+      badge: '6-STEP'
+    },
+    { name: 'Projects', path: '/enquiries', icon: FolderGit2 },
+    { name: 'Product Master', path: isAdmin ? '/admin/settings' : '/enquiries', icon: Cpu },
+    { name: 'Production', path: '/po/tracking', icon: Factory },
+    { name: 'Quality Control', path: '/po/tracking', icon: ShieldCheck },
+    { name: 'Dispatch & Delivery', path: '/po/tracking', icon: Truck },
+    { name: 'Accounts & Finance', path: '/quotations', icon: CreditCard },
+    { name: 'Reports & Analytics', path: '/reports', icon: BarChart3 },
+    { name: 'System Setup', path: isAdmin ? '/admin/settings' : '/profile', icon: Settings }
+  ];
 
   const checkIsActive = (itemPath) => {
+    if (itemPath === '/departments/workflow') {
+      return location.pathname.startsWith('/departments/workflow');
+    }
     if (itemPath === '/workflow') {
       return (
         location.pathname.startsWith('/workflow') ||
         location.pathname.startsWith('/enquiries/new')
       );
+    }
+    if (itemPath === '/reports') {
+      return location.pathname.startsWith('/reports') || location.pathname.startsWith('/admin/reports');
     }
     if (itemPath === '/enquiries') {
       return (

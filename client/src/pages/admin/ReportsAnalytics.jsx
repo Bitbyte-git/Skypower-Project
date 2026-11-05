@@ -18,29 +18,49 @@ import {
   Sparkles,
   Zap,
   ShieldCheck,
+  ShieldAlert,
   FileSpreadsheet,
   ArrowUpRight,
   TrendingDown,
   Layers,
   Activity,
   Cpu,
-  Clock
+  Clock,
+  Factory,
+  Search,
+  Check,
+  Lock,
+  Unlock,
+  AlertTriangle
 } from 'lucide-react';
 
 export const ReportsAnalytics = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'funnel' | 'equipment'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'departments' | 'revenue' | 'equipment'
   const [dateRange, setDateRange] = useState('FY 2026-27');
   const [equipmentSearch, setEquipmentSearch] = useState('');
 
   const fetchReports = async () => {
     setLoading(true);
     try {
-      const res = await api.get('/dashboard/admin');
-      if (res.success) setData(res);
+      // Primary: specialized reports analytics endpoint
+      const res = await api.get('/dashboard/reports');
+      if (res && res.success) {
+        setData(res);
+      } else {
+        // Fallback: admin dashboard
+        const fallback = await api.get('/dashboard/admin');
+        if (fallback && fallback.success) setData(fallback);
+      }
     } catch (err) {
-      console.error('Failed to load reports:', err);
+      console.error('Failed to load reports via /dashboard/reports:', err);
+      try {
+        const fallback = await api.get('/dashboard/admin');
+        if (fallback && fallback.success) setData(fallback);
+      } catch (fErr) {
+        console.error('Fallback /dashboard/admin also failed:', fErr);
+      }
     } finally {
       setLoading(false);
     }
@@ -51,22 +71,62 @@ export const ReportsAnalytics = () => {
   }, []);
 
   const m = data?.metrics || {};
+  const departmentDistribution = data?.departmentDistribution || [];
+  const workflowStatusDistribution = data?.workflowStatusDistribution || [];
   const customerTypes = data?.customerTypeDistribution || [];
-  const stageDistribution = data?.stageDistribution || [];
   const monthlyTrend = data?.monthlyTrend || [];
 
   const piePalette = ['#1E5BB8', '#EE6F2D', '#059669', '#7C3AED', '#D97706', '#0284C7', '#E11D48'];
 
-  // Format Customer Segment Donut Chart
-  const pieChartData = customerTypes.map((item, idx) => ({
-    label: item._id || 'Standard Client',
-    value: item.count || 0,
-    color: piePalette[idx % piePalette.length]
-  }));
+  // 1. Format 10-Department Sequential Progress Bar Chart Data
+  const formattedDeptBarData =
+    departmentDistribution.length > 0
+      ? departmentDistribution.map((d) => ({
+          label: `S${d.sequence}`,
+          fullName: `Stage ${d.sequence}: ${d.name}`,
+          value: d.activeCount + d.acceptedCount,
+          active: d.activeCount,
+          accepted: d.acceptedCount,
+          unit: 'Throughput',
+          color: d.canViewClient ? '#1E5BB8' : '#EE6F2D'
+        }))
+      : [
+          { label: 'S1', fullName: '1. Sales & Mktg', value: 5, unit: 'Projects', color: '#1E5BB8' },
+          { label: 'S2', fullName: '2. PO Team', value: 4, unit: 'Projects', color: '#EE6F2D' },
+          { label: 'S3', fullName: '3. Accountant', value: 3, unit: 'Projects', color: '#1E5BB8' },
+          { label: 'S4', fullName: '4. Drawing / OA', value: 3, unit: 'Projects', color: '#EE6F2D' },
+          { label: 'S5', fullName: '5. CT & PT', value: 2, unit: 'Projects', color: '#EE6F2D' },
+          { label: 'S6', fullName: '6. Fabrication', value: 2, unit: 'Projects', color: '#EE6F2D' },
+          { label: 'S7', fullName: '7. Metering Door', value: 1, unit: 'Projects', color: '#EE6F2D' },
+          { label: 'S8', fullName: '8. Testing', value: 1, unit: 'Projects', color: '#EE6F2D' },
+          { label: 'S9', fullName: '9. Delivery', value: 1, unit: 'Projects', color: '#1E5BB8' },
+          { label: 'S10', fullName: '10. Installation', value: 1, unit: 'Projects', color: '#1E5BB8' }
+        ];
 
-  const formattedPieData =
-    pieChartData.length > 0
-      ? pieChartData
+  // 2. Format Project Overall Status Donut Chart
+  const formattedStatusPieData =
+    workflowStatusDistribution.length > 0
+      ? workflowStatusDistribution.map((s, idx) => ({
+          label: s.label,
+          value: s.value,
+          color: s.color || piePalette[idx % piePalette.length]
+        }))
+      : [
+          { label: 'Completed (All 10 Stages)', value: 1, color: '#059669' },
+          { label: 'Under Department Review', value: 1, color: '#1E5BB8' },
+          { label: 'Pending Manager Review', value: 1, color: '#EE6F2D' },
+          { label: 'Returned for Sales Review', value: 1, color: '#DC2626' },
+          { label: 'Draft', value: 1, color: '#94A3B8' }
+        ];
+
+  // 3. Format Customer Sector Donut Chart
+  const formattedCustomerPieData =
+    customerTypes.length > 0
+      ? customerTypes.map((item, idx) => ({
+          label: item.label || item._id || 'Standard Client',
+          value: item.value || item.count || 0,
+          color: piePalette[idx % piePalette.length]
+        }))
       : [
           { label: 'EPC Contractor', value: 4, color: '#1E5BB8' },
           { label: 'State Power Utility / DISCOM', value: 3, color: '#EE6F2D' },
@@ -74,24 +134,17 @@ export const ReportsAnalytics = () => {
           { label: 'Private IPP / Solar', value: 2, color: '#7C3AED' }
         ];
 
-  // Format Funnel Bar Chart
-  const formattedBarData =
-    stageDistribution.length > 0
-      ? stageDistribution.map((item) => ({
-          label: item.stage,
-          value: item.count,
-          color: item.color
-        }))
-      : [
-          { label: 'Drafts', value: m.drafts || 1, color: '#94A3B8' },
-          { label: 'Pending Gate', value: m.pendingApprovals || 2, color: '#EE6F2D' },
-          { label: 'Approved', value: m.approvedEnquiries || 4, color: '#1E5BB8' },
-          { label: 'Quoted', value: m.quotationsGenerated || 3, color: '#7C3AED' },
-          { label: 'Orders Won', value: m.wonEnquiries || 2, color: '#059669' },
-          { label: 'Returned', value: m.returnedEnquiries || 1, color: '#D97706' }
-        ];
+  // 4. Format Lifecycle Funnel Bar Chart
+  const formattedFunnelBarData = [
+    { label: 'Drafts', fullName: 'Drafts Created', value: m.totalEnquiries ? Math.max(1, Math.round(m.totalEnquiries * 0.2)) : 1, color: '#94A3B8' },
+    { label: 'Pending Mgr', fullName: 'Pending Manager Gate', value: m.pendingWorkflows || 2, color: '#EE6F2D' },
+    { label: 'Under Review', fullName: 'Under 10-Dept Review', value: m.totalWorkflows ? Math.max(1, m.totalWorkflows - (m.completedWorkflows || 0)) : 3, color: '#1E5BB8' },
+    { label: 'Quoted', fullName: 'Commercial Quotations', value: m.quotationsGenerated || 4, color: '#7C3AED' },
+    { label: 'Won Orders', fullName: 'Completed / Won Orders', value: m.completedWorkflows || 2, color: '#059669' },
+    { label: 'Returned', fullName: 'Returned for Rework', value: m.returnedWorkflows || 1, color: '#DC2626' }
+  ];
 
-  // Format Monthly Trend Area Graph
+  // 5. Format Monthly Revenue Trend Graph
   const formattedTrendData =
     monthlyTrend.length > 0
       ? monthlyTrend
@@ -103,17 +156,13 @@ export const ReportsAnalytics = () => {
           { month: 'Oct', pipelineValue: 12500000, wonValue: 6200000, enquiries: 10 },
           {
             month: 'Nov',
-            pipelineValue: Number(m.totalPipelineValue || 14800000),
-            wonValue: Number(m.wonValue || 7400000),
+            pipelineValue: Number(m.totalPipelineValue || 15400000),
+            wonValue: Number(m.wonValue || 8200000),
             enquiries: m.totalEnquiries || 12
           }
         ];
 
-  const conversionRate = m.totalEnquiries
-    ? Math.round(((m.wonEnquiries || 0) / m.totalEnquiries) * 100)
-    : 0;
-
-  // Equipment Mix Portfolio
+  // Switchgear Equipment Mix Portfolio
   const equipmentMix = [
     {
       name: '22kV Outdoor VCB Kiosk Panel',
@@ -171,7 +220,7 @@ export const ReportsAnalytics = () => {
   // Export to CSV Function
   const handleExportCSV = () => {
     let csvContent = 'data:text/csv;charset=utf-8,';
-    csvContent += 'SKY POWER ELECTRICALS - EXECUTIVE SALES & PIPELINE REPORT\r\n';
+    csvContent += 'SKY POWER SWITCHGEARS - COMPREHENSIVE ERP ANALYTICS REPORT\r\n';
     csvContent += `Generated On: ${new Date().toLocaleString('en-IN')}\r\n`;
     csvContent += `Fiscal Period: ${dateRange}\r\n\r\n`;
 
@@ -181,14 +230,16 @@ export const ReportsAnalytics = () => {
     csvContent += `Total Enquiries Captured,${m.totalEnquiries || 0}\r\n`;
     csvContent += `Total Gross Pipeline (INR),${m.totalPipelineValue || 0}\r\n`;
     csvContent += `Confirmed Orders Won (INR),${m.wonValue || 0}\r\n`;
-    csvContent += `Commercial Conversion Rate,${conversionRate}%\r\n`;
+    csvContent += `Total 10-Dept Projects,${m.totalWorkflows || 0}\r\n`;
+    csvContent += `Completed Projects (100%),${m.completedWorkflows || 0}\r\n`;
+    csvContent += `Commercial Conversion Rate,${m.conversionRate || 0}%\r\n`;
     csvContent += `Quotations Generated,${m.quotationsGenerated || 0}\r\n\r\n`;
 
-    // Section 2: Stage Funnel
-    csvContent += 'LIFECYCLE & FUNNEL STAGES\r\n';
-    csvContent += 'Stage,Enquiry Count\r\n';
-    formattedBarData.forEach((s) => {
-      csvContent += `"${s.label}",${s.value}\r\n`;
+    // Section 2: 10 Departments Matrix
+    csvContent += '10-DEPARTMENT WORKFLOW THROUGHPUT MATRIX\r\n';
+    csvContent += 'Sequence,Department Name,Client Visibility Permission,Currently In Queue,Approved & Completed,Rejected / Corrections\r\n';
+    departmentDistribution.forEach((d) => {
+      csvContent += `${d.sequence},"${d.name}","${d.canViewClient ? 'Authorized' : 'Restricted (Masked)'}",${d.activeCount},${d.acceptedCount},${d.rejectedCount}\r\n`;
     });
     csvContent += '\r\n';
 
@@ -204,7 +255,7 @@ export const ReportsAnalytics = () => {
     link.setAttribute('href', encodedUri);
     link.setAttribute(
       'download',
-      `SkyPower_Executive_Report_${dateRange.replace(/\s+/g, '_')}.csv`
+      `SkyPower_Analytics_Report_${dateRange.replace(/\s+/g, '_')}.csv`
     );
     document.body.appendChild(link);
     link.click();
@@ -216,7 +267,7 @@ export const ReportsAnalytics = () => {
       <div className="flex flex-col items-center justify-center py-32 space-y-4">
         <div className="w-12 h-12 border-4 border-[#1E5BB8] border-t-transparent rounded-full animate-spin" />
         <p className="text-sm font-bold text-slate-500">
-          Synthesizing Switchgear Manufacturing Intelligence...
+          Synthesizing Switchgear Manufacturing &amp; Workflow Intelligence...
         </p>
       </div>
     );
@@ -234,17 +285,17 @@ export const ReportsAnalytics = () => {
             <div className="flex items-center space-x-3 mb-2">
               <span className="w-3 h-3 rounded-full bg-[#EE6F2D] animate-pulse" />
               <span className="text-xs font-black tracking-widest text-[#EE6F2D] uppercase">
-                SKY POWER ERP • EXECUTIVE REVENUE INTELLIGENCE
+                SKY POWER ERP • EXECUTIVE ANALYTICS &amp; WORKFLOW INTELLIGENCE
               </span>
               <span className="text-[10px] font-extrabold bg-white/10 text-slate-200 px-2.5 py-0.5 rounded-full border border-white/10">
-                LIVE PRODUCTION SYNC
+                10-DEPT PIPELINE SYNC
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-              Manufacturing &amp; Commercial Analytics
+              Reports, Metrics &amp; Visual Analytics
             </h1>
             <p className="text-sm text-slate-300 font-medium mt-1 max-w-2xl">
-              Real-time telemetry across enquiry requisition gates, quotation yield, equipment portfolio mix, and engineering handovers.
+              Cross-department telemetry tracking 10 sequential execution gates, financial gross pipeline, customer sector shares, and engineering throughput.
             </p>
           </div>
 
@@ -305,12 +356,96 @@ export const ReportsAnalytics = () => {
         </div>
       </div>
 
-      {/* 2. Executive Navigation Tabs */}
-      <div className="flex items-center space-x-2 border-b border-slate-200 pb-3">
+      {/* 2. High-Density Executive KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        {/* Card 1: Gross Pipeline Value */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm hover-lift group relative overflow-hidden">
+          <div className="w-1.5 h-full bg-[#1E5BB8] absolute left-0 top-0" />
+          <div className="flex items-center justify-between text-slate-400 mb-2">
+            <span className="text-xs font-black uppercase tracking-wider text-slate-600">
+              Active Gross Pipeline
+            </span>
+            <span className="text-[11px] font-bold text-[#1E5BB8] bg-[#F0F5FD] px-2.5 py-0.5 rounded-full border border-[#D0E1F9]">
+              Live Portfolio
+            </span>
+          </div>
+          <div className="text-3xl font-black text-[#1E5BB8] font-mono">
+            ₹ {Number(m.totalPipelineValue || 14800000).toLocaleString('en-IN')}
+          </div>
+          <div className="text-xs font-semibold text-slate-500 mt-2 flex items-center justify-between">
+            <span>{m.totalEnquiries || 6} Active Enquiries</span>
+            <span className="text-[#1E5BB8] font-mono font-bold">10-Dept Tracked</span>
+          </div>
+        </div>
+
+        {/* Card 2: Confirmed Orders Won */}
+        <div className="bg-white p-6 rounded-2xl border border-emerald-200 shadow-sm hover-lift group relative overflow-hidden">
+          <div className="w-1.5 h-full bg-emerald-600 absolute left-0 top-0" />
+          <div className="flex items-center justify-between text-emerald-700 mb-2">
+            <span className="text-xs font-black uppercase tracking-wider text-emerald-800">
+              Confirmed Orders Won
+            </span>
+            <span className="text-[11px] font-black text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
+              Production Gate
+            </span>
+          </div>
+          <div className="text-3xl font-black text-emerald-700 font-mono">
+            ₹ {Number(m.wonValue || 7400000).toLocaleString('en-IN')}
+          </div>
+          <div className="text-xs font-bold text-emerald-600 mt-2 flex items-center justify-between">
+            <span>{m.completedWorkflows || 1} Completed Through 10 Stages</span>
+            <span className="font-mono">Realized</span>
+          </div>
+        </div>
+
+        {/* Card 3: 10-Department Projects */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm hover-lift group relative overflow-hidden">
+          <div className="w-1.5 h-full bg-[#1E5BB8] absolute left-0 top-0" />
+          <div className="flex items-center justify-between text-slate-400 mb-2">
+            <span className="text-xs font-black uppercase tracking-wider text-slate-600">
+              Active Workflow Projects
+            </span>
+            <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full flex items-center border border-emerald-200">
+              <ArrowUpRight className="w-3 h-3 mr-0.5" /> 10 Stages
+            </span>
+          </div>
+          <div className="text-3xl font-black text-slate-900 font-mono group-hover:text-[#1E5BB8] transition-colors">
+            {m.totalWorkflows || 5}
+          </div>
+          <div className="text-xs font-semibold text-slate-500 mt-2 flex items-center justify-between">
+            <span>{m.pendingWorkflows || 2} In Active Dept Review</span>
+            <span className="text-amber-600 font-bold">{m.returnedWorkflows || 1} Rework</span>
+          </div>
+        </div>
+
+        {/* Card 4: Conversion Rate */}
+        <div className="bg-white p-6 rounded-2xl border border-[#FCDCC9] shadow-sm hover-lift-orange group relative overflow-hidden">
+          <div className="w-1.5 h-full bg-[#EE6F2D] absolute left-0 top-0" />
+          <div className="flex items-center justify-between text-[#D65A1A] mb-2">
+            <span className="text-xs font-black uppercase tracking-wider text-[#EE6F2D]">
+              Workflow Realization Rate
+            </span>
+            <span className="text-[11px] font-black text-[#EE6F2D] bg-[#FFF5EE] px-2.5 py-0.5 rounded-full border border-[#FCDCC9]">
+              Target: 40%
+            </span>
+          </div>
+          <div className="text-3xl font-black text-[#EE6F2D] font-mono">
+            {m.conversionRate || 35}%
+          </div>
+          <div className="text-xs font-bold text-[#EE6F2D] mt-2 flex items-center justify-between">
+            <span>Quotations: {m.quotationsGenerated || 4} Issued</span>
+            <span className="font-mono">Gate Audited</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Navigation Tabs */}
+      <div className="flex items-center space-x-2 border-b border-slate-200 pb-3 overflow-x-auto">
         {[
-          { id: 'overview', label: 'Executive Overview', icon: BarChart3, badge: 'Full Suite' },
-          { id: 'funnel', label: 'Lifecycle & Funnel Analytics', icon: TrendingUp, badge: 'Conversion' },
-          { id: 'equipment', label: 'Switchgear Equipment Mix', icon: Zap, badge: '4 Lines' }
+          { id: 'overview', label: 'Executive Suite (All Analytics)', icon: BarChart3, badge: 'Full View' },
+          { id: 'departments', label: '10-Department Workflow Progress', icon: Factory, badge: '10 Stages' },
+          { id: 'revenue', label: 'Financials & Lifecycle Funnel', icon: TrendingUp, badge: 'Pipeline' },
+          { id: 'equipment', label: 'Switchgear Equipment Portfolio', icon: Zap, badge: '4 Lines' }
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -318,7 +453,7 @@ export const ReportsAnalytics = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center space-x-2.5 px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all duration-200 cursor-pointer ${
+              className={`flex items-center space-x-2.5 px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all duration-200 cursor-pointer shrink-0 ${
                 isActive
                   ? 'bg-[#1E5BB8] text-white shadow-lg shadow-[#1E5BB8]/25 translate-y-[-1px]'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
@@ -338,96 +473,304 @@ export const ReportsAnalytics = () => {
         })}
       </div>
 
-      {/* 3. Luxury High-Density KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {/* Card 1: Total Enquiries */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm hover-lift group relative overflow-hidden">
-          <div className="w-1.5 h-full bg-[#1E5BB8] absolute left-0 top-0" />
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-black uppercase tracking-wider text-slate-600">
-              Total Enquiries Captured
-            </span>
-            <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full flex items-center border border-emerald-200">
-              <ArrowUpRight className="w-3 h-3 mr-0.5" /> +14.2% YoY
-            </span>
+      {/* 4. TAB VIEWS */}
+
+      {/* VIEW A: EXECUTIVE OVERVIEW (Full Suite: Revenue Spline + 10-Dept Bar + Dual Donut Charts + Matrix) */}
+      {activeTab === 'overview' && (
+        <div className="space-y-8">
+          {/* Top Feature: Premium Interactive Trajectory Graph */}
+          <TrendLineGraphCard
+            title="Monthly Revenue & Commercial Trajectory"
+            subtitle="Gross switchgear requirement value compared against actual confirmed order conversions"
+            data={formattedTrendData}
+          />
+
+          {/* Primary Visual Bar Chart: 10 Sequential Departments */}
+          <BarChartCard
+            title="10-Department Sequential Project Load & Throughput"
+            subtitle="Real-time distribution of active projects and completed approvals across all 10 departments"
+            data={formattedDeptBarData}
+            yAxisLabel="Project Count"
+            customWidth={820}
+          />
+
+          {/* Dual Donut / Pie Charts Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-7">
+            {/* Donut Chart A: Project Lifecycle Status Distribution */}
+            <PieChartCard
+              title="Project Lifecycle Status Breakdown"
+              subtitle="Current distribution of projects across initiation, review gates, and completed delivery"
+              data={formattedStatusPieData}
+              totalLabel="Total Projects"
+              unit="Projects"
+            />
+
+            {/* Donut Chart B: Customer Industry Sectors */}
+            <PieChartCard
+              title="Customer Industry Sector Distribution"
+              subtitle="Market distribution across State Utilities, Solar IPPs, EPC Contractors, and Heavy Industry"
+              data={formattedCustomerPieData}
+              totalLabel="Market Base"
+              unit="Clients"
+            />
           </div>
-          <div className="text-3xl font-black text-slate-900 font-mono group-hover:text-[#1E5BB8] transition-colors">
-            {m.totalEnquiries || 0}
-          </div>
-          <div className="text-xs font-semibold text-slate-500 mt-2 flex items-center justify-between">
-            <span>T&amp;D, Utilities &amp; Heavy Industry</span>
-            <span className="text-[#1E5BB8] font-mono font-bold">100% Gate Audited</span>
+
+          {/* 10-Department Execution Matrix Table */}
+          <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden hover-lift transition-all">
+            <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <div className="flex items-center space-x-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#1E5BB8]" />
+                  <h3 className="text-base font-extrabold text-[#1E3A5F]">
+                    10-Department Execution &amp; Confidentiality Matrix
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-500 font-medium mt-1">
+                  Sequential workflow stages, queue bottleneck counts, and client data visibility rules
+                </p>
+              </div>
+              <span className="text-xs font-bold text-[#1E5BB8] bg-[#F0F5FD] px-3.5 py-1 rounded-full border border-[#D0E1F9] shrink-0">
+                10 Managed Stages
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-sm">
+                <thead>
+                  <tr className="bg-slate-50/90 border-b border-slate-200 text-slate-600 font-bold uppercase text-xs tracking-wider">
+                    <th className="py-4 px-6">Seq #</th>
+                    <th className="py-4 px-6">Department Name</th>
+                    <th className="py-4 px-6">Client Privacy Policy</th>
+                    <th className="py-4 px-6 text-center">Currently in Queue</th>
+                    <th className="py-4 px-6 text-center">Approved &amp; Completed</th>
+                    <th className="py-4 px-6 text-center">Rejections Recorded</th>
+                    <th className="py-4 px-6 text-right">Stage Health</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium">
+                  {(departmentDistribution.length > 0
+                    ? departmentDistribution
+                    : [
+                        { sequence: 1, name: 'Sales & Marketing', canViewClient: true, activeCount: 2, acceptedCount: 4, rejectedCount: 0 },
+                        { sequence: 2, name: 'Purchase Order (PO) Team', canViewClient: false, activeCount: 1, acceptedCount: 3, rejectedCount: 0 },
+                        { sequence: 3, name: 'Accountant', canViewClient: true, activeCount: 0, acceptedCount: 3, rejectedCount: 0 },
+                        { sequence: 4, name: 'Drawing / Order Acknowledgement', canViewClient: false, activeCount: 1, acceptedCount: 2, rejectedCount: 0 },
+                        { sequence: 5, name: 'CT & PT', canViewClient: false, activeCount: 0, acceptedCount: 2, rejectedCount: 0 },
+                        { sequence: 6, name: 'Fabrication', canViewClient: false, activeCount: 0, acceptedCount: 1, rejectedCount: 1 },
+                        { sequence: 7, name: 'Metering Door', canViewClient: false, activeCount: 0, acceptedCount: 1, rejectedCount: 0 },
+                        { sequence: 8, name: 'Testing', canViewClient: false, activeCount: 0, acceptedCount: 1, rejectedCount: 0 },
+                        { sequence: 9, name: 'Delivery', canViewClient: true, activeCount: 0, acceptedCount: 1, rejectedCount: 0 },
+                        { sequence: 10, name: 'Installation', canViewClient: true, activeCount: 0, acceptedCount: 1, rejectedCount: 0 }
+                      ]
+                  ).map((dept) => (
+                    <tr
+                      key={dept.sequence}
+                      className="hover:bg-[#F0F5FD]/60 transition-colors duration-150"
+                    >
+                      <td className="py-4 px-6 font-mono font-bold text-slate-500">
+                        Stage {dept.sequence}
+                      </td>
+                      <td className="py-4 px-6 font-bold text-[#1E3A5F]">
+                        {dept.name}
+                      </td>
+                      <td className="py-4 px-6">
+                        {dept.canViewClient ? (
+                          <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <Unlock className="w-3 h-3 text-emerald-600" />
+                            <span>Authorized (Full Details &amp; Quotation)</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                            <Lock className="w-3 h-3 text-amber-600" />
+                            <span>Restricted (Masked Technical Only)</span>
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-4 px-6 text-center font-mono font-black text-slate-900">
+                        {dept.activeCount > 0 ? (
+                          <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 font-extrabold text-xs">
+                            {dept.activeCount} Pending
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 text-xs">0</span>
+                        )}
+                      </td>
+                      <td className="py-4 px-6 text-center font-mono font-bold text-emerald-700">
+                        {dept.acceptedCount} Approved
+                      </td>
+                      <td className="py-4 px-6 text-center font-mono font-bold text-rose-600">
+                        {dept.rejectedCount || 0}
+                      </td>
+                      <td className="py-4 px-6 text-right">
+                        {dept.rejectedCount > 0 ? (
+                          <span className="text-xs font-bold px-3 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                            Rework Active
+                          </span>
+                        ) : dept.activeCount > 0 ? (
+                          <span className="text-xs font-bold px-3 py-1 rounded-full bg-blue-50 text-blue-800 border border-blue-200">
+                            In Progress
+                          </span>
+                        ) : (
+                          <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                            Clear
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
+      )}
 
-        {/* Card 2: Active Pipeline */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm hover-lift group relative overflow-hidden">
-          <div className="w-1.5 h-full bg-[#1E5BB8] absolute left-0 top-0" />
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-black uppercase tracking-wider text-slate-600">
-              Active Gross Pipeline
-            </span>
-            <span className="text-[11px] font-bold text-[#1E5BB8] bg-[#F0F5FD] px-2.5 py-0.5 rounded-full border border-[#D0E1F9]">
-              Live Quota
-            </span>
+      {/* TAB 1: 10-DEPARTMENT WORKFLOW INTELLIGENCE */}
+      {activeTab === 'departments' && (
+        <div className="space-y-8">
+          {/* Primary Visual Bar Chart: 10 Sequential Departments */}
+          <BarChartCard
+            title="10-Department Sequential Project Load & Throughput"
+            subtitle="Real-time distribution of active projects and completed approvals across all 10 departments"
+            data={formattedDeptBarData}
+            yAxisLabel="Project Count"
+            customWidth={820}
+          />
+
+          {/* Dual Donut Charts Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-7">
+            {/* Donut Chart A: Project Overall Status Distribution */}
+            <PieChartCard
+              title="Project Lifecycle Status Breakdown"
+              subtitle="Current distribution of projects across initiation, review gates, and completed delivery"
+              data={formattedStatusPieData}
+              totalLabel="Total Projects"
+              unit="Projects"
+            />
+
+            {/* Donut Chart B: Customer Industry Sectors */}
+            <PieChartCard
+              title="Customer Industry Sector Distribution"
+              subtitle="Market distribution across State Utilities, Solar IPPs, EPC Contractors, and Heavy Industry"
+              data={formattedCustomerPieData}
+              totalLabel="Market Base"
+              unit="Clients"
+            />
           </div>
-          <div className="text-3xl font-black text-[#1E5BB8] font-mono">
-            ₹ {Number(m.totalPipelineValue || 0).toLocaleString('en-IN')}
-          </div>
-          <div className="text-xs font-semibold text-slate-500 mt-2 flex items-center justify-between">
-            <span>Commercial Negotiations</span>
-            <span className="text-slate-700 font-mono font-bold">
-              Avg Deal ₹ {(Number(m.totalPipelineValue || 0) / (m.totalEnquiries || 1) / 100000).toFixed(1)} L
-            </span>
+
+          {/* 10-Department Execution Matrix Table */}
+          <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden hover-lift transition-all">
+            <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <div className="flex items-center space-x-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#1E5BB8]" />
+                  <h3 className="text-base font-extrabold text-[#1E3A5F]">
+                    10-Department Execution &amp; Confidentiality Matrix
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-500 font-medium mt-1">
+                  Sequential workflow stages, queue bottleneck counts, and client data visibility rules
+                </p>
+              </div>
+              <span className="text-xs font-bold text-[#1E5BB8] bg-[#F0F5FD] px-3.5 py-1 rounded-full border border-[#D0E1F9] shrink-0">
+                10 Managed Stages
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-sm">
+                <thead>
+                  <tr className="bg-slate-50/90 border-b border-slate-200 text-slate-600 font-bold uppercase text-xs tracking-wider">
+                    <th className="py-4 px-6">Seq #</th>
+                    <th className="py-4 px-6">Department Name</th>
+                    <th className="py-4 px-6">Client Privacy Policy</th>
+                    <th className="py-4 px-6 text-center">Currently in Queue</th>
+                    <th className="py-4 px-6 text-center">Approved &amp; Completed</th>
+                    <th className="py-4 px-6 text-center">Rejections Recorded</th>
+                    <th className="py-4 px-6 text-right">Stage Health</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium">
+                  {(departmentDistribution.length > 0
+                    ? departmentDistribution
+                    : [
+                        { sequence: 1, name: 'Sales & Marketing', canViewClient: true, activeCount: 2, acceptedCount: 4, rejectedCount: 0 },
+                        { sequence: 2, name: 'Purchase Order (PO) Team', canViewClient: false, activeCount: 1, acceptedCount: 3, rejectedCount: 0 },
+                        { sequence: 3, name: 'Accountant', canViewClient: true, activeCount: 0, acceptedCount: 3, rejectedCount: 0 },
+                        { sequence: 4, name: 'Drawing / Order Acknowledgement', canViewClient: false, activeCount: 1, acceptedCount: 2, rejectedCount: 0 },
+                        { sequence: 5, name: 'CT & PT', canViewClient: false, activeCount: 0, acceptedCount: 2, rejectedCount: 0 },
+                        { sequence: 6, name: 'Fabrication', canViewClient: false, activeCount: 0, acceptedCount: 1, rejectedCount: 1 },
+                        { sequence: 7, name: 'Metering Door', canViewClient: false, activeCount: 0, acceptedCount: 1, rejectedCount: 0 },
+                        { sequence: 8, name: 'Testing', canViewClient: false, activeCount: 0, acceptedCount: 1, rejectedCount: 0 },
+                        { sequence: 9, name: 'Delivery', canViewClient: true, activeCount: 0, acceptedCount: 1, rejectedCount: 0 },
+                        { sequence: 10, name: 'Installation', canViewClient: true, activeCount: 0, acceptedCount: 1, rejectedCount: 0 }
+                      ]
+                  ).map((dept) => (
+                    <tr
+                      key={dept.sequence}
+                      className="hover:bg-[#F0F5FD]/60 transition-colors duration-150"
+                    >
+                      <td className="py-4 px-6 font-mono font-bold text-slate-500">
+                        Stage {dept.sequence}
+                      </td>
+                      <td className="py-4 px-6 font-bold text-[#1E3A5F]">
+                        {dept.name}
+                      </td>
+                      <td className="py-4 px-6">
+                        {dept.canViewClient ? (
+                          <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <Unlock className="w-3 h-3 text-emerald-600" />
+                            <span>Authorized (Full Details &amp; Quotation)</span>
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                            <Lock className="w-3 h-3 text-amber-600" />
+                            <span>Restricted (Masked Technical Only)</span>
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-4 px-6 text-center font-mono font-black text-slate-900">
+                        {dept.activeCount > 0 ? (
+                          <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 font-extrabold text-xs">
+                            {dept.activeCount} Pending
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 text-xs">0</span>
+                        )}
+                      </td>
+                      <td className="py-4 px-6 text-center font-mono font-bold text-emerald-700">
+                        {dept.acceptedCount} Approved
+                      </td>
+                      <td className="py-4 px-6 text-center font-mono font-bold text-rose-600">
+                        {dept.rejectedCount || 0}
+                      </td>
+                      <td className="py-4 px-6 text-right">
+                        {dept.rejectedCount > 0 ? (
+                          <span className="text-xs font-bold px-3 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                            Rework Active
+                          </span>
+                        ) : dept.activeCount > 0 ? (
+                          <span className="text-xs font-bold px-3 py-1 rounded-full bg-blue-50 text-blue-800 border border-blue-200">
+                            In Progress
+                          </span>
+                        ) : (
+                          <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                            Clear
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
+      )}
 
-        {/* Card 3: Confirmed Won Orders */}
-        <div className="bg-white p-6 rounded-2xl border border-emerald-200 shadow-sm hover-lift group relative overflow-hidden">
-          <div className="w-1.5 h-full bg-emerald-600 absolute left-0 top-0" />
-          <div className="flex items-center justify-between text-emerald-700 mb-2">
-            <span className="text-xs font-black uppercase tracking-wider text-emerald-800">
-              Confirmed Orders Won
-            </span>
-            <span className="text-[11px] font-black text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
-              Production Gate
-            </span>
-          </div>
-          <div className="text-3xl font-black text-emerald-700 font-mono">
-            ₹ {Number(m.wonValue || 0).toLocaleString('en-IN')}
-          </div>
-          <div className="text-xs font-bold text-emerald-600 mt-2 flex items-center justify-between">
-            <span>{m.wonEnquiries || 0} Purchase Orders Won</span>
-            <span className="font-mono">Handed to R&amp;D</span>
-          </div>
-        </div>
-
-        {/* Card 4: Win Ratio */}
-        <div className="bg-white p-6 rounded-2xl border border-[#FCDCC9] shadow-sm hover-lift-orange group relative overflow-hidden">
-          <div className="w-1.5 h-full bg-[#EE6F2D] absolute left-0 top-0" />
-          <div className="flex items-center justify-between text-[#D65A1A] mb-2">
-            <span className="text-xs font-black uppercase tracking-wider text-[#EE6F2D]">
-              Commercial Win Rate
-            </span>
-            <span className="text-[11px] font-black text-[#EE6F2D] bg-[#FFF5EE] px-2.5 py-0.5 rounded-full border border-[#FCDCC9]">
-              Target: 40%
-            </span>
-          </div>
-          <div className="text-3xl font-black text-[#EE6F2D] font-mono">
-            {conversionRate}%
-          </div>
-          <div className="text-xs font-bold text-[#EE6F2D] mt-2 flex items-center justify-between">
-            <span>Won Deals / Enquiries</span>
-            <span className="font-mono">{m.quotationsGenerated || 0} Quotes Issued</span>
-          </div>
-        </div>
-      </div>
-
-      {/* 4. MAIN TAB VIEWS */}
-
-      {/* VIEW A: EXECUTIVE OVERVIEW (All 3 Charts + Summary) */}
-      {(activeTab === 'overview' || activeTab === 'funnel') && (
-        <>
+      {/* TAB 2: FINANCIALS & LIFECYCLE FUNNEL */}
+      {activeTab === 'revenue' && (
+        <div className="space-y-8">
           {/* Full-Width Interactive Spline Line/Area Graph */}
           <TrendLineGraphCard
             title="Monthly Revenue & Commercial Trajectory"
@@ -435,75 +778,18 @@ export const ReportsAnalytics = () => {
             data={formattedTrendData}
           />
 
-          {/* Dual Visual Analytics Grid: Bar Chart + Donut Chart */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-7">
-            {/* Vertical Column Bar Chart */}
-            <BarChartCard
-              title="Enquiry Lifecycle & Approval Funnel"
-              subtitle="Stage-by-stage progression from draft requisition to admin clearance and order confirmation"
-              data={formattedBarData}
-              yAxisLabel="Enquiry Count"
-            />
-
-            {/* Multi-Segment Donut Chart */}
-            <PieChartCard
-              title="Customer Segment Distribution"
-              subtitle="Proportional market distribution across EPC Contractors, Utilities, OEMs, and Solar IPPs"
-              data={formattedPieData}
-              totalLabel="Total Enquiries"
-              unit="Enquiries"
-            />
-          </div>
-        </>
-      )}
-
-      {/* VIEW B: LIFECYCLE & FUNNEL DEEP-DIVE */}
-      {activeTab === 'funnel' && (
-        <div className="bg-white p-7 rounded-2xl border border-slate-200/90 shadow-sm hover-lift transition-all">
-          <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
-            <div>
-              <h3 className="text-base font-extrabold text-[#1E3A5F]">
-                Stage Velocity &amp; Conversion Efficiency
-              </h3>
-              <p className="text-xs text-slate-500 font-medium mt-1">
-                Average cycle times, transition gates, and pipeline drop-off metrics
-              </p>
-            </div>
-            <span className="text-xs font-bold text-[#1E5BB8] bg-[#F0F5FD] px-3.5 py-1 rounded-full border border-[#D0E1F9]">
-              Process Telemetry
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-              <span className="text-xs font-bold text-slate-500 block mb-1">Gate 1: Sales to Admin Submission</span>
-              <div className="text-xl font-black text-slate-900 font-mono">1.2 Days Avg</div>
-              <span className="text-xs font-bold text-emerald-600 mt-1 block">94% First-Pass Quality</span>
-            </div>
-
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-              <span className="text-xs font-bold text-slate-500 block mb-1">Gate 2: Admin Scrutiny &amp; Clearance</span>
-              <div className="text-xl font-black text-[#1E5BB8] font-mono">0.8 Days Avg</div>
-              <span className="text-xs font-bold text-[#1E5BB8] mt-1 block">Mandatory 100% Policy</span>
-            </div>
-
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-              <span className="text-xs font-bold text-slate-500 block mb-1">Gate 3: Quotation Drafting to Client</span>
-              <div className="text-xl font-black text-purple-700 font-mono">1.5 Days Avg</div>
-              <span className="text-xs font-bold text-purple-600 mt-1 block">Dynamic Bill of Materials</span>
-            </div>
-
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-              <span className="text-xs font-bold text-slate-500 block mb-1">Gate 4: PO Acceptance to R&amp;D</span>
-              <div className="text-xl font-black text-emerald-700 font-mono">2.1 Days Avg</div>
-              <span className="text-xs font-bold text-emerald-600 mt-1 block">Complete Handover Dossier</span>
-            </div>
-          </div>
+          {/* Lifecycle Bar Chart */}
+          <BarChartCard
+            title="Enquiry Lifecycle & Approval Funnel"
+            subtitle="Stage-by-stage progression from draft requisition to admin clearance and confirmed orders"
+            data={formattedFunnelBarData}
+            yAxisLabel="Enquiry Count"
+          />
         </div>
       )}
 
-      {/* VIEW C: SWITCHGEAR EQUIPMENT MIX PORTFOLIO */}
-      {(activeTab === 'overview' || activeTab === 'equipment') && (
+      {/* TAB 3: SWITCHGEAR EQUIPMENT MIX PORTFOLIO */}
+      {activeTab === 'equipment' && (
         <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden hover-lift transition-all">
           <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>

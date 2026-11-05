@@ -1,5 +1,13 @@
 import dotenv from 'dotenv';
-dotenv.config();
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Explicitly load server/.env first, then fallback to root .env
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 export const ENV = {
   PORT: process.env.PORT || 5000,
@@ -9,4 +17,5 @@ export const ENV = {
   UPLOAD_DIR: process.env.UPLOAD_DIR || 'uploads',
   NODE_ENV: process.env.NODE_ENV || 'development'
 };
+
 

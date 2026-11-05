@@ -4,6 +4,7 @@ import { PurchaseOrder } from '../models/PurchaseOrder.js';
 import { generateNextClientID, generateNextERN, generateNextPOID } from '../services/counterService.js';
 import { logActivity } from '../services/auditService.js';
 import { USER_ROLES } from '../constants/roles.js';
+import { initializeProjectWorkflow } from '../services/seedService.js';
 
 /**
  * Step 1: Validate or Register Client
@@ -284,6 +285,8 @@ export const saveWorkflowDraft = async (req, res, next) => {
       ]
     });
 
+    const workflow = await initializeProjectWorkflow(newEnquiry, req.user);
+
     await logActivity({
       userId: req.user._id,
       userRole: req.user.role,
@@ -291,14 +294,15 @@ export const saveWorkflowDraft = async (req, res, next) => {
       entityType: 'Enquiry',
       entityId: newEnquiry._id,
       ern: newEnquiry.ern,
-      details: { ern: newEnquiry.ern, clientCustomId, version: initialVersion },
+      details: { ern: newEnquiry.ern, clientCustomId, version: initialVersion, projectTrackingId: workflow?.projectTrackingId },
       req
     });
 
     return res.status(201).json({
       success: true,
       message: `Enquiry workflow created with ERN: ${ern}`,
-      enquiry: newEnquiry
+      enquiry: newEnquiry,
+      projectWorkflow: workflow
     });
   } catch (err) {
     next(err);

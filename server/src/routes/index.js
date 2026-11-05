@@ -10,6 +10,7 @@ import dashboardRoutes from './dashboardRoutes.js';
 import settingRoutes from './settingRoutes.js';
 import auditLogRoutes from './auditLogRoutes.js';
 import workflowRoutes from './workflowRoutes.js';
+import projectWorkflowRoutes from './projectWorkflowRoutes.js';
 
 const router = Router();
 
@@ -24,5 +25,6 @@ router.use('/dashboard', dashboardRoutes);
 router.use('/settings', settingRoutes);
 router.use('/audit-logs', auditLogRoutes);
 router.use('/workflow', workflowRoutes);
+router.use('/project-workflows', projectWorkflowRoutes);
 
 export default router;

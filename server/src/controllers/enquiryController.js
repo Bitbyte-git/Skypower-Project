@@ -4,6 +4,7 @@ import { generateNextERN } from '../services/counterService.js';
 import { APPROVAL_STATUSES, COMMERCIAL_STATUSES } from '../constants/statuses.js';
 import { USER_ROLES } from '../constants/roles.js';
 import { logActivity } from '../services/auditService.js';
+import { initializeProjectWorkflow } from '../services/seedService.js';
 
 export const createEnquiry = async (req, res, next) => {
   try {
@@ -45,6 +46,8 @@ export const createEnquiry = async (req, res, next) => {
       currentRevision: 1
     });
 
+    const workflow = await initializeProjectWorkflow(enquiry, req.user);
+
     await logActivity({
       userId: req.user._id,
       userRole: req.user.role,
@@ -52,14 +55,15 @@ export const createEnquiry = async (req, res, next) => {
       entityType: 'Enquiry',
       entityId: enquiry._id,
       ern: enquiry.ern,
-      details: { ern: enquiry.ern, expectedProjectValue },
+      details: { ern: enquiry.ern, expectedProjectValue, projectTrackingId: workflow?.projectTrackingId },
       req
     });
 
     return res.status(201).json({
       success: true,
       message: `Enquiry draft created successfully with ERN: ${ern}`,
-      enquiry
+      enquiry,
+      projectWorkflow: workflow
     });
   } catch (err) {
     next(err);

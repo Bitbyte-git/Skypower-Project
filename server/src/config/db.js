@@ -1,15 +1,32 @@
 import mongoose from 'mongoose';
+import dns from 'dns';
 import { ENV } from './env.js';
 
 let mongodInstance = null;
 
 export const connectDB = async () => {
   try {
-    // First try connecting to configured URI with short timeout
+    const isCloudURI =
+      ENV.MONGODB_URI.startsWith('mongodb+srv://') ||
+      (!ENV.MONGODB_URI.includes('127.0.0.1') && !ENV.MONGODB_URI.includes('localhost'));
+
+    // Enable Google/Cloudflare DNS fallback for Node.js SRV record lookup on Windows
+    if (isCloudURI && ENV.MONGODB_URI.startsWith('mongodb+srv://')) {
+      try {
+        dns.setServers(['8.8.8.8', '1.1.1.1']);
+      } catch (dnsErr) {
+        // ignore if not supported in environment
+      }
+    }
+
+    // Cloud connection timeout: 15s for DNS & TLS handshake; 3s for local fallback
+    const serverSelectionTimeoutMS = isCloudURI ? 15000 : 3000;
+
     const conn = await mongoose.connect(ENV.MONGODB_URI, {
-      serverSelectionTimeoutMS: 2500
+      serverSelectionTimeoutMS
     });
-    console.log(`[Database] Connected to MongoDB at: ${conn.connection.host}:${conn.connection.port}/${conn.connection.name}`);
+
+    console.log(`[Database] Connected successfully to MongoDB: ${conn.connection.host}/${conn.connection.name}`);
     return conn;
   } catch (primaryErr) {
     console.warn(`[Database] Could not connect to primary MongoDB (${ENV.MONGODB_URI}): ${primaryErr.message}`);

@@ -44,3 +44,32 @@ export const FOLLOWUP_STATUSES = {
   RESCHEDULED: 'Rescheduled',
   CANCELLED: 'Cancelled'
 };
+
+export const PROJECT_WORKFLOW_STATUSES = {
+  DRAFT: 'Draft',
+  PENDING_MANAGER_REVIEW: 'Pending Manager Review',
+  PENDING_PO_APPROVAL: 'Pending PO Approval',
+  UNDER_DEPARTMENT_REVIEW: 'Under Department Review',
+  RETURNED_FOR_CORRECTION: 'Returned for Sales & Marketing Review',
+  COMPLETED: 'Completed'
+};
+
+export const DEPARTMENT_APPROVAL_STATUSES = {
+  WAITING: 'Waiting',
+  PENDING: 'Pending',
+  ACCEPTED: 'Accepted',
+  REJECTED: 'Rejected'
+};
+
+export const DEPARTMENTS_LIST = [
+  { sequence: 1, code: 'SALES', name: 'Sales & Marketing', canViewClientDetails: true },
+  { sequence: 2, code: 'PO_TEAM', name: 'Purchase Order (PO) Team', canViewClientDetails: false },
+  { sequence: 3, code: 'ACCOUNTANT', name: 'Accountant', canViewClientDetails: true },
+  { sequence: 4, code: 'DRAWING', name: 'Drawing / Order Acknowledgement', canViewClientDetails: false },
+  { sequence: 5, code: 'CT_PT', name: 'CT & PT', canViewClientDetails: false },
+  { sequence: 6, code: 'FABRICATION', name: 'Fabrication', canViewClientDetails: false },
+  { sequence: 7, code: 'METERING_DOOR', name: 'Metering Door', canViewClientDetails: false },
+  { sequence: 8, code: 'TESTING', name: 'Testing', canViewClientDetails: false },
+  { sequence: 9, code: 'DELIVERY', name: 'Delivery', canViewClientDetails: true },
+  { sequence: 10, code: 'INSTALLATION', name: 'Installation', canViewClientDetails: true }
+];

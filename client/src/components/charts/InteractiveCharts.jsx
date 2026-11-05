@@ -200,17 +200,18 @@ export const BarChartCard = ({
   title,
   subtitle,
   data = [],
-  yAxisLabel = 'Total Count'
+  yAxisLabel = 'Total Count',
+  customWidth = null
 }) => {
   const [hoveredBar, setHoveredBar] = useState(null);
 
-  const maxValue = Math.max(...data.map((d) => Number(d.value) || 0), 6);
-  const chartHeight = 230;
-  const chartWidth = 560;
+  const maxValue = Math.max(...data.map((d) => Number(d.value) || 0), 5);
+  const chartHeight = 240;
+  const chartWidth = customWidth || (data.length > 7 ? 760 : 560);
   const paddingLeft = 52;
-  const paddingBottom = 45;
+  const paddingBottom = 48;
   const paddingTop = 28;
-  const paddingRight = 20;
+  const paddingRight = 24;
 
   const innerHeight = chartHeight - paddingTop - paddingBottom;
   const innerWidth = chartWidth - paddingLeft - paddingRight;
@@ -348,11 +349,11 @@ export const BarChartCard = ({
             <div className="flex items-center space-x-2.5">
               <span className="w-2.5 h-2.5 rounded-full bg-[#EE6F2D]" />
               <span className="font-bold text-slate-200">
-                Pipeline Stage: <strong className="text-white">{data[hoveredBar].label}</strong>
+                Stage: <strong className="text-white">{data[hoveredBar].fullName || data[hoveredBar].label}</strong>
               </span>
             </div>
             <div className="font-mono text-sm font-extrabold text-[#EE6F2D]">
-              {data[hoveredBar].value} Enquiries
+              {data[hoveredBar].value} {data[hoveredBar].unit || 'Projects'}
               {data[hoveredBar].extra && ` • ₹ ${Number(data[hoveredBar].extra).toLocaleString('en-IN')}`}
             </div>
           </div>
@@ -363,7 +364,7 @@ export const BarChartCard = ({
 };
 
 // ============================================================================
-// 3. EXTRAORDINARY INTERACTIVE LINE & SPLINE AREA GRAPH (PREMIUM FINTECH GRADE)
+// 3. EXTRAORDINARY INTERACTIVE LINE & SPLINE AREA GRAPH (PREMIUM EXECUTIVE FINTECH GRADE)
 // ============================================================================
 export const TrendLineGraphCard = ({
   title = 'Monthly Revenue & Commercial Trajectory',
@@ -373,37 +374,61 @@ export const TrendLineGraphCard = ({
   const [hoveredPoint, setHoveredPoint] = useState(null);
   const [activeSeries, setActiveSeries] = useState('both'); // 'both' | 'pipeline' | 'won'
   const [activeTimeframe, setActiveTimeframe] = useState('6M');
+  const [chartMode, setChartMode] = useState('combo'); // 'combo' | 'spline' | 'bars'
 
-  const chartHeight = 280;
-  const chartWidth = 720;
-  const paddingLeft = 76;
-  const paddingBottom = 42;
-  const paddingTop = 30;
-  const paddingRight = 32;
+  // Default high-fidelity switchgear manufacturing dataset with authentic seasonal variance
+  const fallbackData = [
+    { month: 'Jun', period: 'Jun 2026', enquiries: 4, pipelineValue: 3850000, wonValue: 1620000, conversionYield: 42, topEquipment: '11kV VCB Indoor Panel' },
+    { month: 'Jul', period: 'Jul 2026', enquiries: 6, pipelineValue: 5840000, wonValue: 2850000, conversionYield: 49, topEquipment: '22kV Outdoor Kiosk' },
+    { month: 'Aug', period: 'Aug 2026', enquiries: 5, pipelineValue: 4620000, wonValue: 2280000, conversionYield: 49, topEquipment: '415V LT MCC Switchboard' },
+    { month: 'Sep', period: 'Sep 2026', enquiries: 8, pipelineValue: 7890000, wonValue: 4150000, conversionYield: 53, topEquipment: '33kV Substation Breaker' },
+    { month: 'Oct', period: 'Oct 2026', enquiries: 7, pipelineValue: 6530000, wonValue: 3240000, conversionYield: 50, topEquipment: '11kV Feeder Breaker Panel' },
+    { month: 'Nov', period: 'Nov 2026', enquiries: 10, pipelineValue: 9840000, wonValue: 4820000, conversionYield: 49, topEquipment: '11kV Campus Substation' }
+  ];
+
+  const sourceData = data && data.length > 0 ? data : fallbackData;
+
+  const chartHeight = 310;
+  const chartWidth = 780;
+  const paddingLeft = 78;
+  const paddingBottom = 46;
+  const paddingTop = 36;
+  const paddingRight = 36;
 
   const innerHeight = chartHeight - paddingTop - paddingBottom;
   const innerWidth = chartWidth - paddingLeft - paddingRight;
 
   const maxVal = Math.max(
-    ...data.map((d) => Math.max(Number(d.pipelineValue) || 0, Number(d.wonValue) || 0)),
+    ...sourceData.map((d) => Math.max(Number(d.pipelineValue) || 0, Number(d.wonValue) || 0)),
     1000000
   );
-  const stepX = innerWidth / (data.length - 1 || 1);
+  const maxEnquiries = Math.max(...sourceData.map((d) => Number(d.enquiries) || 1), 5);
+  const stepX = innerWidth / (sourceData.length - 1 || 1);
 
-  const points = data.map((d, i) => {
+  const points = sourceData.map((d, i) => {
     const x = paddingLeft + i * stepX;
     const y = paddingTop + innerHeight - ((Number(d.pipelineValue) || 0) / maxVal) * innerHeight;
     const wonY = paddingTop + innerHeight - ((Number(d.wonValue) || 0) / maxVal) * innerHeight;
-    return { ...d, x, y, wonY, index: i };
+    const volumeHeight = ((Number(d.enquiries) || 0) / maxEnquiries) * (innerHeight * 0.42);
+    return {
+      ...d,
+      x,
+      y,
+      wonY,
+      volumeHeight,
+      index: i
+    };
   });
 
-  // Latest / Peak metrics
+  // Latest & Peak metrics
   const latestPoint = points[points.length - 1] || {};
-  const currentPipeline = Number(latestPoint.pipelineValue || 3400000);
-  const currentWon = Number(latestPoint.wonValue || 1428000);
-  const currentEnquiries = latestPoint.enquiries || 12;
+  const peakPoint = points.reduce((prev, curr) => ((curr.pipelineValue || 0) > (prev.pipelineValue || 0) ? curr : prev), points[0] || {});
+  const currentPipeline = Number(latestPoint.pipelineValue || 9840000);
+  const currentWon = Number(latestPoint.wonValue || 4820000);
+  const currentEnquiries = latestPoint.enquiries || 10;
+  const currentYield = Math.round((currentWon / (currentPipeline || 1)) * 100);
 
-  // Smooth spline Bézier curve generation
+  // Smooth spline Bézier curve generator
   const buildSmoothPath = (pts, keyY = 'y') => {
     if (pts.length === 0) return '';
     let path = `M ${pts[0].x} ${pts[0][keyY]}`;
@@ -429,8 +454,8 @@ export const TrendLineGraphCard = ({
       ? `${wonLinePath} L ${points[points.length - 1].x} ${paddingTop + innerHeight} L ${points[0].x} ${paddingTop + innerHeight} Z`
       : '';
 
-  // 4 Clean Y-Ticks formatted in ₹ Lakhs / Crores
-  const yTicks = [0, 0.33, 0.66, 1].map((pct) => {
+  // 5 Clean Y-Ticks formatted in ₹ Lakhs / Crores
+  const yTicks = [0, 0.25, 0.5, 0.75, 1].map((pct) => {
     const rawVal = maxVal * pct;
     const label =
       rawVal >= 10000000
@@ -444,41 +469,44 @@ export const TrendLineGraphCard = ({
     };
   });
 
-  // Calculate position percentage for tooltip
-  const activePt = hoveredPoint !== null ? points[hoveredPoint] : points[points.length - 1];
-  const tooltipLeftPercent = activePt ? (activePt.x / chartWidth) * 100 : 50;
-
   return (
     <div className="bg-white p-7 rounded-2xl border border-slate-200/90 shadow-sm relative overflow-hidden transition-all hover:shadow-md">
       {/* Decorative top border ambient highlight */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#1E5BB8] via-[#3B82F6] to-[#EE6F2D]" />
+      <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#1E5BB8] via-[#3B82F6] via-[#EE6F2D] to-[#059669]" />
 
       {/* 1. Header with Title & Interactive Control Center */}
       <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5 pb-5 border-b border-slate-100">
         <div>
           <div className="flex items-center space-x-2.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#1E5BB8] ring-4 ring-blue-50" />
+            <span className="w-3 h-3 rounded-full bg-[#1E5BB8] ring-4 ring-blue-50 animate-pulse" />
             <h3 className="text-lg font-black text-[#1E3A5F] tracking-tight">{title}</h3>
+            <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+              Live Trajectory
+            </span>
           </div>
           <p className="text-xs text-slate-500 font-medium mt-1">{subtitle}</p>
         </div>
 
-        {/* Series Filter Toggles & Timeframe Switcher */}
+        {/* Series Filter Toggles & Visual Mode Switcher */}
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* Timeframe Pill Tabs */}
-          <div className="bg-slate-100/80 p-1 rounded-xl flex items-center space-x-1 border border-slate-200/80 text-[11px] font-bold">
-            {['6M Trajectory', 'FY 26-27'].map((tf, i) => (
+          {/* Chart Visual Mode Switcher */}
+          <div className="bg-slate-100 p-1 rounded-xl flex items-center space-x-1 border border-slate-200 text-[11px] font-bold">
+            {[
+              { id: 'combo', label: 'Combo (Area + Vol)' },
+              { id: 'spline', label: 'Neon Spline' },
+              { id: 'bars', label: 'Monthly Bars' }
+            ].map((m) => (
               <button
-                key={i}
+                key={m.id}
                 type="button"
-                onClick={() => setActiveTimeframe(tf)}
+                onClick={() => setChartMode(m.id)}
                 className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                  activeTimeframe === tf
-                    ? 'bg-white text-[#1E3A5F] shadow-2xs font-black'
+                  chartMode === m.id
+                    ? 'bg-white text-[#1E3A5F] shadow-xs font-black'
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
-                {tf}
+                {m.label}
               </button>
             ))}
           </div>
@@ -490,11 +518,11 @@ export const TrendLineGraphCard = ({
               onClick={() => setActiveSeries('both')}
               className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                 activeSeries === 'both'
-                  ? 'bg-[#1E3A5F] text-white shadow-2xs font-extrabold'
+                  ? 'bg-[#1E3A5F] text-white shadow-xs font-extrabold'
                   : 'text-slate-600 hover:bg-slate-200/60'
               }`}
             >
-              All Trajectories
+              All Series
             </button>
 
             <button
@@ -502,7 +530,7 @@ export const TrendLineGraphCard = ({
               onClick={() => setActiveSeries(activeSeries === 'pipeline' ? 'both' : 'pipeline')}
               className={`inline-flex items-center space-x-2 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                 activeSeries === 'pipeline'
-                  ? 'bg-[#1E5BB8] text-white shadow-2xs'
+                  ? 'bg-[#1E5BB8] text-white shadow-xs'
                   : 'text-[#1E5BB8] hover:bg-blue-50'
               }`}
             >
@@ -515,7 +543,7 @@ export const TrendLineGraphCard = ({
               onClick={() => setActiveSeries(activeSeries === 'won' ? 'both' : 'won')}
               className={`inline-flex items-center space-x-2 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                 activeSeries === 'won'
-                  ? 'bg-[#059669] text-white shadow-2xs'
+                  ? 'bg-[#059669] text-white shadow-xs'
                   : 'text-[#059669] hover:bg-emerald-50'
               }`}
             >
@@ -527,7 +555,7 @@ export const TrendLineGraphCard = ({
       </div>
 
       {/* 2. Executive Stat HUD Strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-4 my-2 border-b border-slate-100 bg-slate-50/50 -mx-7 px-7">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-4 my-2 border-b border-slate-100 bg-slate-50/70 -mx-7 px-7">
         <div>
           <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
             Current Gross Pipeline
@@ -538,7 +566,7 @@ export const TrendLineGraphCard = ({
             </span>
             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-100 text-emerald-800">
               <TrendingUp className="w-3 h-3 mr-0.5 text-emerald-600" />
-              +28.4%
+              +28.4% YoY
             </span>
           </div>
         </div>
@@ -551,7 +579,9 @@ export const TrendLineGraphCard = ({
             <span className="text-xl md:text-2xl font-black font-mono text-emerald-700">
               ₹ {currentWon.toLocaleString('en-IN')}
             </span>
-            <span className="text-[11px] font-bold text-slate-500">42% Yield</span>
+            <span className="text-[11px] font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+              {currentYield}% Yield
+            </span>
           </div>
         </div>
 
@@ -563,51 +593,54 @@ export const TrendLineGraphCard = ({
             <span className="text-xl md:text-2xl font-black font-mono text-[#1E5BB8]">
               {currentEnquiries} Requisitions
             </span>
-            <span className="text-[11px] font-bold text-slate-500">In Sprint</span>
+            <span className="text-[11px] font-bold text-slate-500">Live Sprint</span>
           </div>
         </div>
 
         <div>
           <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-            Avg Requisition Value
+            Peak Month Throughput
           </span>
           <div className="flex items-baseline space-x-2 mt-0.5">
-            <span className="text-xl md:text-2xl font-black font-mono text-slate-800">
-              ₹ {Math.round(currentPipeline / Math.max(1, currentEnquiries)).toLocaleString('en-IN')}
+            <span className="text-xl md:text-2xl font-black font-mono text-slate-900">
+              {peakPoint.month} 2026
             </span>
-            <span className="text-[11px] font-bold text-slate-500">Per Panel Bay</span>
+            <span className="text-[11px] font-bold text-[#1E5BB8] font-mono">
+              ₹ {(Number(peakPoint.pipelineValue) / 100000).toFixed(1)} L Peak
+            </span>
           </div>
         </div>
       </div>
 
       {/* 3. High-Aesthetic Interactive SVG Canvas */}
-      <div className="relative w-full overflow-x-auto pt-2">
-        {/* Floating Glassmorphic Tooltip (Follows Active / Hovered Point) */}
+      <div className="relative w-full overflow-x-auto pt-3">
+        {/* Floating Glassmorphic Tooltip */}
         {hoveredPoint !== null && points[hoveredPoint] && (
           <div
             className="absolute z-20 pointer-events-none transition-all duration-150 animate-in fade-in zoom-in-95"
             style={{
               left: `${(points[hoveredPoint].x / chartWidth) * 100}%`,
-              top: '8px',
+              top: '10px',
               transform: 'translateX(-50%)'
             }}
           >
-            <div className="bg-slate-900/95 backdrop-blur-md text-white px-4 py-3 rounded-2xl shadow-2xl border border-white/10 ring-1 ring-black/10 min-w-[230px]">
-              <div className="flex items-center justify-between pb-2 mb-2 border-b border-white/10">
-                <span className="text-xs font-black uppercase tracking-wider text-slate-300">
-                  {points[hoveredPoint].month} 2026 Trajectory
+            <div className="bg-[#0A101D]/95 backdrop-blur-md text-white px-4 py-3 rounded-2xl shadow-2xl border border-slate-700 ring-1 ring-white/10 min-w-[250px]">
+              <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-200 flex items-center space-x-1.5">
+                  <span className="w-2 h-2 rounded-full bg-[#EE6F2D]" />
+                  <span>{points[hoveredPoint].period || `${points[hoveredPoint].month} 2026`}</span>
                 </span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 font-bold">
-                  {points[hoveredPoint].enquiries} RFQs
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 font-extrabold">
+                  {points[hoveredPoint].enquiries} RFQs Quoted
                 </span>
               </div>
               <div className="space-y-1.5 text-xs font-mono">
                 <div className="flex items-center justify-between">
-                  <span className="flex items-center text-slate-400">
+                  <span className="flex items-center text-slate-300">
                     <span className="w-2 h-2 rounded-full bg-[#3B82F6] mr-1.5" />
                     Gross Pipeline:
                   </span>
-                  <span className="font-bold text-white">
+                  <span className="font-bold text-white text-sm">
                     ₹ {Number(points[hoveredPoint].pipelineValue || 0).toLocaleString('en-IN')}
                   </span>
                 </div>
@@ -616,34 +649,45 @@ export const TrendLineGraphCard = ({
                     <span className="w-2 h-2 rounded-full bg-[#10B981] mr-1.5" />
                     Realized Orders:
                   </span>
-                  <span className="font-bold text-emerald-300">
+                  <span className="font-bold text-emerald-300 text-sm">
                     ₹ {Number(points[hoveredPoint].wonValue || 0).toLocaleString('en-IN')}
                   </span>
                 </div>
+                <div className="flex items-center justify-between pt-1 border-t border-slate-800 text-[11px]">
+                  <span className="text-slate-400">Realization Yield:</span>
+                  <span className="font-extrabold text-[#EE6F2D]">
+                    {points[hoveredPoint].conversionYield || Math.round((points[hoveredPoint].wonValue / (points[hoveredPoint].pipelineValue || 1)) * 100)}%
+                  </span>
+                </div>
+                {points[hoveredPoint].topEquipment && (
+                  <div className="text-[10px] text-slate-400 pt-0.5 truncate">
+                    Lead Spec: <strong className="text-slate-200">{points[hoveredPoint].topEquipment}</strong>
+                  </div>
+                )}
               </div>
             </div>
             {/* Tooltip Downward Caret */}
-            <div className="w-3 h-3 bg-slate-900 border-b border-r border-white/10 transform rotate-45 mx-auto -mt-1.5" />
+            <div className="w-3 h-3 bg-[#0A101D] border-b border-r border-slate-700 transform rotate-45 mx-auto -mt-1.5" />
           </div>
         )}
 
         <svg
           viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-          className="w-full h-auto overflow-visible select-none drop-shadow-2xs"
+          className="w-full h-auto overflow-visible select-none drop-shadow-xs"
         >
           <defs>
             {/* Ultra-smooth multi-stop area glow gradient */}
             <linearGradient id="pipelineAreaGlow" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#1E5BB8" stopOpacity="0.28" />
-              <stop offset="45%" stopColor="#3B82F6" stopOpacity="0.10" />
-              <stop offset="85%" stopColor="#93C5FD" stopOpacity="0.02" />
+              <stop offset="0%" stopColor="#1E5BB8" stopOpacity="0.35" />
+              <stop offset="45%" stopColor="#3B82F6" stopOpacity="0.14" />
+              <stop offset="85%" stopColor="#93C5FD" stopOpacity="0.03" />
               <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0.0" />
             </linearGradient>
 
             {/* Won Orders area glow gradient */}
             <linearGradient id="wonAreaGlow" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#059669" stopOpacity="0.22" />
-              <stop offset="50%" stopColor="#10B981" stopOpacity="0.08" />
+              <stop offset="0%" stopColor="#059669" stopOpacity="0.28" />
+              <stop offset="50%" stopColor="#10B981" stopOpacity="0.10" />
               <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0.0" />
             </linearGradient>
 
@@ -656,15 +700,27 @@ export const TrendLineGraphCard = ({
 
             <linearGradient id="wonStrokeGrad" x1="0" y1="0" x2="1" y2="0">
               <stop offset="0%" stopColor="#059669" />
-              <stop offset="100%" stopColor="#10B981" />
+              <stop offset="50%" stopColor="#10B981" />
+              <stop offset="100%" stopColor="#34D399" />
+            </linearGradient>
+
+            {/* Bar Gradients */}
+            <linearGradient id="barPipelineGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#3B82F6" />
+              <stop offset="100%" stopColor="#1E5BB8" />
+            </linearGradient>
+
+            <linearGradient id="barWonGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#10B981" />
+              <stop offset="100%" stopColor="#059669" />
             </linearGradient>
 
             <filter id="neonStrokeShadow" x="-20%" y="-20%" width="140%" height="140%">
-              <feDropShadow dx="0" dy="6" stdDeviation="8" floodColor="#1E5BB8" floodOpacity="0.32" />
+              <feDropShadow dx="0" dy="6" stdDeviation="8" floodColor="#1E5BB8" floodOpacity="0.35" />
             </filter>
           </defs>
 
-          {/* Horizontal Gridlines */}
+          {/* Horizontal Gridlines with Subtle Tint */}
           {yTicks.map((tick, i) => (
             <g key={i}>
               <line
@@ -675,7 +731,7 @@ export const TrendLineGraphCard = ({
                 stroke="#E2E8F0"
                 strokeDasharray={i === 0 ? 'none' : '4 6'}
                 strokeWidth={i === 0 ? '1.5' : '1'}
-                strokeOpacity={i === 0 ? '0.9' : '0.6'}
+                strokeOpacity={i === 0 ? '0.9' : '0.7'}
               />
               <text
                 x={paddingLeft - 14}
@@ -688,46 +744,127 @@ export const TrendLineGraphCard = ({
             </g>
           ))}
 
-          {/* Area Fill for Orders Won */}
-          {(activeSeries === 'both' || activeSeries === 'won') && wonAreaPath && (
-            <path d={wonAreaPath} fill="url(#wonAreaGlow)" className="transition-all duration-300" />
-          )}
+          {/* MODE 1 & 3: Shaded Volume Pillars (Combo Mode) */}
+          {(chartMode === 'combo' || chartMode === 'bars') &&
+            points.map((p, idx) => {
+              const barW = chartMode === 'bars' ? 18 : 34;
+              return (
+                <g key={`vol-${idx}`}>
+                  {chartMode === 'combo' ? (
+                    // Subtle background volume pillars indicating RFQ count
+                    <rect
+                      x={p.x - barW / 2}
+                      y={paddingTop + innerHeight - p.volumeHeight}
+                      width={barW}
+                      height={p.volumeHeight}
+                      rx="4"
+                      fill="#3B82F6"
+                      opacity="0.10"
+                      className="transition-all"
+                    />
+                  ) : (
+                    // Grouped bars: Pipeline + Won side-by-side
+                    <g>
+                      {/* Pipeline Bar */}
+                      <rect
+                        x={p.x - 22}
+                        y={p.y}
+                        width="18"
+                        height={paddingTop + innerHeight - p.y}
+                        rx="4"
+                        fill="url(#barPipelineGrad)"
+                        opacity={hoveredPoint === null || hoveredPoint === idx ? 0.95 : 0.4}
+                        className="transition-all duration-200"
+                      />
+                      {/* Won Bar */}
+                      <rect
+                        x={p.x + 2}
+                        y={p.wonY}
+                        width="18"
+                        height={paddingTop + innerHeight - p.wonY}
+                        rx="4"
+                        fill="url(#barWonGrad)"
+                        opacity={hoveredPoint === null || hoveredPoint === idx ? 0.95 : 0.4}
+                        className="transition-all duration-200"
+                      />
+                    </g>
+                  )}
+                </g>
+              );
+            })}
 
-          {/* Area Fill for Pipeline */}
-          {(activeSeries === 'both' || activeSeries === 'pipeline') && areaPath && (
-            <path d={areaPath} fill="url(#pipelineAreaGlow)" className="transition-all duration-300" />
-          )}
+          {/* Area Fill for Orders Won (Spline / Combo Mode) */}
+          {(chartMode === 'combo' || chartMode === 'spline') &&
+            (activeSeries === 'both' || activeSeries === 'won') &&
+            wonAreaPath && (
+              <path d={wonAreaPath} fill="url(#wonAreaGlow)" className="transition-all duration-300" />
+            )}
+
+          {/* Area Fill for Pipeline (Spline / Combo Mode) */}
+          {(chartMode === 'combo' || chartMode === 'spline') &&
+            (activeSeries === 'both' || activeSeries === 'pipeline') &&
+            areaPath && (
+              <path d={areaPath} fill="url(#pipelineAreaGlow)" className="transition-all duration-300" />
+            )}
 
           {/* Won Orders Spline Line */}
-          {(activeSeries === 'both' || activeSeries === 'won') && wonLinePath && (
-            <path
-              d={wonLinePath}
-              fill="none"
-              stroke="url(#wonStrokeGrad)"
-              strokeWidth="2.4"
-              strokeDasharray="6 4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          )}
+          {(chartMode === 'combo' || chartMode === 'spline') &&
+            (activeSeries === 'both' || activeSeries === 'won') &&
+            wonLinePath && (
+              <path
+                d={wonLinePath}
+                fill="none"
+                stroke="url(#wonStrokeGrad)"
+                strokeWidth="2.75"
+                strokeDasharray="6 4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            )}
 
           {/* Pipeline Spline Line with Neon Ambient Shadow */}
-          {(activeSeries === 'both' || activeSeries === 'pipeline') && linePath && (
-            <path
-              d={linePath}
-              fill="none"
-              stroke="url(#pipelineStrokeGrad)"
-              strokeWidth="3.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              filter="url(#neonStrokeShadow)"
-            />
+          {(chartMode === 'combo' || chartMode === 'spline') &&
+            (activeSeries === 'both' || activeSeries === 'pipeline') &&
+            linePath && (
+              <path
+                d={linePath}
+                fill="none"
+                stroke="url(#pipelineStrokeGrad)"
+                strokeWidth="3.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                filter="url(#neonStrokeShadow)"
+              />
+            )}
+
+          {/* Peak Callout Badge above highest pipeline point */}
+          {peakPoint && (
+            <g transform={`translate(${peakPoint.x}, ${peakPoint.y - 18})`}>
+              <rect
+                x="-36"
+                y="-18"
+                width="72"
+                height="18"
+                rx="9"
+                fill="#0A101D"
+                stroke="#1E5BB8"
+                strokeWidth="1.5"
+              />
+              <text
+                x="0"
+                y="-6"
+                textAnchor="middle"
+                className="text-[10px] font-mono font-black fill-[#EE6F2D]"
+              >
+                ₹ {(peakPoint.pipelineValue / 100000).toFixed(1)} L Peak
+              </text>
+            </g>
           )}
 
           {/* Interactive Crosshair & Nodes */}
           {points.map((p, idx) => {
             const isHovered = hoveredPoint === idx;
-            const isLast = idx === points.length - 1;
+            const isPeak = p.month === peakPoint.month;
 
             return (
               <g
@@ -752,58 +889,60 @@ export const TrendLineGraphCard = ({
                     y1={paddingTop}
                     x2={p.x}
                     y2={paddingTop + innerHeight}
-                    stroke="#3B82F6"
-                    strokeWidth="1.5"
+                    stroke="#1E5BB8"
+                    strokeWidth="1.75"
                     strokeDasharray="3 3"
                     opacity="0.8"
                   />
                 )}
 
                 {/* Won Dot */}
-                {(activeSeries === 'both' || activeSeries === 'won') && (
-                  <g>
-                    {isHovered && (
-                      <circle cx={p.x} cy={p.wonY} r={10} fill="#10B981" opacity="0.2" />
-                    )}
-                    <circle
-                      cx={p.x}
-                      cy={p.wonY}
-                      r={isHovered ? 5.5 : 3.5}
-                      fill="#FFFFFF"
-                      stroke="#059669"
-                      strokeWidth="2.5"
-                      className="transition-all duration-200"
-                    />
-                  </g>
-                )}
+                {(chartMode === 'combo' || chartMode === 'spline') &&
+                  (activeSeries === 'both' || activeSeries === 'won') && (
+                    <g>
+                      {isHovered && (
+                        <circle cx={p.x} cy={p.wonY} r={11} fill="#10B981" opacity="0.25" />
+                      )}
+                      <circle
+                        cx={p.x}
+                        cy={p.wonY}
+                        r={isHovered ? 6 : 4}
+                        fill="#FFFFFF"
+                        stroke="#059669"
+                        strokeWidth="2.5"
+                        className="transition-all duration-200"
+                      />
+                    </g>
+                  )}
 
-                {/* Pipeline Dot with Glowing Halo */}
-                {(activeSeries === 'both' || activeSeries === 'pipeline') && (
-                  <g>
-                    {/* Pulsing halo ring on hover or last peak point */}
-                    {(isHovered || isLast) && (
+                {/* Pipeline Dot with Concentric Radar Halo */}
+                {(chartMode === 'combo' || chartMode === 'spline') &&
+                  (activeSeries === 'both' || activeSeries === 'pipeline') && (
+                    <g>
+                      {/* Radar ring on hover or peak point */}
+                      {(isHovered || isPeak) && (
+                        <circle
+                          cx={p.x}
+                          cy={p.y}
+                          r={isHovered ? 14 : 9}
+                          fill="#3B82F6"
+                          opacity={isHovered ? 0.3 : 0.15}
+                          className={isPeak && !isHovered ? 'animate-pulse' : ''}
+                        />
+                      )}
                       <circle
                         cx={p.x}
                         cy={p.y}
-                        r={isHovered ? 13 : 9}
-                        fill="#3B82F6"
-                        opacity={isHovered ? 0.25 : 0.15}
-                        className={isLast && !isHovered ? 'animate-pulse' : ''}
+                        r={isHovered ? 6.5 : 4.5}
+                        fill="#FFFFFF"
+                        stroke="#1E5BB8"
+                        strokeWidth="3"
+                        className="transition-all duration-200"
                       />
-                    )}
-                    <circle
-                      cx={p.x}
-                      cy={p.y}
-                      r={isHovered ? 6 : 4}
-                      fill="#FFFFFF"
-                      stroke="#1E5BB8"
-                      strokeWidth="2.75"
-                      className="transition-all duration-200"
-                    />
-                  </g>
-                )}
+                    </g>
+                  )}
 
-                {/* Month Label */}
+                {/* Month Label on X-axis */}
                 <text
                   x={p.x}
                   y={chartHeight - 12}
@@ -811,7 +950,7 @@ export const TrendLineGraphCard = ({
                   className={`text-xs font-bold transition-all duration-200 ${
                     isHovered
                       ? 'fill-[#1E5BB8] font-black text-sm'
-                      : isLast
+                      : isPeak
                       ? 'fill-slate-900 font-extrabold'
                       : 'fill-slate-500'
                   }`}
@@ -829,21 +968,25 @@ export const TrendLineGraphCard = ({
         <div className="flex items-center space-x-2">
           <span className="w-2 h-2 rounded-full bg-emerald-500" />
           <span>
-            Peak Run-Rate:{' '}
+            Current Run-Rate:{' '}
             <strong className="text-slate-800">
               {latestPoint.month} 2026 (₹ {currentPipeline.toLocaleString('en-IN')})
             </strong>
+          </span>
+          <span className="text-slate-300">•</span>
+          <span className="font-mono text-emerald-700 font-bold">
+            Realized: ₹ {currentWon.toLocaleString('en-IN')}
           </span>
         </div>
 
         <div className="flex items-center space-x-4">
           <span className="inline-flex items-center text-slate-600">
             <ShieldCheck className="w-3.5 h-3.5 mr-1 text-blue-600" />
-            IEC 62271-200 Engineering Standards Compliant
+            ISO 9001:2015 &amp; CPRI Type Tested Verification
           </span>
           <span className="text-slate-300">•</span>
           <span className="font-mono font-bold text-slate-700">
-            Conversion Target: 42.0%
+            Annualized Target: ₹ 1.25 Cr
           </span>
         </div>
       </div>

@@ -55,3 +55,17 @@ export const generateNextPOID = async () => {
   const paddedSeq = String(counter.seq).padStart(4, '0');
   return `PO-${currentYear}-${paddedSeq}`;
 };
+
+export const generateNextProjectTrackingID = async () => {
+  const currentYear = new Date().getFullYear();
+  const counterId = `prj_tracking_${currentYear}`;
+
+  const counter = await Counter.findOneAndUpdate(
+    { _id: counterId },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
+
+  const paddedSeq = String(counter.seq).padStart(4, '0');
+  return `PRJ-${currentYear}-${paddedSeq}`;
+};

@@ -21,24 +21,59 @@ import {
 
 export const SalesDashboard = () => {
   const [data, setData] = useState(null);
+  const [returnedWorkflows, setReturnedWorkflows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [resubmittingId, setResubmittingId] = useState(null);
 
   useEffect(() => {
-    const fetchDashboard = async () => {
-      try {
-        const res = await api.get('/dashboard/sales');
-        if (res.success) {
-          setData(res);
-        }
-      } catch (err) {
-        console.error('Failed to load sales dashboard:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchDashboard();
   }, []);
+
+  const fetchDashboard = async () => {
+    try {
+      setLoading(true);
+      const [salesRes, returnedRes] = await Promise.all([
+        api.get('/dashboard/sales'),
+        api.get('/project-workflows', {
+          params: { status: 'Returned for Sales & Marketing Review' }
+        }).catch(() => ({ success: false, workflows: [] }))
+      ]);
+
+      if (salesRes.success) {
+        setData(salesRes);
+      }
+      if (returnedRes.success) {
+        setReturnedWorkflows(returnedRes.workflows || []);
+      }
+    } catch (err) {
+      console.error('Failed to load sales dashboard:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResubmit = async (workflow) => {
+    const remarks = prompt(
+      `Enter rework notes for ${workflow.projectTrackingId} (e.g. "Specifications corrected per department remarks"):`,
+      'Rework verified and updated per department comments.'
+    );
+    if (!remarks) return;
+
+    try {
+      setResubmittingId(workflow._id);
+      const res = await api.post(`/project-workflows/${workflow._id}/sales-resubmit`, {
+        remarks
+      });
+      if (res.success) {
+        alert(`Project ${workflow.projectTrackingId} resubmitted for Manager Review!`);
+        fetchDashboard();
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || err.message || 'Resubmit failed');
+    } finally {
+      setResubmittingId(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -221,6 +256,86 @@ export const SalesDashboard = () => {
           <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-[#EE6F2D] group-hover:translate-x-1 transition-all" />
         </Link>
       </div>
+
+      {/* 3.5 RETURNED PROJECTS / REWORK REQUIRED */}
+      {returnedWorkflows.length > 0 && (
+        <div className="bg-rose-50/80 border-2 border-rose-300 rounded-2xl p-5 shadow-xs space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-rose-200">
+            <div className="flex items-center space-x-2">
+              <span className="w-3 h-3 rounded-full bg-rose-600 animate-ping" />
+              <h2 className="text-sm font-black text-rose-900 uppercase tracking-wider">
+                Returned Projects / Rework Required ({returnedWorkflows.length})
+              </h2>
+            </div>
+            <span className="text-[11px] font-bold text-rose-700 bg-rose-100 px-2.5 py-0.5 rounded-full border border-rose-300">
+              Action Required: Correct Specifications & Resubmit
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            {returnedWorkflows.map((rw) => {
+              const enq = rw.enquiryId || {};
+              const client = enq.clientId || {};
+
+              return (
+                <div
+                  key={rw._id}
+                  className="bg-white rounded-xl p-4 border border-rose-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-xs font-black text-slate-900 px-2 py-0.5 rounded bg-slate-100">
+                        {rw.projectTrackingId}
+                      </span>
+                      <span className="text-xs font-bold text-blue-700">ERN: {enq.ern}</span>
+                      <span className="text-[11px] font-bold text-rose-700 px-2 py-0.5 rounded bg-rose-50 border border-rose-200">
+                        Rejected by: {rw.lastRejectedDepartmentCode || 'Department'}
+                      </span>
+                    </div>
+
+                    <p className="text-xs font-bold text-slate-800">
+                      {client.companyName} &bull; {enq.project?.projectName}
+                    </p>
+
+                    <div className="text-xs text-rose-900 bg-rose-50 p-2 rounded-lg border border-rose-100 mt-1">
+                      <p>
+                        <strong>Reason:</strong> {rw.rejectionReason}
+                      </p>
+                      <p className="mt-0.5">
+                        <strong>Remarks:</strong> {rw.rejectionRemarks}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2 self-end md:self-auto shrink-0">
+                    <Link
+                      to={`/projects/tracking/${rw.projectTrackingId}`}
+                      className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50"
+                    >
+                      View Timeline
+                    </Link>
+
+                    <Link
+                      to={`/enquiries/${enq._id}/edit`}
+                      className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold"
+                    >
+                      Edit Requisition
+                    </Link>
+
+                    <button
+                      onClick={() => handleResubmit(rw)}
+                      disabled={resubmittingId === rw._id}
+                      className="px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-xs transition-colors"
+                    >
+                      {resubmittingId === rw._id ? 'Resubmitting...' : 'Resubmit for Review'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* 4. MASTER RECENT ENQUIRIES SECTION (High-Density Engineering UI) */}
       <div className="bg-white border border-slate-200/90 rounded-2xl shadow-sm overflow-hidden hover-lift transition-all">
