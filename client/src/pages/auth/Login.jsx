@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Lock, Mail, AlertCircle, ArrowRight, Zap, ShieldCheck } from 'lucide-react';
+import { Lock, Mail, AlertCircle, ArrowRight, Zap, ShieldCheck, ClipboardList } from 'lucide-react';
 
 export const Login = () => {
-  const [email, setEmail] = useState('admin@skypower.co.in');
-  const [password, setPassword] = useState('Admin@123');
+  const [email, setEmail] = useState('sales@skypower.co.in');
+  const [password, setPassword] = useState('Sales@123');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -20,8 +20,10 @@ export const Login = () => {
       const loggedUser = await login(email, password);
       if (loggedUser.role === 'ADMIN') {
         navigate('/admin/dashboard');
+      } else if (loggedUser.role === 'PO_TEAM') {
+        navigate('/po/tracking');
       } else {
-        navigate('/sales/dashboard');
+        navigate('/workflow');
       }
     } catch (err) {
       setError(err.message || 'Authentication failed. Please verify credentials.');
@@ -39,6 +41,12 @@ export const Login = () => {
   const setSalesCredentials = () => {
     setEmail('sales@skypower.co.in');
     setPassword('Sales@123');
+    setError('');
+  };
+
+  const setPOTeamCredentials = () => {
+    setEmail('po@skypower.co.in');
+    setPassword('Po@123');
     setError('');
   };
 
@@ -70,7 +78,7 @@ export const Login = () => {
               <span className="text-[#EE6F2D] ml-1.5">POWER</span>
             </div>
             <p className="text-xs font-semibold text-[#1E3A5F] mt-0.5 tracking-wide">
-              Switch to the Future
+              Switch to the Future — Manufacturing ERP
             </p>
           </div>
 
@@ -103,7 +111,7 @@ export const Login = () => {
 
             <div>
               <label className="block text-sm font-bold text-slate-800 mb-1.5">
-                Access Password
+                Secure Password
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
@@ -114,7 +122,7 @@ export const Login = () => {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="••••••••••••"
                   className="w-full pl-10 pr-3.5 py-2.5 text-sm font-medium bg-slate-50/70 border border-slate-300 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#1E5BB8] focus:ring-2 focus:ring-[#1E5BB8]/15 transition-all duration-200"
                 />
               </div>
@@ -123,10 +131,10 @@ export const Login = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center space-x-2 py-3 px-4 rounded-lg text-sm font-bold btn-primary disabled:opacity-50 mt-3 tracking-wide"
+              className="w-full mt-2 py-3 px-4 bg-gradient-to-r from-[#1E5BB8] to-[#174A96] hover:from-[#174A96] hover:to-[#113872] text-white text-sm font-bold rounded-lg shadow-md shadow-[#1E5BB8]/20 transition-all duration-200 flex items-center justify-center space-x-2 disabled:opacity-60 cursor-pointer"
             >
               {loading ? (
-                <span>Signing in...</span>
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
                 <>
                   <span>Sign In</span>
@@ -141,30 +149,39 @@ export const Login = () => {
             <p className="text-xs text-slate-500 uppercase tracking-wider text-center mb-3 font-bold">
               Instant Demo Access
             </p>
-            <div className="grid grid-cols-2 gap-2.5">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
-                onClick={setAdminCredentials}
-                className="flex items-center justify-center space-x-2 py-2.5 px-3 bg-[#FFF5EE] hover:bg-[#FFE8D6] text-[#EE6F2D] border border-[#FCDCC9] rounded-lg text-xs font-bold transition-all duration-200 hover:-translate-y-0.5 cursor-pointer shadow-xs"
+                onClick={setSalesCredentials}
+                className="flex flex-col items-center justify-center py-2 px-1 bg-[#F0F5FD] hover:bg-[#DCE9FA] text-[#1E5BB8] border border-[#D0E1F9] rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer shadow-xs"
               >
-                <Zap className="w-4 h-4 text-[#EE6F2D]" />
-                <span>Admin Login</span>
+                <ShieldCheck className="w-4 h-4 text-[#1E5BB8] mb-0.5" />
+                <span>Sales Login</span>
               </button>
 
               <button
                 type="button"
-                onClick={setSalesCredentials}
-                className="flex items-center justify-center space-x-2 py-2.5 px-3 bg-[#F0F5FD] hover:bg-[#DCE9FA] text-[#1E5BB8] border border-[#D0E1F9] rounded-lg text-xs font-bold transition-all duration-200 hover:-translate-y-0.5 cursor-pointer shadow-xs"
+                onClick={setPOTeamCredentials}
+                className="flex flex-col items-center justify-center py-2 px-1 bg-[#F5F3FF] hover:bg-[#EDE9FE] text-purple-700 border border-purple-200 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer shadow-xs"
               >
-                <ShieldCheck className="w-4 h-4 text-[#1E5BB8]" />
-                <span>Sales Login</span>
+                <ClipboardList className="w-4 h-4 text-purple-700 mb-0.5" />
+                <span>PO Team</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={setAdminCredentials}
+                className="flex flex-col items-center justify-center py-2 px-1 bg-[#FFF5EE] hover:bg-[#FFE8D6] text-[#EE6F2D] border border-[#FCDCC9] rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer shadow-xs"
+              >
+                <Zap className="w-4 h-4 text-[#EE6F2D] mb-0.5" />
+                <span>Admin Login</span>
               </button>
             </div>
           </div>
         </div>
 
         <p className="mt-4 text-center text-[11px] text-slate-400">
-          Module 01: Marketing &amp; Sales Management System
+          Sky Power Switchgears • Module 01: Sales &amp; Marketing ERP
         </p>
       </div>
     </div>

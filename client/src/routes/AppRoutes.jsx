@@ -26,16 +26,26 @@ import { AuditLogsView } from '../pages/admin/AuditLogsView';
 import { ReportsAnalytics } from '../pages/admin/ReportsAnalytics';
 import { Profile } from '../pages/shared/Profile';
 
+// 6-Step Multi-Page Workflow Wizard & PO Tracking Portal
+import { WorkflowWizard } from '../pages/workflow/WorkflowWizard';
+import { POTrackingView } from '../pages/po/POTrackingView';
+
 export const AppRoutes = () => {
   const { user, isAuthenticated, loading } = useAuth();
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-4 border-[#1E5BB8] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
+
+  const getHomeRoute = () => {
+    if (user?.role === 'ADMIN') return '/admin/dashboard';
+    if (user?.role === 'PO_TEAM') return '/po/tracking';
+    return '/sales/dashboard';
+  };
 
   return (
     <Routes>
@@ -44,7 +54,7 @@ export const AppRoutes = () => {
         path="/login"
         element={
           isAuthenticated ? (
-            <Navigate to={user?.role === 'ADMIN' ? '/admin/dashboard' : '/sales/dashboard'} replace />
+            <Navigate to={getHomeRoute()} replace />
           ) : (
             <Login />
           )
@@ -52,35 +62,39 @@ export const AppRoutes = () => {
       />
 
       {/* Protected Routes Layout */}
-      <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'SALES']} />}>
+      <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'SALES', 'PO_TEAM']} />}>
         <Route element={<MainLayout />}>
           {/* Default Root Redirect */}
-          <Route
-            path="/"
-            element={
-              <Navigate to={user?.role === 'ADMIN' ? '/admin/dashboard' : '/sales/dashboard'} replace />
-            }
-          />
+          <Route path="/" element={<Navigate to={getHomeRoute()} replace />} />
 
           {/* Shared Profile */}
           <Route path="/profile" element={<Profile />} />
 
-          {/* Sales & Common Operations */}
-          <Route path="/sales/dashboard" element={<SalesDashboard />} />
-          <Route path="/clients" element={<ClientsList />} />
-          <Route path="/clients/new" element={<ClientForm />} />
-          <Route path="/clients/:id" element={<ClientProfile />} />
-          <Route path="/clients/:id/edit" element={<ClientForm />} />
+          {/* PO Team & Execution Tracking Portal */}
+          <Route path="/po/tracking" element={<POTrackingView />} />
 
-          <Route path="/enquiries" element={<EnquiriesList />} />
-          <Route path="/enquiries/new" element={<EnquiryForm />} />
-          <Route path="/enquiries/:id" element={<EnquiryDetails />} />
-          <Route path="/enquiries/:id/edit" element={<EnquiryForm />} />
-          <Route path="/enquiries/:id/handover" element={<HandoverForm />} />
+          {/* 6-Step Multi-Page Client Enquiry -> Offering -> PO Team Workflow */}
+          <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'SALES']} />}>
+            <Route path="/workflow" element={<WorkflowWizard />} />
+            <Route path="/enquiries/new" element={<WorkflowWizard />} />
+            <Route path="/enquiries/:id/workflow" element={<WorkflowWizard />} />
 
-          <Route path="/followups" element={<FollowupsList />} />
-          <Route path="/quotations" element={<QuotationsList />} />
-          <Route path="/quotations/:id" element={<QuotationDetails />} />
+            {/* Sales Operations */}
+            <Route path="/sales/dashboard" element={<SalesDashboard />} />
+            <Route path="/clients" element={<ClientsList />} />
+            <Route path="/clients/new" element={<ClientForm />} />
+            <Route path="/clients/:id" element={<ClientProfile />} />
+            <Route path="/clients/:id/edit" element={<ClientForm />} />
+
+            <Route path="/enquiries" element={<EnquiriesList />} />
+            <Route path="/enquiries/:id" element={<EnquiryDetails />} />
+            <Route path="/enquiries/:id/edit" element={<WorkflowWizard />} />
+            <Route path="/enquiries/:id/handover" element={<HandoverForm />} />
+
+            <Route path="/followups" element={<FollowupsList />} />
+            <Route path="/quotations" element={<QuotationsList />} />
+            <Route path="/quotations/:id" element={<QuotationDetails />} />
+          </Route>
 
           {/* Admin Protected Operations */}
           <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
@@ -103,4 +117,3 @@ export const AppRoutes = () => {
     </Routes>
   );
 };
-

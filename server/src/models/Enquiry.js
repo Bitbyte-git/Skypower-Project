@@ -162,6 +162,11 @@ const enquirySchema = new mongoose.Schema(
       required: [true, 'Client reference is required'],
       index: true
     },
+    clientCustomId: {
+      type: String,
+      trim: true,
+      index: true
+    },
     customerType: {
       type: String,
       required: [true, 'Customer type is required'],
@@ -363,6 +368,31 @@ const enquirySchema = new mongoose.Schema(
         changeSummary: String
       }
     ],
+    currentOfferingVersion: {
+      type: String,
+      default: 'OFR-001',
+      trim: true
+    },
+    offeringRevisions: [
+      {
+        versionId: { type: String, required: true },
+        versionNumber: { type: Number, required: true },
+        createdAt: { type: Date, default: Date.now },
+        createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        totalAmount: { type: Number, default: 0 },
+        status: { type: String, default: 'Draft' },
+        productsSnapshot: [mongoose.Schema.Types.Mixed],
+        pricingSnapshot: mongoose.Schema.Types.Mixed,
+        pdfUrl: { type: String, default: '' },
+        changeSummary: { type: String, default: '' }
+      }
+    ],
+    poDetails: {
+      poId: { type: String, trim: true },
+      poObjectId: { type: mongoose.Schema.Types.ObjectId, ref: 'PurchaseOrder' },
+      submittedAt: Date,
+      submittedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+    },
     handoverDetails: {
       isHandedOver: { type: Boolean, default: false },
       handedOverAt: Date,

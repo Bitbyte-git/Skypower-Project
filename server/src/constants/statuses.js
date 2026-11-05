@@ -5,7 +5,9 @@ export const APPROVAL_STATUSES = {
   RETURNED_FOR_CORRECTION: 'Returned for Correction',
   RESUBMITTED: 'Resubmitted',
   APPROVED: 'Approved',
-  REJECTED: 'Rejected'
+  REJECTED: 'Rejected',
+  SENT_TO_CLIENT: 'Sent to Client',
+  SENT: 'Sent'
 };
 
 export const COMMERCIAL_STATUSES = {
@@ -42,4 +44,3 @@ export const FOLLOWUP_STATUSES = {
   RESCHEDULED: 'Rescheduled',
   CANCELLED: 'Cancelled'
 };
-

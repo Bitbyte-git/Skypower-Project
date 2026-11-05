@@ -8,6 +8,9 @@ try {
   const vfs = pdfFonts?.default || pdfFonts?.pdfMake?.vfs || pdfFonts;
   if (pdfMake && vfs) {
     pdfMake.vfs = vfs;
+    if (typeof pdfMake.addVirtualFileSystem === 'function') {
+      pdfMake.addVirtualFileSystem(vfs);
+    }
   }
 } catch (e) {
   console.warn('pdfMake vfs initialization error:', e);
@@ -48,7 +51,9 @@ export async function downloadEnquiryPDF(enquiryData) {
 
   const ern = enquiryData.ern || '00155A';
   const cleanRef = ern.replace(/^ERN-/, '');
-  const refCode = `SKY/MKT/11 /${cleanRef}/2026-27 -R1`;
+  const versionTag = enquiryData.versionId || enquiryData.currentOfferingVersion || 'OFR-001';
+  const clientIdTag = enquiryData.clientCustomId || enquiryData.clientId?.clientId || enquiryData.client?.clientId || 'SP-CL-2026-0001';
+  const refCode = `SKY/MKT/11 /${cleanRef}/2026-27 - ${versionTag}`;
 
   // Format Date: DD-MM-YYYY
   let offerDateFormatted = '09-09-2026';
@@ -217,10 +222,10 @@ export async function downloadEnquiryPDF(enquiryData) {
       {
         columns: [
           {
-            text: `REF: ${refCode}`,
-            fontSize: 8.5,
-            bold: true,
-            color: '#000000'
+            stack: [
+              { text: `REF: ${refCode}`, fontSize: 8.5, bold: true, color: '#000000' },
+              { text: `Client ID: ${clientIdTag}  |  Version: ${versionTag}`, fontSize: 8, bold: true, color: '#1E3A5F', margin: [0, 2, 0, 0] }
+            ]
           },
           {
             text: `Date: ${offerDateFormatted}`,
@@ -478,13 +483,21 @@ export async function downloadEnquiryPDF(enquiryData) {
     }
   };
 
-  const fileName = `${ern}_Offer_Price_Quotation.pdf`;
+  const fileName = `${ern}_${versionTag}_Offer_Price_Quotation.pdf`;
 
   // 1. Generate content via pdfmake as raw Blob
   const pdfDocGenerator = pdfMake.createPdf(docDefinition);
-  const contentBlob = await new Promise((resolve) => {
-    pdfDocGenerator.getBlob((blob) => resolve(blob));
+  let contentBlob;
+  const blobOrPromise = pdfDocGenerator.getBlob((blob) => {
+    if (blob) contentBlob = blob;
   });
+  if (blobOrPromise && typeof blobOrPromise.then === 'function') {
+    contentBlob = await blobOrPromise;
+  } else if (!contentBlob) {
+    contentBlob = await new Promise((resolve) => {
+      pdfDocGenerator.getBlob((blob) => resolve(blob));
+    });
+  }
 
   // 2. Overlay onto SPSG-Letterpad.pdf template using pdf-lib
   let finalPdfBytes;

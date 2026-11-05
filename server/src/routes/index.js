@@ -9,6 +9,7 @@ import followupRoutes from './followupRoutes.js';
 import dashboardRoutes from './dashboardRoutes.js';
 import settingRoutes from './settingRoutes.js';
 import auditLogRoutes from './auditLogRoutes.js';
+import workflowRoutes from './workflowRoutes.js';
 
 const router = Router();
 
@@ -22,6 +23,6 @@ router.use('/followups', followupRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/settings', settingRoutes);
 router.use('/audit-logs', auditLogRoutes);
+router.use('/workflow', workflowRoutes);
 
 export default router;
-

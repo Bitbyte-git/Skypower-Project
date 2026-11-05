@@ -4,7 +4,7 @@ import { Client } from '../models/Client.js';
 import { Enquiry } from '../models/Enquiry.js';
 import { USER_ROLES } from '../constants/roles.js';
 import { APPROVAL_STATUSES, COMMERCIAL_STATUSES, ENQUIRY_TYPES } from '../constants/statuses.js';
-import { generateNextERN } from './counterService.js';
+import { generateNextERN, generateNextClientID } from './counterService.js';
 
 export const seedInitialData = async () => {
   try {
@@ -54,10 +54,25 @@ export const seedInitialData = async () => {
       console.log('[Seed] Sky Power Sales user created: sales@skypower.co.in / Sales@123');
     }
 
+    // 3.1 Ensure PO Team Lead exists
+    let poUser = await User.findOne({ email: 'po@skypower.co.in' });
+    if (!poUser) {
+      poUser = await User.create({
+        name: 'Suresh Kumar (PO Team Lead)',
+        email: 'po@skypower.co.in',
+        password: 'Po@123',
+        role: USER_ROLES.PO_TEAM,
+        phone: '9840984098',
+        department: 'Purchase Order & Execution'
+      });
+      console.log('[Seed] Sky Power PO Team user created: po@skypower.co.in / Po@123');
+    }
+
     // 4. Ensure initial clients exist
     const clientCount = await Client.countDocuments();
     if (clientCount === 0) {
       const sampleClient1 = await Client.create({
+        clientId: await generateNextClientID(),
         companyName: 'Larsen & Toubro Ltd. (T&D Division)',
         clientLocation: 'Chennai, Tamil Nadu',
         contactPerson: 'S. Sundaram (Chief Electrical Engineer)',
@@ -78,6 +93,7 @@ export const seedInitialData = async () => {
       });
 
       const sampleClient2 = await Client.create({
+        clientId: await generateNextClientID(),
         companyName: 'Tata Power Company Limited',
         clientLocation: 'Mumbai, Maharashtra',
         contactPerson: 'Vikram Joshi (Procurement Head)',

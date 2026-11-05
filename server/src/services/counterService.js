@@ -30,7 +30,7 @@ export const generateNextQuotationNumber = async () => {
 
 export const generateNextClientID = async () => {
   const currentYear = new Date().getFullYear();
-  const counterId = `client_${currentYear}`;
+  const counterId = `sp_client_${currentYear}`;
 
   const counter = await Counter.findOneAndUpdate(
     { _id: counterId },
@@ -39,6 +39,19 @@ export const generateNextClientID = async () => {
   );
 
   const paddedSeq = String(counter.seq).padStart(4, '0');
-  return `CL-${currentYear}-${paddedSeq}`;
+  return `SP-CL-${currentYear}-${paddedSeq}`;
 };
 
+export const generateNextPOID = async () => {
+  const currentYear = new Date().getFullYear();
+  const counterId = `po_${currentYear}`;
+
+  const counter = await Counter.findOneAndUpdate(
+    { _id: counterId },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
+
+  const paddedSeq = String(counter.seq).padStart(4, '0');
+  return `PO-${currentYear}-${paddedSeq}`;
+};
