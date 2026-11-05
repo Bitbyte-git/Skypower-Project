@@ -1,0 +1,80 @@
+# =========================================================================
+# SKY POWER SWITCHGEARS ERP - ROOT .GITIGNORE
+# =========================================================================
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Environment Variables & Secrets
+.env
+.env.*
+!.env.example
+
+# Production & Build Outputs
+dist/
+**/dist/
+dist-ssr/
+**/dist-ssr/
+build/
+**/build/
+out/
+
+# Dynamic Generated Quotation PDFs & Temporary Uploads
+server/uploads/quotations/*.pdf
+server/uploads/documents/*
+server/uploads/temp/*
+!server/uploads/quotations/.gitkeep
+!server/uploads/brand-logo.jpg
+
+# In-Memory MongoDB & Database Cache
+.mongo-memory-server/
+*.sqlite
+*.sqlite3
+dump.rdb
+
+# Logs & Debugging
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Testing & Code Coverage
+coverage/
+**/coverage/
+.nyc_output/
+
+# Editor & IDE Directories
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.swp
+*.swo
+
+# Operating System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Temporary & Cache Files
+.cache/
+.parcel-cache/
+.temp/
+.tmp/
+tmp/
+temp/
+

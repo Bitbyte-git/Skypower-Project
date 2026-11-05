@@ -1,0 +1,185 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --sp-blue: #1E5BB8;
+    --sp-blue-dark: #174A96;
+    --sp-blue-light: #F0F5FD;
+    --sp-blue-border: #D0E1F9;
+    --sp-orange: #EE6F2D;
+    --sp-orange-dark: #D65A1A;
+    --sp-orange-light: #FFF5EE;
+    --sp-orange-border: #FCDCC9;
+    --sp-navy: #1E3A5F;
+    --industrial-dark: #0A0F1D;
+    --surface-card: #FFFFFF;
+    --surface-bg: #F8FAFC;
+  }
+
+  body {
+    background-color: #F8FAFC;
+    color: #0F172A;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    letter-spacing: 0;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  code, kbd, samp, pre, .font-mono, [class*="font-mono"] {
+    font-family: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-feature-settings: 'tnum' 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  #root {
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+  }
+}
+
+/* Extraordinary UI Hover & Interaction Utilities */
+.hover-lift {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 28px -6px rgba(30, 91, 184, 0.12), 0 6px 12px -2px rgba(15, 23, 42, 0.04);
+  border-color: #D0E1F9;
+}
+
+.hover-lift-orange:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 28px -6px rgba(238, 111, 45, 0.14), 0 6px 12px -2px rgba(15, 23, 42, 0.04);
+  border-color: #FCDCC9;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #1E5BB8 0%, #174A96 100%);
+  color: #FFFFFF;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.btn-primary:hover {
+  background: linear-gradient(135deg, #2465C7 0%, #1A52A3 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px -2px rgba(30, 91, 184, 0.35);
+}
+.btn-primary:active {
+  transform: scale(0.98);
+}
+
+.btn-accent {
+  background: linear-gradient(135deg, #EE6F2D 0%, #D65A1A 100%);
+  color: #FFFFFF;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.btn-accent:hover {
+  background: linear-gradient(135deg, #F57835 0%, #E0621E 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px -2px rgba(238, 111, 45, 0.35);
+}
+.btn-accent:active {
+  transform: scale(0.98);
+}
+
+/* Elegant Paper Form Styling with Minimalist Clean Aesthetic */
+.paper-sheet {
+  background-color: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 4px 24px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.02);
+  border-radius: 16px;
+  position: relative;
+  transition: box-shadow 0.3s ease;
+}
+
+.paper-header {
+  border-bottom: 1.5px solid #E2E8F0;
+  position: relative;
+}
+
+/* Form Section Title */
+.form-section-title {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #1E3A5F;
+  background-color: #F8FAFC;
+  padding: 11px 16px;
+  border-radius: 10px;
+  border: 1px solid #E2E8F0;
+  border-left: 4px solid #1E5BB8;
+  margin-bottom: 16px;
+}
+
+input, select, textarea {
+  font-size: 14px;
+  color: #0F172A;
+}
+
+/* Minimalist Stamp Styling (High-Precision Engineering Clearance Pill) */
+.stamp-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-transform: uppercase;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 5px 12px;
+  border-width: 1.5px;
+  border-style: solid;
+  border-radius: 8px;
+  font-size: 11px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.stamp-approved {
+  color: #059669;
+  border-color: #059669;
+  background-color: #ECFDF5;
+}
+
+.stamp-pending {
+  color: #D97706;
+  border-color: #D97706;
+  background-color: #FFFBEB;
+}
+
+.stamp-returned {
+  color: #EE6F2D;
+  border-color: #EE6F2D;
+  background-color: #FFF5EE;
+}
+
+.stamp-rejected {
+  color: #DC2626;
+  border-color: #DC2626;
+  background-color: #FEF2F2;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: #F1F5F9;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
