@@ -163,10 +163,20 @@ export const DepartmentWorkflowView = () => {
       }
     }
 
+    if (type === 'REACCEPT') {
+      if (!remarks.trim()) {
+        setActionModal((prev) => ({
+          ...prev,
+          validationError: 'Re-assignment and resolution remarks are strictly mandatory.'
+        }));
+        return;
+      }
+    }
+
     try {
       setActionModal((prev) => ({ ...prev, submitting: true, validationError: '' }));
 
-      if (type === 'ACCEPT' || type === 'REJECT') {
+      if (type === 'ACCEPT' || type === 'REJECT' || type === 'REACCEPT') {
         await api.post(`/project-workflows/${workflow._id}/department-action`, {
           action: type,
           departmentSequence: selectedDeptSeq,
@@ -617,20 +627,37 @@ export const DepartmentWorkflowView = () => {
                           )}
 
                           {/* Department 2 to 10 Accept / Reject Buttons: ONLY General Manager and Admin can approve or reject */}
-                          {(isAdmin || isManager) && isCurrentDept && currentApp?.status !== 'Accepted' && (
+                          {(isAdmin || isManager) && (
                             <div className="flex items-center space-x-1.5 pt-1">
-                              <button
-                                onClick={() => openActionModal('ACCEPT', w)}
-                                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-bold shadow-xs transition-colors"
-                              >
-                                Accept
-                              </button>
-                              <button
-                                onClick={() => openActionModal('REJECT', w)}
-                                className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded text-[11px] font-bold shadow-xs transition-colors"
-                              >
-                                Reject
-                              </button>
+                              {/* If project was REJECTED at this department: Show Re-assign & Re-Accept */}
+                              {currentApp?.status === 'Rejected' && (
+                                <button
+                                  onClick={() => openActionModal('REACCEPT', w)}
+                                  className="px-2.5 py-1 bg-gradient-to-r from-amber-600 to-emerald-600 hover:from-amber-700 hover:to-emerald-700 text-white rounded text-[11px] font-bold shadow-xs transition-all flex items-center space-x-1 cursor-pointer"
+                                  title="Re-assign project with remarks and re-accept to move forward"
+                                >
+                                  <RefreshCw className="w-3 h-3 mr-1" />
+                                  <span>Re-assign &amp; Re-Accept</span>
+                                </button>
+                              )}
+
+                              {/* Normal Accept / Reject for Pending projects */}
+                              {isCurrentDept && currentApp?.status !== 'Accepted' && currentApp?.status !== 'Rejected' && (
+                                <>
+                                  <button
+                                    onClick={() => openActionModal('ACCEPT', w)}
+                                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-bold shadow-xs transition-colors cursor-pointer"
+                                  >
+                                    Accept
+                                  </button>
+                                  <button
+                                    onClick={() => openActionModal('REJECT', w)}
+                                    className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded text-[11px] font-bold shadow-xs transition-colors cursor-pointer"
+                                  >
+                                    Reject
+                                  </button>
+                                </>
+                              )}
                             </div>
                           )}
 
@@ -679,10 +706,11 @@ export const DepartmentWorkflowView = () => {
               <h3 className="text-base font-black text-slate-900">
                 {actionModal.type === 'ACCEPT' && `Accept Stage: ${activeDept.name}`}
                 {actionModal.type === 'REJECT' && `Reject & Return to Sales: ${activeDept.name}`}
+                {actionModal.type === 'REACCEPT' && `Re-assign & Re-Accept: ${activeDept.name}`}
                 {actionModal.type === 'FORWARD' && 'Manager Review & Forward'}
                 {actionModal.type === 'RESUBMIT' && 'Resubmit Project after Rework'}
               </h3>
-              <button onClick={closeActionModal} className="text-slate-400 hover:text-slate-600">
+              <button onClick={closeActionModal} className="text-slate-400 hover:text-slate-600 cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -847,16 +875,37 @@ export const DepartmentWorkflowView = () => {
                 </div>
               )}
 
+              {/* Previous Rejection Details for REACCEPT */}
+              {actionModal.type === 'REACCEPT' && (
+                <div className="space-y-2 p-3 bg-amber-50/90 rounded-xl border border-amber-200 text-xs">
+                  <div className="flex items-center space-x-2 text-amber-900 font-bold">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>Previous Rejection Details at {activeDept.name}:</span>
+                  </div>
+                  <p className="text-amber-950 font-medium">
+                    <strong>Reason:</strong> {actionModal.workflow?.rejectionReason || 'Technical Specification Discrepancy'}
+                  </p>
+                  <p className="text-amber-950 font-medium">
+                    <strong>Remarks:</strong> {actionModal.workflow?.rejectionRemarks || 'Rework required'}
+                  </p>
+                </div>
+              )}
+
               {/* Detailed Remarks */}
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
-                  Detailed Remarks {actionModal.type === 'REJECT' && <span className="text-rose-600">* (Mandatory)</span>}
+                  {actionModal.type === 'REACCEPT' ? 'Re-assignment & Resolution Remarks' : 'Detailed Remarks'}{' '}
+                  {(actionModal.type === 'REJECT' || actionModal.type === 'REACCEPT') && (
+                    <span className={actionModal.type === 'REACCEPT' ? 'text-emerald-600' : 'text-rose-600'}>* (Mandatory)</span>
+                  )}
                 </label>
                 <textarea
                   rows={3}
                   placeholder={
                     actionModal.type === 'REJECT'
                       ? 'Explain precisely what changes or corrections Sales & Marketing needs to make...'
+                      : actionModal.type === 'REACCEPT'
+                      ? 'Explain re-assignment and resolution details (e.g. CT/PT specifications verified and updated as per client revision, re-accepting and moving to next stage)...'
                       : 'Enter review notes or approval remarks (optional)...'
                   }
                   value={actionModal.remarks}
@@ -878,22 +927,30 @@ export const DepartmentWorkflowView = () => {
                   <strong>Notice:</strong> Rejecting will immediately return this project to Sales & Marketing under &ldquo;Returned Projects / Rework Required&rdquo;. When Sales resubmits, the workflow will resume directly at {activeDept.name} without losing prior department approvals.
                 </p>
               )}
+
+              {actionModal.type === 'REACCEPT' && (
+                <p className="text-[11px] text-emerald-800 bg-emerald-50 p-2.5 rounded-lg border border-emerald-200 leading-relaxed font-medium">
+                  <strong>Re-acceptance Clearance:</strong> This action will mark {activeDept.name} as <strong>Accepted</strong>, resolve the rejection, and immediately advance the project to the next department ({selectedDeptSeq < 10 ? DEPARTMENTS.find((d) => d.sequence === selectedDeptSeq + 1)?.name : 'Installation Finalization'}).
+                </p>
+              )}
             </div>
 
             <div className="mt-6 pt-3 border-t border-slate-100 flex items-center justify-end space-x-2">
               <button
                 onClick={closeActionModal}
                 disabled={actionModal.submitting}
-                className="px-4 py-2 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50"
+                className="px-4 py-2 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={executeAction}
                 disabled={actionModal.submitting}
-                className={`px-4 py-2 rounded-lg text-xs font-bold text-white transition-colors ${
+                className={`px-4 py-2 rounded-lg text-xs font-bold text-white transition-all cursor-pointer ${
                   actionModal.type === 'REJECT'
                     ? 'bg-rose-600 hover:bg-rose-700'
+                    : actionModal.type === 'REACCEPT'
+                    ? 'bg-gradient-to-r from-amber-600 to-emerald-600 hover:from-amber-700 hover:to-emerald-700 shadow-md'
                     : 'bg-blue-600 hover:bg-blue-700'
                 }`}
               >
@@ -901,6 +958,8 @@ export const DepartmentWorkflowView = () => {
                   ? 'Processing...'
                   : actionModal.type === 'REJECT'
                   ? 'Confirm Rejection'
+                  : actionModal.type === 'REACCEPT'
+                  ? 'Re-Accept & Move Forward'
                   : 'Confirm Action'}
               </button>
             </div>

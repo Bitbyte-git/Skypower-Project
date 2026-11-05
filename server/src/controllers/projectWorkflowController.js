@@ -472,10 +472,10 @@ export const departmentAction = async (req, res, next) => {
       });
     }
 
-    if (!['ACCEPT', 'REJECT'].includes(action)) {
+    if (!['ACCEPT', 'REJECT', 'REACCEPT'].includes(action)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid action. Must be 'ACCEPT' or 'REJECT'."
+        message: "Invalid action. Must be 'ACCEPT', 'REJECT', or 'REACCEPT'."
       });
     }
 
@@ -496,7 +496,14 @@ export const departmentAction = async (req, res, next) => {
 
     const previousStatus = workflow.overallStatus;
 
-    if (action === 'ACCEPT') {
+    if (action === 'ACCEPT' || action === 'REACCEPT') {
+      if (action === 'REACCEPT' && (!remarks || !remarks.trim())) {
+        return res.status(400).json({
+          success: false,
+          message: 'Re-assignment & resolution remarks are strictly mandatory when re-accepting a rejected project.'
+        });
+      }
+
       // 1. Mark current department approval as ACCEPTED
       await DepartmentApproval.findOneAndUpdate(
         { workflowId: workflow._id, departmentSequence: currentSeq },
@@ -504,10 +511,20 @@ export const departmentAction = async (req, res, next) => {
           status: DEPARTMENT_APPROVAL_STATUSES.ACCEPTED,
           reviewedBy: req.user._id,
           reviewedAt: new Date(),
-          remarks: remarks || `${currentDept.departmentName} approval verified.`,
+          remarks: remarks || (action === 'REACCEPT' ? `${currentDept.departmentName} re-assignment & rework verified.` : `${currentDept.departmentName} approval verified.`),
           attachmentUrl: attachmentUrl || null
         }
       );
+
+      // If re-accepting, clear earlier rejection state
+      if (action === 'REACCEPT') {
+        workflow.rejectionReason = null;
+        workflow.rejectionRemarks = null;
+        workflow.lastRejectedDepartmentId = null;
+        workflow.lastRejectedDepartmentCode = null;
+        workflow.rejectedAt = null;
+        workflow.rejectedBy = null;
+      }
 
       // If Installation (Sequence 10), complete the workflow!
       if (currentSeq === 10) {
@@ -522,18 +539,18 @@ export const departmentAction = async (req, res, next) => {
           projectTrackingId: workflow.projectTrackingId,
           departmentCode: currentDept.departmentCode,
           departmentName: currentDept.departmentName,
-          action: 'Completed',
+          action: action === 'REACCEPT' ? 'Re-Accepted & Completed' : 'Completed',
           actionBy: req.user._id,
           actionByName: req.user.name,
           actionByRole: req.user.role,
           previousStatus,
           newStatus: PROJECT_WORKFLOW_STATUSES.COMPLETED,
-          remarks: remarks || 'Final Installation completed. Project workflow finished successfully.'
+          remarks: remarks || (action === 'REACCEPT' ? 'Re-assigned, re-accepted, and project workflow finished successfully.' : 'Final Installation completed. Project workflow finished successfully.')
         });
 
         return res.status(200).json({
           success: true,
-          message: `Project ${workflow.projectTrackingId} successfully approved and completed by Installation team!`,
+          message: `Project ${workflow.projectTrackingId} successfully ${action === 'REACCEPT' ? 're-accepted and completed' : 'approved and completed'} by Installation team!`,
           workflow
         });
       }
@@ -567,18 +584,22 @@ export const departmentAction = async (req, res, next) => {
         projectTrackingId: workflow.projectTrackingId,
         departmentCode: currentDept.departmentCode,
         departmentName: currentDept.departmentName,
-        action: 'Accepted',
+        action: action === 'REACCEPT' ? 'Re-Accepted & Forwarded' : 'Accepted',
         actionBy: req.user._id,
         actionByName: req.user.name,
         actionByRole: req.user.role,
         previousStatus,
         newStatus: workflow.overallStatus,
-        remarks: remarks || `${currentDept.departmentName} stage approved and forwarded to next department.`
+        remarks: remarks || (action === 'REACCEPT'
+          ? `Re-assigned with resolution remarks and re-accepted at ${currentDept.departmentName}. Moved forward to ${nextDept?.departmentName || 'next stage'}.`
+          : `${currentDept.departmentName} stage approved and forwarded to next department.`)
       });
 
       return res.status(200).json({
         success: true,
-        message: `${currentDept.departmentName} approved. Project moved to ${nextDept?.departmentName || 'next stage'}.`,
+        message: action === 'REACCEPT'
+          ? `Project successfully re-assigned, re-accepted at ${currentDept.departmentName}, and forwarded to ${nextDept?.departmentName || 'next stage'}.`
+          : `${currentDept.departmentName} approved. Project moved to ${nextDept?.departmentName || 'next stage'}.`,
         workflow
       });
     }
