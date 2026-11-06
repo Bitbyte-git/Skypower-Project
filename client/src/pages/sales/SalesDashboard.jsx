@@ -92,8 +92,8 @@ export const SalesDashboard = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center space-x-2.5">
-            <h1 className="text-2xl font-black text-[#1E3A5F] tracking-tight">Sales Operations</h1>
-            <span className="text-xs font-bold text-[#1E5BB8] bg-[#F0F5FD] border border-[#D0E1F9] px-3 py-0.5 rounded-full">
+            <h1 className="text-[26px] font-black tracking-tight" style={{ color: '#102B50' }}>Sales Operations</h1>
+            <span className="text-xs font-bold bg-[#EAF5FF] border px-3 py-0.5 rounded-full" style={{ color: '#0878C9', borderColor: '#C5DFF5' }}>
               Live Pipeline
             </span>
           </div>
@@ -104,7 +104,8 @@ export const SalesDashboard = () => {
         <div className="flex items-center space-x-3">
           <Link
             to="/clients/new"
-            className="inline-flex items-center px-4 py-2.5 border border-slate-300 text-xs font-bold rounded-xl bg-white text-slate-700 hover:border-[#1E5BB8] hover:text-[#1E5BB8] transition-all shadow-2xs hover:-translate-y-0.5 cursor-pointer"
+            className="inline-flex items-center px-4 py-2.5 border text-xs font-bold rounded-xl bg-white hover:-translate-y-0.5 transition-all shadow-2xs cursor-pointer"
+            style={{ borderColor: '#DCE7F3', color: '#062B59' }}
           >
             <UserPlus className="w-4 h-4 mr-2 text-slate-500" />
             New Client Master
@@ -122,20 +123,20 @@ export const SalesDashboard = () => {
       {/* 2. KPI Cards Grid with Interactive Hover-Lift */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         {/* Total Enquiries */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs hover-lift cursor-pointer group relative overflow-hidden">
-          <div className="w-1.5 h-full bg-[#1E5BB8] absolute left-0 top-0" />
+        <div className="bg-white p-5 rounded-2xl hover-lift cursor-pointer group relative overflow-hidden" style={{ border: '1px solid #DCE7F3', boxShadow: '0 3px 8px rgba(15,55,100,0.05)' }}>
+          <div className="w-1.5 h-full absolute left-0 top-0" style={{ background: '#0878C9' }} />
           <div className="flex items-center justify-between text-slate-400 mb-2">
             <span className="text-xs font-black uppercase tracking-wider text-slate-600">My Enquiries</span>
-            <FileSpreadsheet className="w-4 h-4 text-slate-400 group-hover:text-[#1E5BB8] transition-colors" />
+            <FileSpreadsheet className="w-4 h-4 text-slate-400 group-hover:text-[#0878C9] transition-colors" />
           </div>
-          <div className="text-3xl font-black text-slate-900 group-hover:text-[#1E5BB8] transition-colors font-mono">
+          <div className="text-3xl font-black text-slate-900 group-hover:text-[#0878C9] transition-colors font-mono">
             {m.myEnquiries || 0}
           </div>
           <div className="text-xs font-semibold text-slate-400 mt-1.5">Total created</div>
         </div>
 
         {/* Drafts */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs hover-lift cursor-pointer group relative overflow-hidden">
+        <div className="bg-white p-5 rounded-2xl hover-lift cursor-pointer group relative overflow-hidden" style={{ border: '1px solid #DCE7F3', boxShadow: '0 3px 8px rgba(15,55,100,0.05)' }}>
           <div className="w-1.5 h-full bg-slate-400 absolute left-0 top-0" />
           <div className="flex items-center justify-between text-slate-400 mb-2">
             <span className="text-xs font-black uppercase tracking-wider text-slate-600">Drafts</span>
@@ -148,7 +149,7 @@ export const SalesDashboard = () => {
         </div>
 
         {/* Pending Approval */}
-        <div className="bg-white p-5 rounded-2xl border border-amber-300 shadow-xs hover-lift cursor-pointer group relative overflow-hidden">
+        <div className="bg-white p-5 rounded-2xl border border-amber-300 hover-lift cursor-pointer group relative overflow-hidden" style={{ boxShadow: '0 3px 8px rgba(15,55,100,0.05)' }}>
           <div className="w-1.5 h-full bg-amber-500 absolute left-0 top-0" />
           <div className="flex items-center justify-between text-amber-700 mb-2">
             <span className="text-xs font-black uppercase tracking-wider text-amber-800">Pending Gate</span>
@@ -161,7 +162,7 @@ export const SalesDashboard = () => {
         </div>
 
         {/* Approved */}
-        <div className="bg-white p-5 rounded-2xl border border-emerald-300 shadow-xs hover-lift cursor-pointer group relative overflow-hidden">
+        <div className="bg-white p-5 rounded-2xl border border-emerald-300 hover-lift cursor-pointer group relative overflow-hidden" style={{ boxShadow: '0 3px 8px rgba(15,55,100,0.05)' }}>
           <div className="w-1.5 h-full bg-emerald-600 absolute left-0 top-0" />
           <div className="flex items-center justify-between text-emerald-700 mb-2">
             <span className="text-xs font-black uppercase tracking-wider text-emerald-800">Approved</span>
@@ -174,7 +175,7 @@ export const SalesDashboard = () => {
         </div>
 
         {/* Returned */}
-        <div className="bg-white p-5 rounded-2xl border border-[#FCDCC9] shadow-xs hover-lift-orange cursor-pointer group relative overflow-hidden">
+        <div className="bg-white p-5 rounded-2xl border border-[#FFD4A8] hover-lift-orange cursor-pointer group relative overflow-hidden" style={{ boxShadow: '0 3px 8px rgba(15,55,100,0.05)' }}>
           <div className="w-1.5 h-full bg-[#EE6F2D] absolute left-0 top-0" />
           <div className="flex items-center justify-between text-[#D65A1A] mb-2">
             <span className="text-xs font-black uppercase tracking-wider text-[#EE6F2D]">Returned</span>
@@ -187,7 +188,7 @@ export const SalesDashboard = () => {
         </div>
 
         {/* Orders Won */}
-        <div className="bg-white p-5 rounded-2xl border border-emerald-200 shadow-xs hover-lift cursor-pointer group relative overflow-hidden">
+        <div className="bg-white p-5 rounded-2xl border border-emerald-200 hover-lift cursor-pointer group relative overflow-hidden" style={{ boxShadow: '0 3px 8px rgba(15,55,100,0.05)' }}>
           <div className="w-1.5 h-full bg-emerald-700 absolute left-0 top-0" />
           <div className="flex items-center justify-between text-slate-400 mb-2">
             <span className="text-xs font-black uppercase tracking-wider text-emerald-800">Orders Won</span>
@@ -204,25 +205,27 @@ export const SalesDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Link
           to="/followups?filter=today"
-          className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs hover-lift flex items-center justify-between group transition-all"
+          className="bg-white p-5 rounded-2xl hover-lift flex items-center justify-between group transition-all"
+          style={{ border: '1px solid #DCE7F3', boxShadow: '0 2px 4px rgba(15,55,100,0.04)' }}
         >
           <div className="flex items-center space-x-3.5">
-            <div className="w-11 h-11 rounded-xl bg-[#F0F5FD] text-[#1E5BB8] flex items-center justify-center group-hover:bg-[#1E5BB8] group-hover:text-white transition-colors duration-200 shadow-2xs">
+            <div className="w-11 h-11 rounded-xl bg-[#EAF5FF] text-[#0878C9] flex items-center justify-center group-hover:bg-[#0878C9] group-hover:text-white transition-colors duration-200 shadow-2xs">
               <CalendarClock className="w-5 h-5" />
             </div>
             <div>
               <p className="text-xs text-slate-500 font-semibold">Today's Schedule</p>
-              <h3 className="text-base font-extrabold text-[#1E3A5F] mt-0.5">
+              <h3 className="text-base font-extrabold mt-0.5" style={{ color: '#102B50' }}>
                 {m.todayFollowups || 0} Follow-ups Due
               </h3>
             </div>
           </div>
-          <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-[#1E5BB8] group-hover:translate-x-1 transition-all" />
+          <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-[#0878C9] group-hover:translate-x-1 transition-all" />
         </Link>
 
         <Link
           to="/followups?filter=upcoming"
-          className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs hover-lift flex items-center justify-between group transition-all"
+          className="bg-white p-5 rounded-2xl hover-lift flex items-center justify-between group transition-all"
+          style={{ border: '1px solid #DCE7F3', boxShadow: '0 2px 4px rgba(15,55,100,0.04)' }}
         >
           <div className="flex items-center space-x-3.5">
             <div className="w-11 h-11 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center group-hover:bg-purple-600 group-hover:text-white transition-colors duration-200 shadow-2xs">
@@ -230,7 +233,7 @@ export const SalesDashboard = () => {
             </div>
             <div>
               <p className="text-xs text-slate-500 font-semibold">Upcoming Pipeline</p>
-              <h3 className="text-base font-extrabold text-[#1E3A5F] mt-0.5">
+              <h3 className="text-base font-extrabold mt-0.5" style={{ color: '#102B50' }}>
                 {m.upcomingFollowups || 0} Scheduled
               </h3>
             </div>
@@ -240,7 +243,8 @@ export const SalesDashboard = () => {
 
         <Link
           to="/quotations"
-          className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs hover-lift flex items-center justify-between group transition-all"
+          className="bg-white p-5 rounded-2xl hover-lift flex items-center justify-between group transition-all"
+          style={{ border: '1px solid #DCE7F3', boxShadow: '0 2px 4px rgba(15,55,100,0.04)' }}
         >
           <div className="flex items-center space-x-3.5">
             <div className="w-11 h-11 rounded-xl bg-[#FFF5EE] text-[#EE6F2D] flex items-center justify-center group-hover:bg-[#EE6F2D] group-hover:text-white transition-colors duration-200 shadow-2xs">
@@ -248,7 +252,7 @@ export const SalesDashboard = () => {
             </div>
             <div>
               <p className="text-xs text-slate-500 font-semibold">Commercial Offers</p>
-              <h3 className="text-base font-extrabold text-[#1E3A5F] mt-0.5">
+              <h3 className="text-base font-extrabold mt-0.5" style={{ color: '#102B50' }}>
                 {m.quotations || 0} Issued Offers
               </h3>
             </div>
@@ -338,13 +342,13 @@ export const SalesDashboard = () => {
       )}
 
       {/* 4. MASTER RECENT ENQUIRIES SECTION (High-Density Engineering UI) */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl shadow-sm overflow-hidden hover-lift transition-all">
+      <div className="bg-white border rounded-2xl shadow-sm overflow-hidden hover-lift transition-all" style={{ border: '1px solid #DCE7F3' }}>
         <div className="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <div className="flex items-center space-x-2.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#1E5BB8]" />
-              <h2 className="text-base font-extrabold text-[#1E3A5F]">Recent Project Enquiries</h2>
-              <span className="text-xs font-bold text-[#1E5BB8] bg-[#F0F5FD] px-2.5 py-0.5 rounded-full border border-[#D0E1F9]">
+              <span className="w-2.5 h-2.5 rounded-full" style={{ background: '#0878C9' }} />
+              <h2 className="text-base font-extrabold" style={{ color: '#102B50' }}>Recent Project Enquiries</h2>
+              <span className="text-xs font-bold bg-[#EAF5FF] px-2.5 py-0.5 rounded-full border" style={{ color: '#0878C9', borderColor: '#C5DFF5' }}>
                 {data?.recentEnquiries?.length || 0} Recent
               </span>
             </div>
@@ -354,7 +358,8 @@ export const SalesDashboard = () => {
           </div>
           <Link
             to="/enquiries"
-            className="inline-flex items-center px-4 py-2 rounded-xl text-xs font-bold text-[#1E5BB8] hover:bg-[#F0F5FD] border border-[#D0E1F9] transition-all self-start sm:self-auto shadow-2xs cursor-pointer"
+            className="inline-flex items-center px-4 py-2 rounded-xl text-xs font-bold hover:bg-[#EAF5FF] transition-all self-start sm:self-auto shadow-2xs cursor-pointer"
+            style={{ color: '#0878C9', border: '1px solid #C5DFF5' }}
           >
             <span>View All Enquiries</span>
             <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
@@ -364,14 +369,14 @@ export const SalesDashboard = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-sm">
             <thead>
-              <tr className="bg-slate-50/90 border-b border-slate-200 text-slate-600 font-bold uppercase text-xs tracking-wider">
-                <th className="py-4 px-5">ERN Docket</th>
-                <th className="py-4 px-5">Client / Buyer Entity</th>
-                <th className="py-4 px-5">Substation Project Scope</th>
-                <th className="py-4 px-5">Estimated Value</th>
-                <th className="py-4 px-5">Admin Approval Gate</th>
-                <th className="py-4 px-5">Commercial Status</th>
-                <th className="py-4 px-5 text-right">Action</th>
+              <tr className="border-b font-bold uppercase text-xs tracking-wider" style={{ background: '#EDF4FC', borderColor: '#DCE7F3', color: '#17365D' }}>
+                <th className="py-4 px-5 whitespace-nowrap">ERN Docket</th>
+                <th className="py-4 px-5 min-w-[210px]">Client / Buyer Entity</th>
+                <th className="py-4 px-5 min-w-[230px]">Substation Project Scope</th>
+                <th className="py-4 px-5 whitespace-nowrap">Estimated Value</th>
+                <th className="py-4 px-5 whitespace-nowrap">Admin Approval Gate</th>
+                <th className="py-4 px-5 whitespace-nowrap">Commercial Status</th>
+                <th className="py-4 px-5 text-right whitespace-nowrap">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
@@ -385,13 +390,13 @@ export const SalesDashboard = () => {
                 data.recentEnquiries.map((enq) => (
                   <tr
                     key={enq._id}
-                    className="hover:bg-[#F0F5FD]/60 transition-colors duration-150 group cursor-pointer"
+                    className="hover:bg-[#F3F8FE] transition-colors duration-150 group cursor-pointer"
                   >
                     {/* ERN Docket */}
                     <td className="py-4 px-5">
                       <Link
                         to={`/enquiries/${enq._id}`}
-                        className="font-mono font-black text-sm text-[#1E5BB8] hover:underline flex items-center space-x-1.5"
+                        className="font-mono font-black text-sm text-[#0878C9] hover:underline flex items-center space-x-1.5"
                       >
                         <span>{enq.ern}</span>
                       </Link>
@@ -410,7 +415,7 @@ export const SalesDashboard = () => {
                         {(enq.customerType || enq.clientId?.customerType) && (
                           <>
                             <span className="text-slate-300">•</span>
-                            <span className="text-[#1E5BB8] font-semibold">
+                            <span className="text-[#0878C9] font-semibold">
                               {enq.customerType || enq.clientId?.customerType}
                             </span>
                           </>
@@ -429,25 +434,28 @@ export const SalesDashboard = () => {
                     </td>
 
                     {/* Estimated Value */}
-                    <td className="py-4 px-5 font-mono font-black text-base text-[#1E3A5F]">
-                      ₹ {Number(enq.expectedProjectValue || 0).toLocaleString('en-IN')}
+                    <td className="py-4 px-5 font-mono font-black text-base whitespace-nowrap" style={{ color: '#102B50' }}>
+                      <span className="inline-block whitespace-nowrap">
+                        ₹ {Number(enq.expectedProjectValue || 0).toLocaleString('en-IN')}
+                      </span>
                     </td>
 
                     {/* Admin Approval Gate */}
-                    <td className="py-4 px-5">
+                    <td className="py-4 px-5 whitespace-nowrap">
                       <StatusBadge status={enquiryApprovalLabel(enq.approvalStatus)} />
                     </td>
 
                     {/* Commercial Status */}
-                    <td className="py-4 px-5">
+                    <td className="py-4 px-5 whitespace-nowrap">
                       <StatusBadge status={enq.commercialStatus} />
                     </td>
 
                     {/* Action Button */}
-                    <td className="py-4 px-5 text-right">
+                    <td className="py-4 px-5 text-right whitespace-nowrap">
                       <Link
                         to={`/enquiries/${enq._id}`}
-                        className="inline-flex items-center px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[#F0F5FD] hover:bg-[#1E5BB8] text-[#1E5BB8] hover:text-white border border-[#D0E1F9] hover:border-[#1E5BB8] shadow-2xs transition-all duration-200 group-hover:shadow-xs"
+                        className="inline-flex items-center px-3.5 py-1.5 rounded-xl text-xs font-bold shadow-2xs transition-all duration-200 group-hover:shadow-xs"
+                        style={{ background: '#EAF5FF', color: '#0878C9', border: '1px solid #C5DFF5' }}
                       >
                         <span>View Docket</span>
                         <ArrowUpRight className="w-3.5 h-3.5 ml-1" />

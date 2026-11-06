@@ -51,20 +51,29 @@ export const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col justify-center items-center py-12 px-4 selection:bg-[#1E5BB8] selection:text-white relative">
+    <div
+      className="min-h-screen flex flex-col justify-center items-center py-12 px-4 selection:bg-[#062B59] selection:text-white relative"
+      style={{ background: 'linear-gradient(135deg, #F8FBFF 0%, #EEF5FD 55%, #E7F1FC 100%)' }}
+    >
       {/* Subtle modern background grid */}
       <div 
-        className="fixed inset-0 opacity-[0.025] pointer-events-none"
+        className="fixed inset-0 opacity-[0.035] pointer-events-none"
         style={{
-          backgroundImage: 'radial-gradient(circle at 1px 1px, #1E3A5F 1px, transparent 0)',
+          backgroundImage: 'radial-gradient(circle at 1px 1px, #062B59 1px, transparent 0)',
           backgroundSize: '24px 24px'
         }}
       />
 
       <div className="w-full max-w-md relative z-10">
         {/* Brand Card */}
-        <div className="bg-white p-8 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200/80 transition-all duration-300">
-          {/* Logo & Minimal Header */}
+        <div
+          className="bg-white p-8 rounded-2xl border transition-all duration-300"
+          style={{
+            borderColor: '#DCE7F3',
+            boxShadow: '0 20px 60px rgba(6, 43, 89, 0.10), 0 4px 16px rgba(6, 43, 89, 0.05)'
+          }}
+        >
+          {/* Logo & Header */}
           <div className="text-center mb-6">
             <div className="inline-flex p-2 bg-white rounded-xl shadow-md border border-slate-100 mb-3 hover:scale-105 transition-transform duration-300">
               <img
@@ -74,10 +83,10 @@ export const Login = () => {
               />
             </div>
             <div className="flex items-center justify-center text-2xl font-black tracking-tight">
-              <span className="text-[#1E5BB8]">SKY</span>
-              <span className="text-[#EE6F2D] ml-1.5">POWER</span>
+              <span style={{ color: '#0878C9' }}>SKY</span>
+              <span style={{ color: '#FF7A18' }} className="ml-1.5">POWER</span>
             </div>
-            <p className="text-xs font-semibold text-[#1E3A5F] mt-0.5 tracking-wide">
+            <p className="text-xs font-semibold mt-0.5 tracking-wide" style={{ color: '#526783' }}>
               Switch to the Future — Manufacturing ERP
             </p>
           </div>
@@ -91,7 +100,7 @@ export const Login = () => {
             )}
 
             <div>
-              <label className="block text-sm font-bold text-slate-800 mb-1.5">
+              <label className="block text-xs font-bold mb-1.5" style={{ color: '#102B50' }}>
                 Corporate Email Address
               </label>
               <div className="relative">
@@ -104,13 +113,22 @@ export const Login = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="name@skypower.co.in"
-                  className="w-full pl-10 pr-3.5 py-2.5 text-sm font-medium bg-slate-50/70 border border-slate-300 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#1E5BB8] focus:ring-2 focus:ring-[#1E5BB8]/15 transition-all duration-200"
+                  className="w-full pl-10 pr-3.5 py-2.5 text-sm font-medium bg-[#F8FBFF] border rounded-xl placeholder-slate-400 focus:outline-none focus:bg-white transition-all duration-200"
+                  style={{ borderColor: '#DCE7F3' }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#0878C9';
+                    e.target.style.boxShadow = '0 0 0 3px rgba(8, 120, 201, 0.12)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = '#DCE7F3';
+                    e.target.style.boxShadow = 'none';
+                  }}
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-bold text-slate-800 mb-1.5">
+              <label className="block text-xs font-bold mb-1.5" style={{ color: '#102B50' }}>
                 Secure Password
               </label>
               <div className="relative">
@@ -123,7 +141,16 @@ export const Login = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
-                  className="w-full pl-10 pr-3.5 py-2.5 text-sm font-medium bg-slate-50/70 border border-slate-300 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#1E5BB8] focus:ring-2 focus:ring-[#1E5BB8]/15 transition-all duration-200"
+                  className="w-full pl-10 pr-3.5 py-2.5 text-sm font-medium bg-[#F8FBFF] border rounded-xl placeholder-slate-400 focus:outline-none focus:bg-white transition-all duration-200"
+                  style={{ borderColor: '#DCE7F3' }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = '#0878C9';
+                    e.target.style.boxShadow = '0 0 0 3px rgba(8, 120, 201, 0.12)';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = '#DCE7F3';
+                    e.target.style.boxShadow = 'none';
+                  }}
                 />
               </div>
             </div>
@@ -131,7 +158,11 @@ export const Login = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full mt-2 py-3 px-4 bg-gradient-to-r from-[#1E5BB8] to-[#174A96] hover:from-[#174A96] hover:to-[#113872] text-white text-sm font-bold rounded-lg shadow-md shadow-[#1E5BB8]/20 transition-all duration-200 flex items-center justify-center space-x-2 disabled:opacity-60 cursor-pointer"
+              className="w-full mt-2 py-3 px-4 text-white text-sm font-bold rounded-xl shadow-md transition-all duration-200 flex items-center justify-center space-x-2 disabled:opacity-60 cursor-pointer"
+              style={{
+                background: 'linear-gradient(135deg, #0878C9 0%, #062B59 100%)',
+                boxShadow: '0 6px 16px rgba(8, 120, 201, 0.30)'
+              }}
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -145,43 +176,58 @@ export const Login = () => {
           </form>
 
           {/* Quick 1-Click Role Switcher */}
-          <div className="mt-6 pt-5 border-t border-slate-100">
-            <p className="text-xs text-slate-500 uppercase tracking-wider text-center mb-3 font-bold">
+          <div className="mt-6 pt-5 border-t" style={{ borderColor: '#EAF0F7' }}>
+            <p className="text-[11px] uppercase tracking-wider text-center mb-3 font-bold" style={{ color: '#8495AB' }}>
               Instant Demo Access
             </p>
             <div className="grid grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={setSalesCredentials}
-                className="flex flex-col items-center justify-center py-2 px-1 bg-[#F0F5FD] hover:bg-[#DCE9FA] text-[#1E5BB8] border border-[#D0E1F9] rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer shadow-xs"
+                className="flex flex-col items-center justify-center py-2.5 px-1 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shadow-2xs hover:-translate-y-0.5"
+                style={{
+                  background: '#EAF5FF',
+                  color: '#0878C9',
+                  border: '1px solid #C5DFF5'
+                }}
               >
-                <ShieldCheck className="w-4 h-4 text-[#1E5BB8] mb-0.5" />
+                <ShieldCheck className="w-4 h-4 mb-0.5" style={{ color: '#0878C9' }} />
                 <span>Sales Login</span>
               </button>
 
               <button
                 type="button"
                 onClick={setManagerCredentials}
-                className="flex flex-col items-center justify-center py-2 px-1 bg-[#F5F3FF] hover:bg-[#EDE9FE] text-purple-700 border border-purple-200 rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer shadow-xs"
+                className="flex flex-col items-center justify-center py-2.5 px-1 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shadow-2xs hover:-translate-y-0.5"
+                style={{
+                  background: '#F5F3FF',
+                  color: '#7C3AED',
+                  border: '1px solid #DDD6FE'
+                }}
               >
-                <ClipboardList className="w-4 h-4 text-purple-700 mb-0.5" />
+                <ClipboardList className="w-4 h-4 mb-0.5" style={{ color: '#7C3AED' }} />
                 <span>Manager</span>
               </button>
 
               <button
                 type="button"
                 onClick={setAdminCredentials}
-                className="flex flex-col items-center justify-center py-2 px-1 bg-[#FFF5EE] hover:bg-[#FFE8D6] text-[#EE6F2D] border border-[#FCDCC9] rounded-lg text-xs font-bold transition-all duration-200 cursor-pointer shadow-xs"
+                className="flex flex-col items-center justify-center py-2.5 px-1 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shadow-2xs hover:-translate-y-0.5"
+                style={{
+                  background: '#FFF0E3',
+                  color: '#EA6208',
+                  border: '1px solid #FFD4A8'
+                }}
               >
-                <Zap className="w-4 h-4 text-[#EE6F2D] mb-0.5" />
+                <Zap className="w-4 h-4 mb-0.5" style={{ color: '#EA6208' }} />
                 <span>Admin Login</span>
               </button>
             </div>
           </div>
         </div>
 
-        <p className="mt-4 text-center text-[11px] text-slate-400">
-          Sky Power Switchgears • Module 01: Sales &amp; Marketing ERP
+        <p className="mt-4 text-center text-[11px]" style={{ color: '#8495AB' }}>
+          Sky Power Switchgears • Manufacturing ERP
         </p>
       </div>
     </div>

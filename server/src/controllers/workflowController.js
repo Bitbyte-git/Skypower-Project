@@ -4,7 +4,6 @@ import { PurchaseOrder } from '../models/PurchaseOrder.js';
 import { generateNextClientID, generateNextERN, generateNextPOID } from '../services/counterService.js';
 import { logActivity } from '../services/auditService.js';
 import { USER_ROLES } from '../constants/roles.js';
-import { initializeProjectWorkflow } from '../services/seedService.js';
 
 /**
  * Step 1: Validate or Register Client
@@ -13,7 +12,7 @@ import { initializeProjectWorkflow } from '../services/seedService.js';
  */
 export const registerOrSelectClient = async (req, res, next) => {
   try {
-    const { isNewClient, clientId, companyName, customerType, contactPerson, mobile, email, siteAddress } = req.body;
+    const { isNewClient, clientId, name, clientName, companyName, customerType, contactPerson, mobile, email, siteAddress } = req.body;
 
     // Existing Client selection
     if (!isNewClient && clientId) {
@@ -79,9 +78,12 @@ export const registerOrSelectClient = async (req, res, next) => {
 
     // Generate unique Client ID: SP-CL-YYYY-XXXX
     const newGeneratedClientId = await generateNextClientID();
+    const resolvedName = (name || clientName || companyName || '').trim();
 
     const createdClient = await Client.create({
       clientId: newGeneratedClientId,
+      name: resolvedName,
+      clientName: resolvedName,
       companyName: companyName.trim(),
       customerType: customerType.trim(),
       contactPerson: contactPerson.trim(),
@@ -122,7 +124,7 @@ export const searchExistingClients = async (req, res, next) => {
       const recentClients = await Client.find({})
         .sort({ createdAt: -1 })
         .limit(10)
-        .select('clientId companyName customerType contactPerson mobile email siteAddress');
+        .select('clientId name clientName companyName customerType contactPerson mobile email siteAddress');
       return res.status(200).json({ success: true, clients: recentClients });
     }
 
@@ -130,6 +132,8 @@ export const searchExistingClients = async (req, res, next) => {
     const matched = await Client.find({
       $or: [
         { clientId: searchRegex },
+        { name: searchRegex },
+        { clientName: searchRegex },
         { companyName: searchRegex },
         { contactPerson: searchRegex },
         { mobile: searchRegex }
@@ -137,7 +141,7 @@ export const searchExistingClients = async (req, res, next) => {
     })
       .sort({ createdAt: -1 })
       .limit(20)
-      .select('clientId companyName customerType contactPerson mobile email siteAddress');
+      .select('clientId name clientName companyName customerType contactPerson mobile email siteAddress');
 
     return res.status(200).json({
       success: true,
@@ -246,6 +250,8 @@ export const saveWorkflowDraft = async (req, res, next) => {
           usage: 'Indoor',
           ebMetering: 'Transformer Control',
           quantity: 1,
+          basicPrice: 500000,
+          totalBasicPrice: 500000,
           basicPrice: 50000,
           totalBasicPrice: 50000,
           productDescription: '11kV, 630A, 26.3 kA, 3 Sec, Indoor VCB Switchboard (Transformer Control)'
@@ -255,14 +261,18 @@ export const saveWorkflowDraft = async (req, res, next) => {
         priceBasis: 'Ex-Works: Salem, Tamil Nadu',
         transportPrice: 20000,
         forBasis: 'Client Own Transport (Default)',
+        subTotal: 520000,
         subTotal: 50000,
         gstType: 'INTRA_STATE',
         cgstRate: 9,
         sgstRate: 9,
         igstRate: 18,
+        cgstAmount: 46800,
+        sgstAmount: 46800,
         cgstAmount: 4500,
         sgstAmount: 4500,
         igstAmount: 0,
+        totalTaxAmount: 93600,
         totalTaxAmount: 9000,
         totalAmount: 59000,
         totalAmount: 613600,
@@ -286,8 +296,6 @@ export const saveWorkflowDraft = async (req, res, next) => {
       ]
     });
 
-    const workflow = await initializeProjectWorkflow(newEnquiry, req.user);
-
     await logActivity({
       userId: req.user._id,
       userRole: req.user.role,
@@ -295,15 +303,14 @@ export const saveWorkflowDraft = async (req, res, next) => {
       entityType: 'Enquiry',
       entityId: newEnquiry._id,
       ern: newEnquiry.ern,
-      details: { ern: newEnquiry.ern, clientCustomId, version: initialVersion, projectTrackingId: workflow?.projectTrackingId },
+      details: { ern: newEnquiry.ern, clientCustomId, version: initialVersion },
       req
     });
 
     return res.status(201).json({
       success: true,
       message: `Enquiry workflow created with ERN: ${ern}`,
-      enquiry: newEnquiry,
-      projectWorkflow: workflow
+      enquiry: newEnquiry
     });
   } catch (err) {
     next(err);

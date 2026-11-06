@@ -10,6 +10,8 @@ export const ClientForm = () => {
 
   const [formData, setFormData] = useState({
     clientId: '',
+    name: '',
+    clientName: '',
     companyName: '',
     customerType: 'Contractor', // Contractor or End User
     contactPerson: '', // Name (max 50 chars)
@@ -28,6 +30,8 @@ export const ClientForm = () => {
   const fillSampleClientData = () => {
     setFormData({
       clientId: 'CL-2026-0001',
+      name: 'Sivili Engineering',
+      clientName: 'Sivili Engineering',
       companyName: 'Sivili Engineering Construction',
       customerType: 'Contractor',
       contactPerson: 'S. Sivakumar (Chief Electrical Engineer)',
@@ -49,6 +53,8 @@ export const ClientForm = () => {
           if (res.success && res.client) {
             setFormData({
               clientId: res.client.clientId || '',
+              name: res.client.name || res.client.clientName || '',
+              clientName: res.client.clientName || res.client.name || '',
               companyName: res.client.companyName || '',
               customerType: res.client.customerType || 'Contractor',
               contactPerson: res.client.contactPerson || '',
@@ -70,7 +76,12 @@ export const ClientForm = () => {
   const validateClientInput = () => {
     const newErrors = {};
 
-    // 1. Company Name (Mandatory)
+    // 1. Name (Mandatory)
+    if (!formData.name?.trim()) {
+      newErrors.name = 'Name is mandatory.';
+    }
+
+    // 2. Company Name (Mandatory)
     if (!formData.companyName.trim()) {
       newErrors.companyName = 'Company Name is mandatory.';
     }
@@ -232,10 +243,27 @@ export const ClientForm = () => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* 1. Company Name */}
-            <div className="sm:col-span-2">
+            {/* 1. Name */}
+            <div>
               <label className="block text-[11px] font-bold text-slate-800 uppercase tracking-wide mb-1">
-                1. Company Name <span className="text-rose-600 font-black">*</span>
+                1. Name <span className="text-rose-600 font-black">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value, clientName: e.target.value })}
+                placeholder="e.g. Sivili Engineering"
+                className={`w-full px-3 py-2 text-xs border rounded-xl outline-none font-bold text-slate-900 ${
+                  errors.name ? 'border-rose-500 bg-rose-50/20' : 'border-slate-300 focus:border-[#1E5BB8]'
+                }`}
+              />
+              {errors.name && <p className="text-[10px] text-rose-600 mt-1 font-bold">{errors.name}</p>}
+            </div>
+
+            {/* 2. Company Name */}
+            <div>
+              <label className="block text-[11px] font-bold text-slate-800 uppercase tracking-wide mb-1">
+                2. Company Name <span className="text-rose-600 font-black">*</span>
               </label>
               <input
                 type="text"

@@ -243,7 +243,7 @@ export const getReportsAnalytics = async (req, res, next) => {
         }
       }),
       ProjectWorkflow.countDocuments({
-        overallStatus: PROJECT_WORKFLOW_STATUSES.RETURNED_FOR_SALES_REVIEW
+        overallStatus: PROJECT_WORKFLOW_STATUSES.RETURNED_FOR_CORRECTION
       }),
       Enquiry.aggregate([
         {
@@ -351,7 +351,7 @@ export const getReportsAnalytics = async (req, res, next) => {
       [PROJECT_WORKFLOW_STATUSES.COMPLETED]: '#059669', // Emerald
       [PROJECT_WORKFLOW_STATUSES.UNDER_DEPARTMENT_REVIEW]: '#1E5BB8', // Blue
       [PROJECT_WORKFLOW_STATUSES.PENDING_MANAGER_REVIEW]: '#EE6F2D', // Orange
-      [PROJECT_WORKFLOW_STATUSES.RETURNED_FOR_SALES_REVIEW]: '#DC2626', // Red
+      [PROJECT_WORKFLOW_STATUSES.RETURNED_FOR_CORRECTION]: '#DC2626', // Red
       [PROJECT_WORKFLOW_STATUSES.DRAFT]: '#94A3B8' // Slate
     };
 
@@ -359,7 +359,7 @@ export const getReportsAnalytics = async (req, res, next) => {
       [PROJECT_WORKFLOW_STATUSES.COMPLETED]: 0,
       [PROJECT_WORKFLOW_STATUSES.UNDER_DEPARTMENT_REVIEW]: 0,
       [PROJECT_WORKFLOW_STATUSES.PENDING_MANAGER_REVIEW]: 0,
-      [PROJECT_WORKFLOW_STATUSES.RETURNED_FOR_SALES_REVIEW]: 0,
+      [PROJECT_WORKFLOW_STATUSES.RETURNED_FOR_CORRECTION]: 0,
       [PROJECT_WORKFLOW_STATUSES.DRAFT]: 0
     };
 
@@ -369,11 +369,13 @@ export const getReportsAnalytics = async (req, res, next) => {
       }
     });
 
-    const workflowStatusDistribution = Object.keys(workflowStatusCounts).map((status) => ({
-      label: status,
-      value: workflowStatusCounts[status],
-      color: workflowStatusPalette[status] || '#1E5BB8'
-    }));
+    const workflowStatusDistribution = Object.keys(workflowStatusCounts)
+      .filter((status) => status && status !== 'undefined' && status !== 'null')
+      .map((status) => ({
+        label: status,
+        value: workflowStatusCounts[status] || 0,
+        color: workflowStatusPalette[status] || '#1E5BB8'
+      }));
 
     // Realistic Monthly Enterprise Trend with seasonal manufacturing dynamics
     const monthlyProfiles = [
@@ -385,21 +387,22 @@ export const getReportsAnalytics = async (req, res, next) => {
       { month: 'Nov', pipelineFactor: 1.00, wonFactor: 1.00, enquiries: Math.max(9, totalEnquiries), topEquipment: '11kV Campus Substation' }
     ];
 
-    const basePipeline = Math.max(totalPipelineValue, 4800000);
-    const baseWon = Math.max(wonValue, Math.round(basePipeline * 0.44));
+    const hasData = totalEnquiries > 0 || totalPipelineValue > 0;
+    const basePipeline = hasData ? totalPipelineValue : 0;
+    const baseWon = hasData ? wonValue : 0;
 
     const monthlyTrend = monthlyProfiles.map((p) => {
-      const pipelineVal = Math.round(basePipeline * p.pipelineFactor);
-      const wonVal = Math.round(baseWon * p.wonFactor);
-      const yieldPct = Math.round((wonVal / (pipelineVal || 1)) * 100);
+      const pipelineVal = hasData ? Math.round(basePipeline * p.pipelineFactor) : 0;
+      const wonVal = hasData ? Math.round(baseWon * p.wonFactor) : 0;
+      const yieldPct = pipelineVal > 0 ? Math.round((wonVal / pipelineVal) * 100) : 0;
       return {
         month: p.month,
         period: `${p.month} 2026`,
-        enquiries: p.enquiries,
+        enquiries: hasData ? p.enquiries : 0,
         pipelineValue: pipelineVal,
         wonValue: wonVal,
         conversionYield: yieldPct,
-        topEquipment: p.topEquipment
+        topEquipment: hasData ? p.topEquipment : 'None'
       };
     });
 
@@ -430,6 +433,87 @@ export const getReportsAnalytics = async (req, res, next) => {
       workflowStatusDistribution,
       customerTypeDistribution: formattedCustomerTypes,
       monthlyTrend
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const getTimeAgo = (date) => {
+  if (!date) return 'Just now';
+  const diff = Date.now() - new Date(date).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+};
+
+export const getNotifications = async (req, res, next) => {
+  try {
+    const [recentEnquiries, recentWorkflows] = await Promise.all([
+      Enquiry.find()
+        .populate('clientId', 'name')
+        .sort({ createdAt: -1 })
+        .limit(6)
+        .lean(),
+      ProjectWorkflow.find()
+        .populate('enquiryId', 'ern expectedProjectValue clientName')
+        .sort({ updatedAt: -1 })
+        .limit(6)
+        .lean()
+    ]);
+
+    const notifications = [];
+
+    // Synthesize real notifications from recent enquiries
+    recentEnquiries.forEach((enq, idx) => {
+      const clientName = enq.clientId?.name || enq.clientName || 'Salem Works Client';
+      const ern = enq.ern || `SP-2026-${String(idx + 1).padStart(4, '0')}`;
+      notifications.push({
+        id: `enq_${enq._id}`,
+        title: `Enquiry ${ern} ${enq.approvalStatus || 'Submitted'}`,
+        description: `${clientName} • ₹ ${Number(enq.expectedProjectValue || 0).toLocaleString('en-IN')}`,
+        detail: `Client enquiry ${ern} is currently in status: "${enq.approvalStatus || 'Draft'}". Standard equipment rating: ${enq.products?.[0]?.productName || '11kV VCB Switchboard'}. Commercial expected project value: ₹ ${Number(enq.expectedProjectValue || 0).toLocaleString('en-IN')}.`,
+        time: getTimeAgo(enq.createdAt),
+        rawTime: enq.createdAt,
+        unread: idx < 2,
+        type: 'workflow',
+        ern,
+        clientName,
+        value: enq.expectedProjectValue,
+        status: enq.approvalStatus || 'Draft',
+        link: '/workflow'
+      });
+    });
+
+    // Synthesize real notifications from recent project workflows
+    recentWorkflows.forEach((wf, idx) => {
+      const ern = wf.enquiryId?.ern || `SP-2026-${String(idx + 5).padStart(4, '0')}`;
+      notifications.push({
+        id: `wf_${wf._id}`,
+        title: `Stage ${wf.currentDepartmentSequence || 1} Approval Gate`,
+        description: `Project ${ern} is undergoing 10-Department execution gate review.`,
+        detail: `Tracking ID: ${wf.trackingId || ern}. Overall status: "${wf.overallStatus || 'Under Department Review'}". Current active sequence: Stage ${wf.currentDepartmentSequence || 1}.`,
+        time: getTimeAgo(wf.updatedAt),
+        rawTime: wf.updatedAt,
+        unread: idx === 0,
+        type: 'approval',
+        ern,
+        status: wf.overallStatus || 'Under Review',
+        link: '/workflow'
+      });
+    });
+
+    // Sort by most recent
+    notifications.sort((a, b) => new Date(b.rawTime || 0) - new Date(a.rawTime || 0));
+
+    res.json({
+      success: true,
+      notifications: notifications.slice(0, 8),
+      unreadCount: notifications.filter((n) => n.unread).length
     });
   } catch (err) {
     next(err);

@@ -29,9 +29,12 @@ export const createClient = async (req, res, next) => {
 
     const clientId = await generateNextClientID();
     const clientLocation = req.body.clientLocation || req.body.siteAddress || 'Salem, Tamil Nadu';
+    const resolvedName = (req.body.name || req.body.clientName || req.body.companyName || '').trim();
 
     const client = await Client.create({
       ...req.body,
+      name: resolvedName,
+      clientName: resolvedName,
       clientId,
       clientLocation,
       createdBy: req.user._id
@@ -64,6 +67,8 @@ export const getClients = async (req, res, next) => {
 
     if (search) {
       query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { clientName: { $regex: search, $options: 'i' } },
         { companyName: { $regex: search, $options: 'i' } },
         { clientLocation: { $regex: search, $options: 'i' } },
         { contactPerson: { $regex: search, $options: 'i' } },

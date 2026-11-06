@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useWorkflow } from '../../../context/WorkflowContext';
-import { Calculator, Edit3, ArrowRight, ArrowLeft, Truck, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { Calculator, ArrowRight, ArrowLeft, Truck, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { formatIndianCommas, parseIndianCommas } from '../../../utils/pricingRules';
 
 export const Step4PricingOffering = () => {
@@ -8,7 +8,6 @@ export const Step4PricingOffering = () => {
     pricing,
     setPricing,
     products,
-    setProducts,
     submitStep4PricingAndCreateOffering,
     prevStep,
     client,
@@ -17,9 +16,14 @@ export const Step4PricingOffering = () => {
     error
   } = useWorkflow();
 
-  const [editingBasicPrice, setEditingBasicPrice] = useState(false);
-  const displayBasicPrice = Number(pricing.basicPrice) || (Number(products[0]?.basicPrice) || 50000);
-  const [basicPriceInput, setBasicPriceInput] = useState(formatIndianCommas(displayBasicPrice));
+  // Ensure scroll position is reset to the very top on mount
+  useEffect(() => {
+    const mainEl = document.querySelector('main');
+    if (mainEl) {
+      mainEl.scrollTop = 0;
+    }
+    window.scrollTo(0, 0);
+  }, []);
 
   const totalBasic = products.reduce(
     (acc, p) => acc + (p.totalBasicPrice !== undefined ? Number(p.totalBasicPrice) : ((Number(p.basicPrice) || 0) * (Number(p.quantity) || 1))),
@@ -27,46 +31,39 @@ export const Step4PricingOffering = () => {
   );
   const totalQuantity = products.reduce((acc, p) => acc + (Number(p.quantity) || 1), 0);
 
-  const handleBasicPriceInputChange = (e) => {
+  const [transportPriceInput, setTransportPriceInput] = useState(() =>
+    pricing.transportPrice > 0 ? formatIndianCommas(pricing.transportPrice) : ''
+  );
+
+  const handleTransportTypeChange = (type) => {
+    setPricing((prev) => ({
+      ...prev,
+      transportType: type
+    }));
+  };
+
+  const handleTransportPriceInputChange = (e) => {
     const raw = e.target.value;
     const num = parseIndianCommas(raw);
-    setBasicPriceInput(raw === '' ? '' : formatIndianCommas(num));
-  };
-
-  const handleUpdateBasicPrice = () => {
-    const newPrice = Math.max(0, parseIndianCommas(basicPriceInput));
-    // Update all products' basicPrice and totals
-    const updatedProducts = products.map((p) => ({
-      ...p,
-      basicPrice: newPrice,
-      totalBasicPrice: newPrice * (p.quantity || 1)
+    setTransportPriceInput(raw.trim() === '' ? '' : formatIndianCommas(num));
+    setPricing((prev) => ({
+      ...prev,
+      transportPrice: num
     }));
-    setProducts(updatedProducts);
-    setPricing({
-      ...pricing,
-      basicPrice: newPrice
-    });
-    setEditingBasicPrice(false);
   };
 
-  const handleTransportChange = (option) => {
-    let price = 20000;
-    if (option === 'One Way') price = 10000;
-    if (option === 'Custom Amount') price = pricing.transportPrice || 0;
-
-    setPricing({
-      ...pricing,
-      transportType: option,
-      transportPrice: price
-    });
-  };
-
-  // When FOR Basis changes: if Client Own Transport → lock basic price edit & zero out transport
   const handleForBasisChange = (basis) => {
-    if (basis === 'Client Own Transport') {
-      setEditingBasicPrice(false); // close any open edit panel
+    const isClientOwn = basis === 'Client Own Transport';
+    setPricing((prev) => ({
+      ...prev,
+      forBasis: basis,
+      transportPrice: isClientOwn ? 0 : prev.transportPrice
+    }));
+    if (isClientOwn) {
+      setTransportPriceInput('');
+    } else if (pricing.transportPrice > 0) {
+      setTransportPriceInput(formatIndianCommas(pricing.transportPrice));
     }
-    setPricing({ ...pricing, forBasis: basis });
   };
 
   const handleCreateOffering = async (e) => {
@@ -116,87 +113,8 @@ export const Step4PricingOffering = () => {
             <span>Pricing Details</span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 p-5 bg-slate-50/70 rounded-xl border border-slate-200">
-            {/* 1. Basic Price (EX-Works Salem) - Always Editable */}
-            <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-700">
-                Basic Price (EX-Works – Salem) <span className="text-rose-500">*</span>
-              </label>
-              <div className="relative flex items-center">
-                <span className="absolute left-3 text-slate-500 font-bold text-xs">₹</span>
-                {editingBasicPrice ? (
-                  <div className="flex items-center w-full space-x-1">
-                    <input
-                      type="text"
-                      value={basicPriceInput}
-                      onChange={handleBasicPriceInputChange}
-                      className="w-full pl-7 pr-2 py-2 text-xs font-mono font-bold rounded-lg border border-[#EE6F2D] bg-white focus:outline-hidden"
-                      autoFocus
-                    />
-                    <button
-                      type="button"
-                      onClick={handleUpdateBasicPrice}
-                      className="px-2 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 cursor-pointer"
-                    >
-                      Save
-                    </button>
-                  </div>
-                ) : (
-                  <div
-                    onClick={() => {
-                      setBasicPriceInput(formatIndianCommas(displayBasicPrice));
-                      setEditingBasicPrice(true);
-                    }}
-                    className="w-full pl-7 pr-9 py-2.5 text-sm font-mono font-bold rounded-lg border border-slate-300 bg-white cursor-pointer hover:border-[#EE6F2D] transition-colors flex items-center justify-between"
-                  >
-                    <span>{Number(displayBasicPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                    <Edit3 className="w-3.5 h-3.5 text-slate-400 hover:text-[#EE6F2D]" />
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* 2. Transport Charges — hidden when client uses own transport */}
-            <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-700">
-                Transport Charges
-                {pricing.forBasis === 'Client Own Transport' && (
-                  <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200">
-                    Not Applicable
-                  </span>
-                )}
-              </label>
-              {pricing.forBasis === 'Client Own Transport' ? (
-                <div className="flex items-center space-x-2 px-3 py-2.5 rounded-lg border border-dashed border-slate-300 bg-slate-50 text-xs text-slate-500 font-medium">
-                  <Truck className="w-3.5 h-3.5 text-slate-400" />
-                  <span>Client arranges own transport — no charge applied</span>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-1.5">
-                  <select
-                    value={pricing.transportType}
-                    onChange={(e) => handleTransportChange(e.target.value)}
-                    className="px-2.5 py-2.5 text-xs rounded-lg border border-slate-300 bg-white focus:outline-hidden focus:ring-2 focus:ring-[#EE6F2D]/20 focus:border-[#EE6F2D]"
-                  >
-                    <option value="Up & Down">Up &amp; Down (₹20k)</option>
-                    <option value="One Way">One Way (₹10k)</option>
-                    <option value="Custom Amount">Custom</option>
-                  </select>
-
-                  <div className="relative flex items-center">
-                    <span className="absolute left-2.5 text-slate-500 font-bold text-xs">₹</span>
-                    <input
-                      type="number"
-                      value={pricing.transportPrice}
-                      onChange={(e) => setPricing({ ...pricing, transportPrice: Number(e.target.value) || 0 })}
-                      className="w-full pl-6 pr-2 py-2 text-xs font-mono font-bold rounded-lg border border-slate-300 bg-white"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* 3. FOR Basis */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-5 bg-slate-50/70 rounded-xl border border-slate-200">
+            {/* 1. FOR Basis */}
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-slate-700">
                 FOR Basis <span className="text-rose-500">*</span>
@@ -204,11 +122,73 @@ export const Step4PricingOffering = () => {
               <select
                 value={pricing.forBasis}
                 onChange={(e) => handleForBasisChange(e.target.value)}
-                className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-slate-300 bg-white focus:outline-hidden focus:ring-2 focus:ring-[#EE6F2D]/20 focus:border-[#EE6F2D]"
+                className="w-full px-3.5 py-2.5 text-xs font-bold rounded-lg border border-slate-300 bg-white focus:outline-hidden focus:ring-2 focus:ring-[#EE6F2D]/20 focus:border-[#EE6F2D]"
               >
                 <option value="Client Own Transport">Client Own Transport</option>
                 <option value="Sky Power Needs">Sky Power Needs</option>
               </select>
+              <p className="text-[11px] text-slate-500 font-medium">
+                {pricing.forBasis === 'Client Own Transport'
+                  ? 'Client provides transport — freight and transit insurance not charged.'
+                  : 'Sky Power arranges freight & transit insurance to destination.'}
+              </p>
+            </div>
+
+            {/* 2. Transport Charges */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-slate-700">
+                  Transport Charges
+                </label>
+                {pricing.forBasis === 'Client Own Transport' ? (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                    Client Own (₹ 0.00)
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-mono font-bold text-orange-700 bg-orange-50 px-2 py-0.5 rounded border border-orange-200">
+                    Manual Rate
+                  </span>
+                )}
+              </div>
+
+              {pricing.forBasis === 'Client Own Transport' ? (
+                <div className="flex items-center space-x-2 px-3.5 py-2.5 rounded-lg border border-dashed border-slate-300 bg-slate-100/60 text-xs text-slate-600 font-medium">
+                  <Truck className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Client arranges own transport — no freight charged.</span>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* Up / Down / Up & Down */}
+                    <select
+                      value={pricing.transportType || 'Up & Down'}
+                      onChange={(e) => handleTransportTypeChange(e.target.value)}
+                      className="px-2.5 py-2 text-xs font-bold rounded-lg border border-slate-300 bg-white focus:outline-hidden focus:ring-2 focus:ring-[#EE6F2D]/20 focus:border-[#EE6F2D]"
+                    >
+                      <option value="Up">Up</option>
+                      <option value="Down">Down</option>
+                      <option value="Up & Down">Up &amp; Down</option>
+                    </select>
+
+                    {/* Manual Price Input with commas */}
+                    <div className="relative flex items-center">
+                      <span className="absolute left-2.5 text-slate-500 font-bold text-xs">₹</span>
+                      <input
+                        type="text"
+                        placeholder="Enter amount"
+                        value={transportPriceInput}
+                        onChange={handleTransportPriceInputChange}
+                        className="w-full pl-6 pr-2 py-2 text-xs font-mono font-bold rounded-lg border border-slate-300 bg-white focus:outline-hidden focus:ring-2 focus:ring-[#EE6F2D]/20 focus:border-[#EE6F2D]"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-slate-500 font-medium">
+                    {pricing.transportType === 'Up' && 'Enter manual price for Up transit.'}
+                    {pricing.transportType === 'Down' && 'Enter manual price for Down transit.'}
+                    {(!pricing.transportType || pricing.transportType === 'Up & Down') && 'Enter manual price for both Up & Down transit.'}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -259,8 +239,8 @@ export const Step4PricingOffering = () => {
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
                 <tr>
-                  <td className="py-2.5 px-4">
-                    Basic Price × Quantity ({Number(displayBasicPrice).toLocaleString('en-IN')} × {totalQuantity})
+                  <td className="py-2.5 px-4 font-semibold text-slate-800">
+                    Configured Products ({products.length} {products.length === 1 ? 'Product' : 'Products'}, {totalQuantity} {totalQuantity === 1 ? 'Unit' : 'Units'})
                   </td>
                   <td className="py-2.5 px-4 text-right font-mono font-semibold">
                     ₹ {totalBasic.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
@@ -273,14 +253,14 @@ export const Step4PricingOffering = () => {
                     {pricing.forBasis === 'Client Own Transport' ? (
                       <span className="ml-2 text-[10px] text-emerald-600 font-bold">(Client Own — Not Charged)</span>
                     ) : (
-                      <span className="text-slate-500"> ({pricing.transportType})</span>
+                      <span className="text-slate-500 font-medium"> ({pricing.transportType || 'Up & Down'})</span>
                     )}
                   </td>
                   <td className="py-2.5 px-4 text-right font-mono font-semibold">
                     {pricing.forBasis === 'Client Own Transport' ? (
                       <span className="text-emerald-600">₹ 0.00</span>
                     ) : (
-                      `₹ ${Number(pricing.transportPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+                      `₹ ${Number(pricing.transportPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
                     )}
                   </td>
                 </tr>

@@ -23,16 +23,21 @@ export const PieChartCard = ({
 }) => {
   const [hoveredIndex, setHoveredIndex] = useState(null);
 
-  const total = data.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
-  const size = 300;
+  // Filter out any invalid / undefined data entries
+  const validData = (data || []).filter(
+    (d) => d && d.label !== 'undefined' && d._id !== 'undefined' && d.status !== 'undefined'
+  );
+
+  const total = validData.reduce((sum, d) => sum + (Number(d.value) || 0), 0);
+  const size = 180;
   const center = size / 2;
-  const radius = 112;
-  const innerRadius = 74; // Donut ring width 38px
-  const gapAngle = data.length > 1 ? 0.045 : 0; // Distinct slice gap
+  const radius = 70;
+  const innerRadius = 46;
+  const gapAngle = validData.length > 1 ? 0.045 : 0;
 
   let cumulativeAngle = -Math.PI / 2;
 
-  const slices = data.map((item, idx) => {
+  const slices = validData.map((item, idx) => {
     const val = Number(item.value) || 0;
     const fraction = total > 0 ? val / total : 0;
     const rawAngle = fraction * 2 * Math.PI;
@@ -43,8 +48,8 @@ export const PieChartCard = ({
     cumulativeAngle += rawAngle;
 
     const isHovered = hoveredIndex === idx;
-    const r = isHovered ? radius + 7 : radius;
-    const ir = isHovered ? innerRadius - 3 : innerRadius;
+    const r = isHovered ? radius + 4 : radius;
+    const ir = isHovered ? innerRadius - 1 : innerRadius;
 
     // Outer arc points
     const x1 = center + r * Math.cos(startAngle);
@@ -67,8 +72,18 @@ export const PieChartCard = ({
         ? `M ${center - r} ${center} A ${r} ${r} 0 1 0 ${center + r} ${center} A ${r} ${r} 0 1 0 ${center - r} ${center} M ${center - ir} ${center} A ${ir} ${ir} 0 1 1 ${center + ir} ${center} A ${ir} ${ir} 0 1 1 ${center - ir} ${center} Z`
         : '';
 
+    const cleanLabel =
+      item.label && item.label !== 'undefined'
+        ? item.label
+        : item._id && item._id !== 'undefined'
+        ? item._id
+        : item.status && item.status !== 'undefined'
+        ? item.status
+        : 'Other';
+
     return {
       ...item,
+      label: cleanLabel,
       pathData,
       fraction,
       percent: Math.round(fraction * 100),
@@ -79,29 +94,38 @@ export const PieChartCard = ({
   const activeItem = hoveredIndex !== null ? slices[hoveredIndex] : null;
 
   return (
-    <div className="bg-white p-7 rounded-2xl border border-slate-200/90 shadow-sm hover-lift transition-all">
+    <div
+      className="bg-white p-5 rounded-2xl border transition-all overflow-hidden"
+      style={{
+        borderColor: '#DFEAF6',
+        boxShadow: '0 3px 8px rgba(15, 55, 100, 0.05), 0 10px 24px rgba(15, 55, 100, 0.07)'
+      }}
+    >
       {/* Header */}
-      <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
-        <div>
+      <div className="flex items-center justify-between mb-4 pb-3 border-b" style={{ borderColor: '#EAF0F7' }}>
+        <div className="min-w-0 pr-2">
           <div className="flex items-center space-x-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#1E5BB8]" />
-            <h3 className="text-base font-extrabold text-[#1E3A5F]">{title}</h3>
+            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: '#0878C9' }} />
+            <h3 className="text-sm font-bold truncate" style={{ color: '#102B50' }}>{title}</h3>
           </div>
-          {subtitle && <p className="text-xs text-slate-500 font-medium mt-1">{subtitle}</p>}
+          {subtitle && <p className="text-[11px] font-medium mt-0.5 truncate text-slate-500">{subtitle}</p>}
         </div>
-        <span className="text-xs font-bold text-[#1E5BB8] bg-[#F0F5FD] px-3.5 py-1 rounded-full border border-[#D0E1F9]">
+        <span
+          className="text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0"
+          style={{ background: '#EAF5FF', color: '#0878C9', borderColor: '#C5DFF5' }}
+        >
           Segment Share
         </span>
       </div>
 
-      <div className="flex flex-col xl:flex-row items-center justify-between gap-8">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-5 w-full min-w-0">
         {/* SVG Donut Graphic */}
-        <div className="relative flex items-center justify-center shrink-0">
+        <div className="relative flex items-center justify-center shrink-0 w-[180px] h-[180px]">
           <svg
             width={size}
             height={size}
             viewBox={`0 0 ${size} ${size}`}
-            className="overflow-visible select-none drop-shadow-sm"
+            className="overflow-hidden select-none"
           >
             {slices.map((slice, idx) => (
               <path
@@ -110,76 +134,80 @@ export const PieChartCard = ({
                 fill={slice.color}
                 className="transition-all duration-300 cursor-pointer"
                 style={{
-                  opacity: hoveredIndex === null || hoveredIndex === idx ? 1 : 0.35,
+                  opacity: hoveredIndex === null || hoveredIndex === idx ? 1 : 0.45,
                   filter:
                     hoveredIndex === idx
-                      ? `drop-shadow(0 8px 18px ${slice.color}80)`
-                      : 'drop-shadow(0 2px 4px rgba(0,0,0,0.05))'
+                      ? `drop-shadow(0 3px 8px ${slice.color}80)`
+                      : 'none'
                 }}
                 onMouseEnter={() => setHoveredIndex(idx)}
                 onMouseLeave={() => setHoveredIndex(null)}
-              />
+              >
+                <title>{`${slice.label}: ${slice.value} ${unit} (${slice.percent}%)`}</title>
+              </path>
             ))}
           </svg>
 
-          {/* Center Dynamic Telemetry Hole */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-4">
+          {/* Center Telemetry Hole */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-1">
             {activeItem ? (
-              <div className="animate-in fade-in zoom-in-95 duration-200">
-                <span className="text-[11px] font-black uppercase tracking-wider text-[#EE6F2D] block">
-                  {activeItem.percent}% Share
+              <div className="animate-in fade-in zoom-in-95 duration-150 flex flex-col items-center justify-center">
+                <span className="text-2xl font-black font-mono tracking-tight text-[#FF7A18]">
+                  {activeItem.percent}%
                 </span>
-                <span className="text-2xl font-black text-slate-900 font-mono block">
-                  {activeItem.value}
+                <span className="text-xs font-bold font-mono text-[#102B50]">
+                  {activeItem.value} {unit}
                 </span>
-                <span className="text-xs font-bold text-slate-600 max-w-[130px] truncate block mt-0.5">
-                  {activeItem.label}
+                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mt-0.5">
+                  Selected
                 </span>
               </div>
             ) : (
-              <div className="animate-in fade-in duration-200">
-                <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block">
-                  {totalLabel}
-                </span>
-                <span className="text-3xl font-black text-[#1E3A5F] font-mono block tracking-tight">
+              <div className="animate-in fade-in duration-150 flex flex-col items-center justify-center">
+                <span className="text-2xl font-black font-mono tracking-tight text-[#102B50]">
                   {total}
                 </span>
-                <span className="text-xs text-slate-500 font-bold block mt-0.5">{unit}</span>
+                <span className="text-[11px] font-bold text-slate-600">
+                  {unit}
+                </span>
+                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mt-0.5">
+                  {totalLabel}
+                </span>
               </div>
             )}
           </div>
         </div>
 
-        {/* High-Resolution Legend Cards */}
-        <div className="flex-1 space-y-2.5 w-full">
+        {/* Clean, Full-Text Legend Rows */}
+        <div className="flex-1 w-full space-y-2 min-w-0">
           {slices.map((slice, idx) => (
             <div
               key={idx}
               onMouseEnter={() => setHoveredIndex(idx)}
               onMouseLeave={() => setHoveredIndex(null)}
-              className={`p-3.5 rounded-xl border flex items-center justify-between cursor-pointer transition-all duration-200 ${
+              className={`px-3 py-2 rounded-xl flex items-center justify-between gap-3 cursor-pointer transition-all duration-200 border ${
                 hoveredIndex === idx
-                  ? 'bg-[#F0F5FD] border-[#1E5BB8] shadow-sm translate-x-2'
-                  : 'bg-white border-slate-100 hover:border-slate-200 hover:bg-slate-50/70'
+                  ? 'bg-[#EAF5FF] border-[#C5DFF5] shadow-xs scale-[1.01]'
+                  : 'bg-[#F8FBFF] border-slate-100 hover:bg-slate-100/70 hover:border-slate-200'
               }`}
             >
-              <div className="flex items-center space-x-3 min-w-0">
+              <div className="flex items-center space-x-2.5 min-w-0 flex-1">
                 <span
-                  className="w-3.5 h-3.5 rounded-full shrink-0 ring-2 ring-white shadow-xs"
+                  className="w-2.5 h-2.5 rounded-full shrink-0 ring-2 ring-white shadow-2xs"
                   style={{ backgroundColor: slice.color }}
                 />
-                <span className="text-sm font-bold text-slate-800 truncate">
+                <span className="text-xs font-semibold text-slate-800 leading-snug">
                   {slice.label}
                 </span>
               </div>
 
-              <div className="flex items-center space-x-3 shrink-0 font-mono text-sm">
-                <span className="font-extrabold text-slate-900">{slice.value}</span>
+              <div className="flex items-center space-x-2 shrink-0 font-mono text-xs pl-2">
+                <span className="font-bold text-slate-900">{slice.value}</span>
                 <span
-                  className={`text-xs font-black px-2.5 py-0.5 rounded-full transition-colors ${
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full transition-colors ${
                     hoveredIndex === idx
-                      ? 'bg-[#1E5BB8] text-white'
-                      : 'bg-slate-100 text-slate-700'
+                      ? 'bg-[#0878C9] text-white shadow-2xs'
+                      : 'bg-white text-slate-600 border border-slate-200'
                   }`}
                 >
                   {slice.percent}%
@@ -226,17 +254,26 @@ export const BarChartCard = ({
   }));
 
   return (
-    <div className="bg-white p-7 rounded-2xl border border-slate-200/90 shadow-sm hover-lift transition-all">
+    <div
+      className="bg-white p-5 sm:p-6 rounded-2xl border transition-all"
+      style={{
+        borderColor: '#DFEAF6',
+        boxShadow: '0 3px 8px rgba(15, 55, 100, 0.05)'
+      }}
+    >
       {/* Header */}
-      <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100">
+      <div className="flex items-center justify-between mb-5 pb-3 border-b" style={{ borderColor: '#EAF0F7' }}>
         <div>
           <div className="flex items-center space-x-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#EE6F2D]" />
-            <h3 className="text-base font-extrabold text-[#1E3A5F]">{title}</h3>
+            <span className="w-2.5 h-2.5 rounded-full" style={{ background: '#FF7A18' }} />
+            <h3 className="text-base font-bold" style={{ color: '#102B50' }}>{title}</h3>
           </div>
           {subtitle && <p className="text-xs text-slate-500 font-medium mt-1">{subtitle}</p>}
         </div>
-        <span className="text-xs font-bold text-[#EE6F2D] bg-[#FFF5EE] px-3.5 py-1 rounded-full border border-[#FCDCC9]">
+        <span
+          className="text-xs font-bold px-3 py-1 rounded-full border shrink-0"
+          style={{ background: '#FFF0E3', color: '#FF7A18', borderColor: '#FFD4A8' }}
+        >
           {yAxisLabel}
         </span>
       </div>
@@ -244,7 +281,7 @@ export const BarChartCard = ({
       <div className="relative w-full overflow-x-auto">
         <svg
           viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-          className="w-full h-auto overflow-visible select-none"
+          className="w-full h-auto overflow-hidden select-none"
         >
           {/* Horizontal Gridlines */}
           {ticks.map((tick, i) => (
@@ -470,17 +507,23 @@ export const TrendLineGraphCard = ({
   });
 
   return (
-    <div className="bg-white p-7 rounded-2xl border border-slate-200/90 shadow-sm relative overflow-hidden transition-all hover:shadow-md">
+    <div
+      className="bg-white p-5 sm:p-6 rounded-2xl border relative overflow-hidden transition-all"
+      style={{
+        borderColor: '#DFEAF6',
+        boxShadow: '0 3px 8px rgba(15, 55, 100, 0.05), 0 10px 24px rgba(15, 55, 100, 0.07)'
+      }}
+    >
       {/* Decorative top border ambient highlight */}
-      <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#1E5BB8] via-[#3B82F6] via-[#EE6F2D] to-[#059669]" />
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#0878C9] via-[#FF7A18] to-[#16A34A]" />
 
       {/* 1. Header with Title & Interactive Control Center */}
-      <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5 pb-5 border-b border-slate-100">
+      <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 pb-4 border-b" style={{ borderColor: '#EAF0F7' }}>
         <div>
           <div className="flex items-center space-x-2.5">
-            <span className="w-3 h-3 rounded-full bg-[#1E5BB8] ring-4 ring-blue-50 animate-pulse" />
-            <h3 className="text-lg font-black text-[#1E3A5F] tracking-tight">{title}</h3>
-            <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: '#0878C9' }} />
+            <h3 className="text-base font-bold tracking-tight" style={{ color: '#102B50' }}>{title}</h3>
+            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
               Live Trajectory
             </span>
           </div>
@@ -555,57 +598,57 @@ export const TrendLineGraphCard = ({
       </div>
 
       {/* 2. Executive Stat HUD Strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-4 my-2 border-b border-slate-100 bg-slate-50/70 -mx-7 px-7">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 py-3.5 my-2 border-b border-slate-100 bg-slate-50/60 -mx-6 px-6">
         <div>
-          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-            Current Gross Pipeline
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+            Gross Pipeline
           </span>
-          <div className="flex items-baseline space-x-2 mt-0.5">
-            <span className="text-xl md:text-2xl font-black font-mono text-[#1E3A5F]">
+          <div className="flex items-center space-x-2 mt-1">
+            <span className="text-lg sm:text-xl font-bold font-mono text-[#102B50] whitespace-nowrap">
               ₹ {currentPipeline.toLocaleString('en-IN')}
             </span>
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-100 text-emerald-800">
-              <TrendingUp className="w-3 h-3 mr-0.5 text-emerald-600" />
-              +28.4% YoY
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+              <TrendingUp className="w-2.5 h-2.5 mr-0.5 text-emerald-600" />
+              +28%
             </span>
           </div>
         </div>
 
         <div>
-          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-            Realized Order Value
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+            Realized Value
           </span>
-          <div className="flex items-baseline space-x-2 mt-0.5">
-            <span className="text-xl md:text-2xl font-black font-mono text-emerald-700">
+          <div className="flex items-center space-x-2 mt-1">
+            <span className="text-lg sm:text-xl font-bold font-mono text-emerald-700 whitespace-nowrap">
               ₹ {currentWon.toLocaleString('en-IN')}
             </span>
-            <span className="text-[11px] font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 shrink-0">
               {currentYield}% Yield
             </span>
           </div>
         </div>
 
         <div>
-          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-            Active Project RFQs
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+            Active RFQs
           </span>
-          <div className="flex items-baseline space-x-2 mt-0.5">
-            <span className="text-xl md:text-2xl font-black font-mono text-[#1E5BB8]">
+          <div className="flex items-center space-x-2 mt-1">
+            <span className="text-lg sm:text-xl font-bold font-mono text-[#0878C9] whitespace-nowrap">
               {currentEnquiries} Requisitions
             </span>
-            <span className="text-[11px] font-bold text-slate-500">Live Sprint</span>
+            <span className="text-[10px] font-bold text-slate-500 shrink-0">Active</span>
           </div>
         </div>
 
         <div>
-          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-            Peak Month Throughput
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">
+            Peak Month
           </span>
-          <div className="flex items-baseline space-x-2 mt-0.5">
-            <span className="text-xl md:text-2xl font-black font-mono text-slate-900">
+          <div className="flex items-center space-x-2 mt-1">
+            <span className="text-lg sm:text-xl font-bold font-mono text-[#102B50] whitespace-nowrap">
               {peakPoint.month} 2026
             </span>
-            <span className="text-[11px] font-bold text-[#1E5BB8] font-mono">
+            <span className="text-[10px] font-bold text-[#0878C9] font-mono shrink-0">
               ₹ {(Number(peakPoint.pipelineValue) / 100000).toFixed(1)} L Peak
             </span>
           </div>
@@ -673,7 +716,7 @@ export const TrendLineGraphCard = ({
 
         <svg
           viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-          className="w-full h-auto overflow-visible select-none drop-shadow-xs"
+          className="w-full h-auto overflow-hidden select-none drop-shadow-xs"
         >
           <defs>
             {/* Ultra-smooth multi-stop area glow gradient */}

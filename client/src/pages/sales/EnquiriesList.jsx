@@ -350,8 +350,10 @@ export const EnquiriesList = ({ presetStatus = '' }) => {
                     </td>
 
                     {/* 5. Estimated Valuation (One Clean Line) */}
-                    <td className="py-4 px-5 whitespace-nowrap font-mono font-black text-base text-[#1E3A5F]">
-                      ₹ {Number(enq.expectedProjectValue || 0).toLocaleString('en-IN')}
+                    <td className="py-4 px-5 whitespace-nowrap font-mono font-black text-base" style={{ color: '#102B50' }}>
+                      <span className="inline-block whitespace-nowrap">
+                        ₹ {Number(enq.expectedProjectValue || 0).toLocaleString('en-IN')}
+                      </span>
                     </td>
 
                     {/* 6. Admin Approval Gate Badge */}

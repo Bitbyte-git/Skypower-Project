@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 export const clientSchema = z.object({
   body: z.object({
+    name: z.string().trim().max(200).optional().or(z.literal('')),
+    clientName: z.string().trim().max(200).optional().or(z.literal('')),
     companyName: z
       .string()
       .trim()

@@ -9,6 +9,16 @@ const clientSchema = new mongoose.Schema(
       trim: true,
       index: true
     },
+    name: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    clientName: {
+      type: String,
+      trim: true,
+      default: ''
+    },
     companyName: {
       type: String,
       required: [true, 'Client / Company Name is required'],

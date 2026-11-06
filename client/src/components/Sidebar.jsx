@@ -12,12 +12,11 @@ import {
   CreditCard,
   BarChart3,
   Settings,
-  Sparkles,
-  ClipboardList
+  X
 } from 'lucide-react';
-import heroImg from '../assets/hero.png';
+import factoryBuildingImg from '../assets/sky-power-building.png';
 
-export const Sidebar = () => {
+export const Sidebar = ({ isOpen = false, onClose = () => {} }) => {
   const { user, isAdmin, isManager } = useAuth();
   const location = useLocation();
 
@@ -33,13 +32,13 @@ export const Sidebar = () => {
       name: '10-Dept Workflow',
       path: '/departments/workflow',
       icon: Factory,
-      badge: '10-DEPT'
+      badge: 'DEPT'
     },
     {
       name: 'Enquiry & CRM',
       path: '/workflow',
       icon: FileSpreadsheet,
-      badge: '6-STEP'
+      badge: 'New'
     },
     { name: 'Projects', path: '/enquiries', icon: FolderGit2 },
     { name: 'Product Master', path: isAdmin ? '/admin/settings' : '/enquiries', icon: Cpu },
@@ -75,30 +74,52 @@ export const Sidebar = () => {
   };
 
   return (
-    <aside className="w-64 bg-[#0A101D] text-slate-300 flex flex-col shrink-0 min-h-screen border-r border-slate-800/70 select-none">
+    <aside
+      style={{
+        background: 'linear-gradient(180deg, #031D40 0%, #062B59 55%, #0A4076 100%)'
+      }}
+      className={`fixed inset-y-0 left-0 z-50 w-64 flex flex-col shrink-0 select-none shadow-2xl transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${
+        isOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}
+    >
       {/* Brand Header */}
-      <div className="p-4 border-b border-slate-800/80 bg-[#070C16] flex items-center space-x-3">
-        <div className="w-11 h-11 rounded-lg bg-white p-1 flex items-center justify-center shrink-0 shadow-md">
-          <img
-            src="/brand-logo.jpg"
-            alt="Sky Power"
-            className="w-full h-full object-contain"
-          />
-        </div>
-        <div>
-          <div className="flex items-center text-base font-black tracking-wide">
-            <span className="text-[#1E5BB8]">SKY</span>
-            <span className="text-[#EE6F2D] ml-1">POWER</span>
+      <div
+        className="p-4 flex items-center justify-between border-b"
+        style={{ borderColor: 'rgba(255,255,255,0.08)', background: 'rgba(0,0,0,0.15)' }}
+      >
+        <div className="flex items-center space-x-3">
+          <div className="w-11 h-11 rounded-xl bg-white p-1 flex items-center justify-center shrink-0 shadow-lg">
+            <img
+              src="/brand-logo.jpg"
+              alt="Sky Power"
+              className="w-full h-full object-contain"
+            />
           </div>
-          <p className="text-[11px] text-slate-400 font-semibold tracking-tight">
-            Switch to the Future
-          </p>
+          <div>
+            <div className="flex items-center text-base font-black tracking-wide">
+              <span style={{ color: '#60A5FA' }}>SKY</span>
+              <span style={{ color: '#FF7A18' }} className="ml-1">POWER</span>
+            </div>
+            <p className="text-[11px] font-semibold tracking-tight" style={{ color: '#8BB8E0' }}>
+              Switch to the Future
+            </p>
+          </div>
         </div>
+
+        {/* Mobile Close Button */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+          title="Close Navigation"
+        >
+          <X className="w-5 h-5" />
+        </button>
       </div>
 
       {/* Nav List */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        <div className="px-3 pb-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+      <nav className="flex-1 px-3 py-5 space-y-1 overflow-y-auto no-scrollbar">
+        <div className="px-3 pb-3 text-[10px] font-bold uppercase tracking-widest" style={{ color: '#4A7FAD' }}>
           Enterprise ERP Modules
         </div>
 
@@ -110,28 +131,43 @@ export const Sidebar = () => {
             <NavLink
               key={item.name}
               to={item.path}
-              className={`group flex items-center justify-between px-3 py-2 rounded-lg text-xs font-bold transition-all duration-200 ${
+              onClick={onClose}
+              className={`group flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
                 isActive
-                  ? 'bg-gradient-to-r from-[#EE6F2D] to-[#D95B1B] text-white shadow-md shadow-orange-500/20 translate-x-1'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60 hover:translate-x-0.5'
+                  ? 'text-white shadow-lg'
+                  : 'hover:bg-white/9'
               }`}
+              style={
+                isActive
+                  ? {
+                      background: 'linear-gradient(90deg, #FF8A20 0%, #FF6A0A 100%)',
+                      boxShadow: '0 4px 14px rgba(255, 122, 24, 0.35)',
+                      color: '#FFFFFF'
+                    }
+                  : { color: '#C8DDEF' }
+              }
             >
               <div className="flex items-center space-x-3">
                 <Icon
-                  className={`w-4 h-4 shrink-0 transition-colors duration-200 ${
-                    isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'
-                  }`}
+                  className="w-4.5 h-4.5 shrink-0 transition-colors duration-200"
+                  style={
+                    isActive
+                      ? { color: '#FFFFFF' }
+                      : { color: '#7FB3D4' }
+                  }
+                  size={17}
                 />
-                <span className="text-xs">{item.name}</span>
+                <span className="text-[13px]">{item.name}</span>
               </div>
 
               {item.badge && (
                 <span
-                  className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${
+                  className="text-[9px] font-black px-1.5 py-0.5 rounded-full"
+                  style={
                     isActive
-                      ? 'bg-white text-[#D95B1B]'
-                      : 'bg-[#EE6F2D]/20 text-[#EE6F2D] border border-[#EE6F2D]/40'
-                  }`}
+                      ? { background: 'rgba(255,255,255,0.25)', color: '#FFFFFF' }
+                      : { background: 'rgba(255,122,24,0.18)', color: '#FF9A48', border: '1px solid rgba(255,122,24,0.3)' }
+                  }
                 >
                   {item.badge}
                 </span>
@@ -141,23 +177,16 @@ export const Sidebar = () => {
         })}
       </nav>
 
-      {/* Factory Artwork Card at Bottom */}
-      <div className="p-3 border-t border-slate-800/80 bg-[#070C16]">
-        <div className="relative rounded-lg overflow-hidden border border-slate-700/60 group shadow-md">
-          <img
-            src={heroImg}
-            alt="Sky Power Switchgears Salem Works"
-            className="w-full h-16 object-cover brightness-75 group-hover:brightness-90 transition-all duration-300"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent flex flex-col justify-end p-2 text-white">
-            <span className="text-[10px] font-black tracking-tight text-white leading-tight">
-              SKY POWER SWITCHGEARS
-            </span>
-            <span className="text-[9px] text-slate-300 font-medium">
-              Salem Works, Tamil Nadu
-            </span>
-          </div>
-        </div>
+      {/* SKY POWER Factory Building at Bottom — 100% Seamless on Sidebar Background */}
+      <div className="shrink-0 w-full px-2 pb-1 mt-auto">
+        <img
+          src={factoryBuildingImg}
+          alt="SKY POWER Switchgears Factory Building"
+          className="w-full h-auto object-contain block select-none pointer-events-none"
+          style={{
+            filter: 'drop-shadow(0 10px 18px rgba(0, 0, 0, 0.45))'
+          }}
+        />
       </div>
     </aside>
   );

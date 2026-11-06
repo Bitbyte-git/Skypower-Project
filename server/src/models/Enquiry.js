@@ -175,7 +175,7 @@ const enquirySchema = new mongoose.Schema(
     project: {
       standardType: {
         type: String,
-        enum: ['Standard', 'Non Standard'],
+        enum: ['Standard', 'Non Standard', 'Non-Standard'],
         default: 'Standard'
       },
       projectName: {

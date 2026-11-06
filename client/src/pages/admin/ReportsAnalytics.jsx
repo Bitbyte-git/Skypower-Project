@@ -79,136 +79,54 @@ export const ReportsAnalytics = () => {
   const piePalette = ['#1E5BB8', '#EE6F2D', '#059669', '#7C3AED', '#D97706', '#0284C7', '#E11D48'];
 
   // 1. Format 10-Department Sequential Progress Bar Chart Data
-  const formattedDeptBarData =
-    departmentDistribution.length > 0
-      ? departmentDistribution.map((d) => ({
-          label: `S${d.sequence}`,
-          fullName: `Stage ${d.sequence}: ${d.name}`,
-          value: d.activeCount + d.acceptedCount,
-          active: d.activeCount,
-          accepted: d.acceptedCount,
-          unit: 'Throughput',
-          color: d.canViewClient ? '#1E5BB8' : '#EE6F2D'
-        }))
-      : [
-          { label: 'S1', fullName: '1. Sales & Mktg', value: 5, unit: 'Projects', color: '#1E5BB8' },
-          { label: 'S2', fullName: '2. PO Team', value: 4, unit: 'Projects', color: '#EE6F2D' },
-          { label: 'S3', fullName: '3. Accountant', value: 3, unit: 'Projects', color: '#1E5BB8' },
-          { label: 'S4', fullName: '4. Drawing / OA', value: 3, unit: 'Projects', color: '#EE6F2D' },
-          { label: 'S5', fullName: '5. CT & PT', value: 2, unit: 'Projects', color: '#EE6F2D' },
-          { label: 'S6', fullName: '6. Fabrication', value: 2, unit: 'Projects', color: '#EE6F2D' },
-          { label: 'S7', fullName: '7. Metering Door', value: 1, unit: 'Projects', color: '#EE6F2D' },
-          { label: 'S8', fullName: '8. Testing', value: 1, unit: 'Projects', color: '#EE6F2D' },
-          { label: 'S9', fullName: '9. Delivery', value: 1, unit: 'Projects', color: '#1E5BB8' },
-          { label: 'S10', fullName: '10. Installation', value: 1, unit: 'Projects', color: '#1E5BB8' }
-        ];
+  const formattedDeptBarData = (departmentDistribution || []).map((d) => ({
+    label: `S${d.sequence}`,
+    fullName: `Stage ${d.sequence}: ${d.name}`,
+    value: (d.activeCount || 0) + (d.acceptedCount || 0),
+    active: d.activeCount || 0,
+    accepted: d.acceptedCount || 0,
+    unit: 'Throughput',
+    color: d.canViewClient ? '#1E5BB8' : '#EE6F2D'
+  }));
 
   // 2. Format Project Overall Status Donut Chart
-  const formattedStatusPieData =
-    workflowStatusDistribution.length > 0
-      ? workflowStatusDistribution.map((s, idx) => ({
-          label: s.label,
-          value: s.value,
-          color: s.color || piePalette[idx % piePalette.length]
-        }))
-      : [
-          { label: 'Completed (All 10 Stages)', value: 1, color: '#059669' },
-          { label: 'Under Department Review', value: 1, color: '#1E5BB8' },
-          { label: 'Pending Manager Review', value: 1, color: '#EE6F2D' },
-          { label: 'Returned for Sales Review', value: 1, color: '#DC2626' },
-          { label: 'Draft', value: 1, color: '#94A3B8' }
-        ];
+  const formattedStatusPieData = (workflowStatusDistribution || [])
+    .filter((s) => s && s.label !== 'undefined' && s._id !== 'undefined' && ((s.value || 0) > 0 || (s.count || 0) > 0))
+    .map((s, idx) => ({
+      label: s.label || s._id || s.status || 'Active Stage',
+      value: s.value !== undefined ? s.value : (s.count || 0),
+      color: s.color || piePalette[idx % piePalette.length]
+    }));
 
   // 3. Format Customer Sector Donut Chart
-  const formattedCustomerPieData =
-    customerTypes.length > 0
-      ? customerTypes.map((item, idx) => ({
-          label: item.label || item._id || 'Standard Client',
-          value: item.value || item.count || 0,
-          color: piePalette[idx % piePalette.length]
-        }))
-      : [
-          { label: 'EPC Contractor', value: 4, color: '#1E5BB8' },
-          { label: 'State Power Utility / DISCOM', value: 3, color: '#EE6F2D' },
-          { label: 'OEM Panel Builder', value: 2, color: '#059669' },
-          { label: 'Private IPP / Solar', value: 2, color: '#7C3AED' }
-        ];
+  const formattedCustomerPieData = (customerTypes || [])
+    .filter((item) => item && item.label !== 'undefined' && item._id !== 'undefined' && ((item.value || 0) > 0 || (item.count || 0) > 0))
+    .map((item, idx) => ({
+      label: item.label || item._id || 'Standard Client',
+      value: item.value || item.count || 0,
+      color: item.color || piePalette[idx % piePalette.length]
+    }));
 
   // 4. Format Lifecycle Funnel Bar Chart
   const formattedFunnelBarData = [
-    { label: 'Drafts', fullName: 'Drafts Created', value: m.totalEnquiries ? Math.max(1, Math.round(m.totalEnquiries * 0.2)) : 1, color: '#94A3B8' },
-    { label: 'Pending Mgr', fullName: 'Pending Manager Gate', value: m.pendingWorkflows || 2, color: '#EE6F2D' },
-    { label: 'Under Review', fullName: 'Under 10-Dept Review', value: m.totalWorkflows ? Math.max(1, m.totalWorkflows - (m.completedWorkflows || 0)) : 3, color: '#1E5BB8' },
-    { label: 'Quoted', fullName: 'Commercial Quotations', value: m.quotationsGenerated || 4, color: '#7C3AED' },
-    { label: 'Won Orders', fullName: 'Completed / Won Orders', value: m.completedWorkflows || 2, color: '#059669' },
-    { label: 'Returned', fullName: 'Returned for Rework', value: m.returnedWorkflows || 1, color: '#DC2626' }
+    { label: 'Drafts', fullName: 'Drafts Created', value: m.totalEnquiries ? Math.round(m.totalEnquiries * 0.2) : 0, color: '#94A3B8' },
+    { label: 'Pending Mgr', fullName: 'Pending Manager Gate', value: m.pendingWorkflows || 0, color: '#EE6F2D' },
+    { label: 'Under Review', fullName: 'Under 10-Dept Review', value: m.totalWorkflows ? Math.max(0, m.totalWorkflows - (m.completedWorkflows || 0)) : 0, color: '#1E5BB8' },
+    { label: 'Quoted', fullName: 'Commercial Quotations', value: m.quotationsGenerated || 0, color: '#7C3AED' },
+    { label: 'Won Orders', fullName: 'Completed / Won Orders', value: m.completedWorkflows || 0, color: '#059669' },
+    { label: 'Returned', fullName: 'Returned for Rework', value: m.returnedWorkflows || 0, color: '#DC2626' }
   ];
 
   // 5. Format Monthly Revenue Trend Graph
-  const formattedTrendData =
-    monthlyTrend.length > 0
-      ? monthlyTrend
-      : [
-          { month: 'Jun', pipelineValue: 2800000, wonValue: 1400000, enquiries: 2 },
-          { month: 'Jul', pipelineValue: 5200000, wonValue: 2600000, enquiries: 4 },
-          { month: 'Aug', pipelineValue: 7400000, wonValue: 3800000, enquiries: 6 },
-          { month: 'Sep', pipelineValue: 9800000, wonValue: 4900000, enquiries: 8 },
-          { month: 'Oct', pipelineValue: 12500000, wonValue: 6200000, enquiries: 10 },
-          {
-            month: 'Nov',
-            pipelineValue: Number(m.totalPipelineValue || 15400000),
-            wonValue: Number(m.wonValue || 8200000),
-            enquiries: m.totalEnquiries || 12
-          }
-        ];
+  const formattedTrendData = (monthlyTrend || []).map((t) => ({
+    month: t.month,
+    pipelineValue: Number(t.pipelineValue || 0),
+    wonValue: Number(t.wonValue || 0),
+    enquiries: Number(t.enquiries || 0)
+  }));
 
-  // Switchgear Equipment Mix Portfolio
-  const equipmentMix = [
-    {
-      name: '22kV Outdoor VCB Kiosk Panel',
-      type: 'Vacuum Circuit Breaker',
-      rating: '22kV | 1250A | 26.3kA',
-      units: 6,
-      totalValue: 3900000,
-      share: '35%',
-      trend: '+18.4%',
-      status: 'High Demand',
-      badgeClass: 'bg-emerald-50 text-emerald-800 border-emerald-200'
-    },
-    {
-      name: '11kV Indoor Feeder Breaker Panel',
-      type: 'Switchboard Feeder',
-      rating: '11kV | 800A | 25kA',
-      units: 8,
-      totalValue: 3200000,
-      share: '28%',
-      trend: '+12.1%',
-      status: 'Steady',
-      badgeClass: 'bg-blue-50 text-[#1E5BB8] border-blue-200'
-    },
-    {
-      name: '33kV Substation Breaker Kiosk',
-      type: 'Outdoor Substation',
-      rating: '33kV | 1600A | 31.5kA',
-      units: 2,
-      totalValue: 2400000,
-      share: '21%',
-      trend: '+25.0%',
-      status: 'High Value',
-      badgeClass: 'bg-purple-50 text-purple-700 border-purple-200'
-    },
-    {
-      name: 'LT Motor Control Center (MCC)',
-      type: 'Low Tension Switchgear',
-      rating: '415V | 2500A | 50kA',
-      units: 4,
-      totalValue: 1800000,
-      share: '16%',
-      trend: '+8.3%',
-      status: 'Standard',
-      badgeClass: 'bg-amber-50 text-amber-800 border-amber-200'
-    }
-  ];
+  // Switchgear Equipment Mix Portfolio (dynamically loaded or empty when starting fresh)
+  const equipmentMix = data?.equipmentMix || [];
 
   const filteredEquipment = equipmentMix.filter(
     (e) =>
@@ -357,84 +275,138 @@ export const ReportsAnalytics = () => {
       </div>
 
       {/* 2. High-Density Executive KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
         {/* Card 1: Gross Pipeline Value */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm hover-lift group relative overflow-hidden">
-          <div className="w-1.5 h-full bg-[#1E5BB8] absolute left-0 top-0" />
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-black uppercase tracking-wider text-slate-600">
-              Active Gross Pipeline
-            </span>
-            <span className="text-[11px] font-bold text-[#1E5BB8] bg-[#F0F5FD] px-2.5 py-0.5 rounded-full border border-[#D0E1F9]">
-              Live Portfolio
-            </span>
+        <div
+          className="bg-white p-5 rounded-2xl border transition-all flex flex-col justify-between"
+          style={{
+            borderColor: '#DFEAF6',
+            boxShadow: '0 3px 8px rgba(15, 55, 100, 0.05), 0 10px 24px rgba(15, 55, 100, 0.07)'
+          }}
+        >
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="flex items-center space-x-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-[#EAF5FF] text-[#0878C9] flex items-center justify-center shrink-0">
+                  <BarChart3 className="w-4 h-4" />
+                </div>
+                <span className="text-xs font-bold text-slate-600 truncate">
+                  Active Pipeline
+                </span>
+              </div>
+              <span
+                className="text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0"
+                style={{ background: '#EAF5FF', color: '#0878C9', borderColor: '#C5DFF5' }}
+              >
+                Live
+              </span>
+            </div>
+            <div className="text-xl sm:text-2xl font-bold font-mono tracking-tight whitespace-nowrap text-[#102B50]">
+              ₹ {Number(m.totalPipelineValue || 14800000).toLocaleString('en-IN')}
+            </div>
           </div>
-          <div className="text-3xl font-black text-[#1E5BB8] font-mono">
-            ₹ {Number(m.totalPipelineValue || 14800000).toLocaleString('en-IN')}
-          </div>
-          <div className="text-xs font-semibold text-slate-500 mt-2 flex items-center justify-between">
-            <span>{m.totalEnquiries || 6} Active Enquiries</span>
-            <span className="text-[#1E5BB8] font-mono font-bold">10-Dept Tracked</span>
+          <div className="text-xs text-slate-500 mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
+            <span>{m.totalEnquiries || 6} Active RFQs</span>
+            <span className="font-semibold text-[#0878C9]">10-Dept Tracked</span>
           </div>
         </div>
 
         {/* Card 2: Confirmed Orders Won */}
-        <div className="bg-white p-6 rounded-2xl border border-emerald-200 shadow-sm hover-lift group relative overflow-hidden">
-          <div className="w-1.5 h-full bg-emerald-600 absolute left-0 top-0" />
-          <div className="flex items-center justify-between text-emerald-700 mb-2">
-            <span className="text-xs font-black uppercase tracking-wider text-emerald-800">
-              Confirmed Orders Won
-            </span>
-            <span className="text-[11px] font-black text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-300">
-              Production Gate
-            </span>
+        <div
+          className="bg-white p-5 rounded-2xl border transition-all flex flex-col justify-between"
+          style={{
+            borderColor: '#BBF7D0',
+            boxShadow: '0 3px 8px rgba(15, 55, 100, 0.05), 0 10px 24px rgba(15, 55, 100, 0.07)'
+          }}
+        >
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="flex items-center space-x-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                  <CheckCircle2 className="w-4 h-4" />
+                </div>
+                <span className="text-xs font-bold text-slate-600 truncate">
+                  Orders Won
+                </span>
+              </div>
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 shrink-0">
+                Production
+              </span>
+            </div>
+            <div className="text-xl sm:text-2xl font-bold font-mono tracking-tight whitespace-nowrap text-emerald-700">
+              ₹ {Number(m.wonValue || 7400000).toLocaleString('en-IN')}
+            </div>
           </div>
-          <div className="text-3xl font-black text-emerald-700 font-mono">
-            ₹ {Number(m.wonValue || 7400000).toLocaleString('en-IN')}
-          </div>
-          <div className="text-xs font-bold text-emerald-600 mt-2 flex items-center justify-between">
-            <span>{m.completedWorkflows || 1} Completed Through 10 Stages</span>
-            <span className="font-mono">Realized</span>
+          <div className="text-xs text-slate-500 mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
+            <span>{m.completedWorkflows || 1} Completed</span>
+            <span className="font-semibold text-emerald-600">Realized</span>
           </div>
         </div>
 
         {/* Card 3: 10-Department Projects */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200/90 shadow-sm hover-lift group relative overflow-hidden">
-          <div className="w-1.5 h-full bg-[#1E5BB8] absolute left-0 top-0" />
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-black uppercase tracking-wider text-slate-600">
-              Active Workflow Projects
-            </span>
-            <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full flex items-center border border-emerald-200">
-              <ArrowUpRight className="w-3 h-3 mr-0.5" /> 10 Stages
-            </span>
+        <div
+          className="bg-white p-5 rounded-2xl border transition-all flex flex-col justify-between"
+          style={{
+            borderColor: '#DFEAF6',
+            boxShadow: '0 3px 8px rgba(15, 55, 100, 0.05), 0 10px 24px rgba(15, 55, 100, 0.07)'
+          }}
+        >
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="flex items-center space-x-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-slate-100 text-[#062B59] flex items-center justify-center shrink-0">
+                  <Factory className="w-4 h-4" />
+                </div>
+                <span className="text-xs font-bold text-slate-600 truncate">
+                  Active Projects
+                </span>
+              </div>
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center border border-emerald-200 shrink-0">
+                <ArrowUpRight className="w-3 h-3 mr-0.5" /> 10 Stages
+              </span>
+            </div>
+            <div className="text-xl sm:text-2xl font-bold font-mono tracking-tight text-[#102B50]">
+              {m.totalWorkflows || 5}
+            </div>
           </div>
-          <div className="text-3xl font-black text-slate-900 font-mono group-hover:text-[#1E5BB8] transition-colors">
-            {m.totalWorkflows || 5}
-          </div>
-          <div className="text-xs font-semibold text-slate-500 mt-2 flex items-center justify-between">
-            <span>{m.pendingWorkflows || 2} In Active Dept Review</span>
-            <span className="text-amber-600 font-bold">{m.returnedWorkflows || 1} Rework</span>
+          <div className="text-xs text-slate-500 mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
+            <span>{m.pendingWorkflows || 2} In Review</span>
+            <span className="text-amber-600 font-semibold">{m.returnedWorkflows || 1} Rework</span>
           </div>
         </div>
 
         {/* Card 4: Conversion Rate */}
-        <div className="bg-white p-6 rounded-2xl border border-[#FCDCC9] shadow-sm hover-lift-orange group relative overflow-hidden">
-          <div className="w-1.5 h-full bg-[#EE6F2D] absolute left-0 top-0" />
-          <div className="flex items-center justify-between text-[#D65A1A] mb-2">
-            <span className="text-xs font-black uppercase tracking-wider text-[#EE6F2D]">
-              Workflow Realization Rate
-            </span>
-            <span className="text-[11px] font-black text-[#EE6F2D] bg-[#FFF5EE] px-2.5 py-0.5 rounded-full border border-[#FCDCC9]">
-              Target: 40%
-            </span>
+        <div
+          className="bg-white p-5 rounded-2xl border transition-all flex flex-col justify-between"
+          style={{
+            borderColor: '#FFD4A8',
+            boxShadow: '0 3px 8px rgba(255, 122, 24, 0.05), 0 10px 24px rgba(255, 122, 24, 0.07)'
+          }}
+        >
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="flex items-center space-x-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-[#FFF0E3] text-[#FF7A18] flex items-center justify-center shrink-0">
+                  <Zap className="w-4 h-4" />
+                </div>
+                <span className="text-xs font-bold text-slate-600 truncate">
+                  Realization Rate
+                </span>
+              </div>
+              <span
+                className="text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0"
+                style={{ background: '#FFF0E3', color: '#EA6208', borderColor: '#FFD4A8' }}
+              >
+                Target: 40%
+              </span>
+            </div>
+            <div className="text-xl sm:text-2xl font-bold font-mono tracking-tight" style={{ color: '#EA6208' }}>
+              {m.conversionRate || 35}%
+            </div>
           </div>
-          <div className="text-3xl font-black text-[#EE6F2D] font-mono">
-            {m.conversionRate || 35}%
-          </div>
-          <div className="text-xs font-bold text-[#EE6F2D] mt-2 flex items-center justify-between">
-            <span>Quotations: {m.quotationsGenerated || 4} Issued</span>
-            <span className="font-mono">Gate Audited</span>
+          <div className="text-xs text-slate-500 mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
+            <span>Quotations: {m.quotationsGenerated || 4}</span>
+            <span className="font-semibold text-[#EA6208]">Audited</span>
           </div>
         </div>
       </div>
@@ -453,16 +425,16 @@ export const ReportsAnalytics = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center space-x-2.5 px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all duration-200 cursor-pointer shrink-0 ${
+              className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer shrink-0 ${
                 isActive
-                  ? 'bg-[#1E5BB8] text-white shadow-lg shadow-[#1E5BB8]/25 translate-y-[-1px]'
+                  ? 'bg-gradient-to-r from-[#FF8A20] to-[#FF6A0A] text-white shadow-md shadow-orange-500/20'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               }`}
             >
               <Icon className="w-4 h-4" />
               <span>{tab.label}</span>
               <span
-                className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                   isActive ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
                 }`}
               >
@@ -491,11 +463,10 @@ export const ReportsAnalytics = () => {
             subtitle="Real-time distribution of active projects and completed approvals across all 10 departments"
             data={formattedDeptBarData}
             yAxisLabel="Project Count"
-            customWidth={820}
           />
 
           {/* Dual Donut / Pie Charts Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-7">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             {/* Donut Chart A: Project Lifecycle Status Distribution */}
             <PieChartCard
               title="Project Lifecycle Status Breakdown"
@@ -516,12 +487,18 @@ export const ReportsAnalytics = () => {
           </div>
 
           {/* 10-Department Execution Matrix Table */}
-          <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden hover-lift transition-all">
-            <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div
+            className="bg-white rounded-2xl border overflow-hidden transition-all"
+            style={{
+              borderColor: '#DFEAF6',
+              boxShadow: '0 3px 8px rgba(15, 55, 100, 0.05)'
+            }}
+          >
+            <div className="p-5 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4" style={{ borderColor: '#EAF0F7' }}>
               <div>
                 <div className="flex items-center space-x-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#1E5BB8]" />
-                  <h3 className="text-base font-extrabold text-[#1E3A5F]">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: '#0878C9' }} />
+                  <h3 className="text-base font-bold" style={{ color: '#102B50' }}>
                     10-Department Execution &amp; Confidentiality Matrix
                   </h3>
                 </div>
@@ -529,89 +506,78 @@ export const ReportsAnalytics = () => {
                   Sequential workflow stages, queue bottleneck counts, and client data visibility rules
                 </p>
               </div>
-              <span className="text-xs font-bold text-[#1E5BB8] bg-[#F0F5FD] px-3.5 py-1 rounded-full border border-[#D0E1F9] shrink-0">
+              <span
+                className="text-xs font-bold px-3 py-1 rounded-full border shrink-0"
+                style={{ background: '#EAF5FF', color: '#0878C9', borderColor: '#C5DFF5' }}
+              >
                 10 Managed Stages
               </span>
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-sm">
+              <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="bg-slate-50/90 border-b border-slate-200 text-slate-600 font-bold uppercase text-xs tracking-wider">
-                    <th className="py-4 px-6">Seq #</th>
-                    <th className="py-4 px-6">Department Name</th>
-                    <th className="py-4 px-6">Client Privacy Policy</th>
-                    <th className="py-4 px-6 text-center">Currently in Queue</th>
-                    <th className="py-4 px-6 text-center">Approved &amp; Completed</th>
-                    <th className="py-4 px-6 text-center">Rejections Recorded</th>
-                    <th className="py-4 px-6 text-right">Stage Health</th>
+                  <tr className="bg-[#EDF4FC] text-[#17365D] font-bold uppercase tracking-wider whitespace-nowrap border-b border-[#DFEAF6]">
+                    <th className="py-3 px-5">Seq #</th>
+                    <th className="py-3 px-5">Department Name</th>
+                    <th className="py-3 px-5">Client Privacy Policy</th>
+                    <th className="py-3 px-5 text-center">Currently in Queue</th>
+                    <th className="py-3 px-5 text-center">Approved &amp; Completed</th>
+                    <th className="py-3 px-5 text-center">Rejections Recorded</th>
+                    <th className="py-3 px-5 text-right">Stage Health</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
-                  {(departmentDistribution.length > 0
-                    ? departmentDistribution
-                    : [
-                        { sequence: 1, name: 'Sales & Marketing', canViewClient: true, activeCount: 2, acceptedCount: 4, rejectedCount: 0 },
-                        { sequence: 2, name: 'Purchase Order (PO) Team', canViewClient: false, activeCount: 1, acceptedCount: 3, rejectedCount: 0 },
-                        { sequence: 3, name: 'Accountant', canViewClient: true, activeCount: 0, acceptedCount: 3, rejectedCount: 0 },
-                        { sequence: 4, name: 'Drawing / Order Acknowledgement', canViewClient: false, activeCount: 1, acceptedCount: 2, rejectedCount: 0 },
-                        { sequence: 5, name: 'CT & PT', canViewClient: false, activeCount: 0, acceptedCount: 2, rejectedCount: 0 },
-                        { sequence: 6, name: 'Fabrication', canViewClient: false, activeCount: 0, acceptedCount: 1, rejectedCount: 1 },
-                        { sequence: 7, name: 'Metering Door', canViewClient: false, activeCount: 0, acceptedCount: 1, rejectedCount: 0 },
-                        { sequence: 8, name: 'Testing', canViewClient: false, activeCount: 0, acceptedCount: 1, rejectedCount: 0 },
-                        { sequence: 9, name: 'Delivery', canViewClient: true, activeCount: 0, acceptedCount: 1, rejectedCount: 0 },
-                        { sequence: 10, name: 'Installation', canViewClient: true, activeCount: 0, acceptedCount: 1, rejectedCount: 0 }
-                      ]
-                  ).map((dept) => (
+                  {departmentDistribution.map((dept) => (
                     <tr
                       key={dept.sequence}
-                      className="hover:bg-[#F0F5FD]/60 transition-colors duration-150"
+                      className="hover:bg-[#F3F8FE] transition-colors duration-150 whitespace-nowrap"
                     >
-                      <td className="py-4 px-6 font-mono font-bold text-slate-500">
+                      <td className="py-3 px-5 font-mono font-semibold text-slate-500">
                         Stage {dept.sequence}
                       </td>
-                      <td className="py-4 px-6 font-bold text-[#1E3A5F]">
+                      <td className="py-3 px-5 font-bold text-[#102B50]">
                         {dept.name}
                       </td>
-                      <td className="py-4 px-6">
+                      <td className="py-3 px-5">
                         {dept.canViewClient ? (
-                          <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <span className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                             <Unlock className="w-3 h-3 text-emerald-600" />
                             <span>Authorized (Full Details &amp; Quotation)</span>
                           </span>
                         ) : (
-                          <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                          <span className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
                             <Lock className="w-3 h-3 text-amber-600" />
                             <span>Restricted (Masked Technical Only)</span>
                           </span>
                         )}
                       </td>
-                      <td className="py-4 px-6 text-center font-mono font-black text-slate-900">
+                      <td className="py-3 px-5 text-center font-mono font-bold text-slate-800">
                         {dept.activeCount > 0 ? (
-                          <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 font-extrabold text-xs">
+                          <span className="px-2 py-0.5 rounded-full bg-blue-50 text-[#0878C9] border border-blue-200 font-bold text-xs">
                             {dept.activeCount} Pending
                           </span>
                         ) : (
                           <span className="text-slate-400 text-xs">0</span>
                         )}
                       </td>
-                      <td className="py-4 px-6 text-center font-mono font-bold text-emerald-700">
+                      <td className="py-3 px-5 text-center font-mono font-bold text-emerald-700">
                         {dept.acceptedCount} Approved
                       </td>
-                      <td className="py-4 px-6 text-center font-mono font-bold text-rose-600">
+                      <td className="py-3 px-5 text-center font-mono font-bold text-rose-600">
                         {dept.rejectedCount || 0}
                       </td>
-                      <td className="py-4 px-6 text-right">
+                      <td className="py-3 px-5 text-right">
                         {dept.rejectedCount > 0 ? (
-                          <span className="text-xs font-bold px-3 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                          <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
                             Rework Active
                           </span>
                         ) : dept.activeCount > 0 ? (
-                          <span className="text-xs font-bold px-3 py-1 rounded-full bg-blue-50 text-blue-800 border border-blue-200">
+                          <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-[#0878C9] border border-blue-200">
                             In Progress
                           </span>
                         ) : (
-                          <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                          <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
                             Clear
                           </span>
                         )}
@@ -634,11 +600,10 @@ export const ReportsAnalytics = () => {
             subtitle="Real-time distribution of active projects and completed approvals across all 10 departments"
             data={formattedDeptBarData}
             yAxisLabel="Project Count"
-            customWidth={820}
           />
 
           {/* Dual Donut Charts Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-7">
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
             {/* Donut Chart A: Project Overall Status Distribution */}
             <PieChartCard
               title="Project Lifecycle Status Breakdown"
@@ -659,12 +624,18 @@ export const ReportsAnalytics = () => {
           </div>
 
           {/* 10-Department Execution Matrix Table */}
-          <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden hover-lift transition-all">
-            <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div
+            className="bg-white rounded-2xl border overflow-hidden transition-all"
+            style={{
+              borderColor: '#DFEAF6',
+              boxShadow: '0 3px 8px rgba(15, 55, 100, 0.05)'
+            }}
+          >
+            <div className="p-5 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4" style={{ borderColor: '#EAF0F7' }}>
               <div>
                 <div className="flex items-center space-x-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#1E5BB8]" />
-                  <h3 className="text-base font-extrabold text-[#1E3A5F]">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: '#0878C9' }} />
+                  <h3 className="text-base font-bold" style={{ color: '#102B50' }}>
                     10-Department Execution &amp; Confidentiality Matrix
                   </h3>
                 </div>
@@ -672,89 +643,78 @@ export const ReportsAnalytics = () => {
                   Sequential workflow stages, queue bottleneck counts, and client data visibility rules
                 </p>
               </div>
-              <span className="text-xs font-bold text-[#1E5BB8] bg-[#F0F5FD] px-3.5 py-1 rounded-full border border-[#D0E1F9] shrink-0">
+              <span
+                className="text-xs font-bold px-3 py-1 rounded-full border shrink-0"
+                style={{ background: '#EAF5FF', color: '#0878C9', borderColor: '#C5DFF5' }}
+              >
                 10 Managed Stages
               </span>
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-sm">
+              <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="bg-slate-50/90 border-b border-slate-200 text-slate-600 font-bold uppercase text-xs tracking-wider">
-                    <th className="py-4 px-6">Seq #</th>
-                    <th className="py-4 px-6">Department Name</th>
-                    <th className="py-4 px-6">Client Privacy Policy</th>
-                    <th className="py-4 px-6 text-center">Currently in Queue</th>
-                    <th className="py-4 px-6 text-center">Approved &amp; Completed</th>
-                    <th className="py-4 px-6 text-center">Rejections Recorded</th>
-                    <th className="py-4 px-6 text-right">Stage Health</th>
+                  <tr className="bg-[#EDF4FC] text-[#17365D] font-bold uppercase tracking-wider whitespace-nowrap border-b border-[#DFEAF6]">
+                    <th className="py-3 px-5">Seq #</th>
+                    <th className="py-3 px-5">Department Name</th>
+                    <th className="py-3 px-5">Client Privacy Policy</th>
+                    <th className="py-3 px-5 text-center">Currently in Queue</th>
+                    <th className="py-3 px-5 text-center">Approved &amp; Completed</th>
+                    <th className="py-3 px-5 text-center">Rejections Recorded</th>
+                    <th className="py-3 px-5 text-right">Stage Health</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-medium">
-                  {(departmentDistribution.length > 0
-                    ? departmentDistribution
-                    : [
-                        { sequence: 1, name: 'Sales & Marketing', canViewClient: true, activeCount: 2, acceptedCount: 4, rejectedCount: 0 },
-                        { sequence: 2, name: 'Purchase Order (PO) Team', canViewClient: false, activeCount: 1, acceptedCount: 3, rejectedCount: 0 },
-                        { sequence: 3, name: 'Accountant', canViewClient: true, activeCount: 0, acceptedCount: 3, rejectedCount: 0 },
-                        { sequence: 4, name: 'Drawing / Order Acknowledgement', canViewClient: false, activeCount: 1, acceptedCount: 2, rejectedCount: 0 },
-                        { sequence: 5, name: 'CT & PT', canViewClient: false, activeCount: 0, acceptedCount: 2, rejectedCount: 0 },
-                        { sequence: 6, name: 'Fabrication', canViewClient: false, activeCount: 0, acceptedCount: 1, rejectedCount: 1 },
-                        { sequence: 7, name: 'Metering Door', canViewClient: false, activeCount: 0, acceptedCount: 1, rejectedCount: 0 },
-                        { sequence: 8, name: 'Testing', canViewClient: false, activeCount: 0, acceptedCount: 1, rejectedCount: 0 },
-                        { sequence: 9, name: 'Delivery', canViewClient: true, activeCount: 0, acceptedCount: 1, rejectedCount: 0 },
-                        { sequence: 10, name: 'Installation', canViewClient: true, activeCount: 0, acceptedCount: 1, rejectedCount: 0 }
-                      ]
-                  ).map((dept) => (
+                  {departmentDistribution.map((dept) => (
                     <tr
                       key={dept.sequence}
-                      className="hover:bg-[#F0F5FD]/60 transition-colors duration-150"
+                      className="hover:bg-[#F3F8FE] transition-colors duration-150 whitespace-nowrap"
                     >
-                      <td className="py-4 px-6 font-mono font-bold text-slate-500">
+                      <td className="py-3 px-5 font-mono font-semibold text-slate-500">
                         Stage {dept.sequence}
                       </td>
-                      <td className="py-4 px-6 font-bold text-[#1E3A5F]">
+                      <td className="py-3 px-5 font-bold text-[#102B50]">
                         {dept.name}
                       </td>
-                      <td className="py-4 px-6">
+                      <td className="py-3 px-5">
                         {dept.canViewClient ? (
-                          <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <span className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                             <Unlock className="w-3 h-3 text-emerald-600" />
                             <span>Authorized (Full Details &amp; Quotation)</span>
                           </span>
                         ) : (
-                          <span className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                          <span className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
                             <Lock className="w-3 h-3 text-amber-600" />
                             <span>Restricted (Masked Technical Only)</span>
                           </span>
                         )}
                       </td>
-                      <td className="py-4 px-6 text-center font-mono font-black text-slate-900">
+                      <td className="py-3 px-5 text-center font-mono font-bold text-slate-800">
                         {dept.activeCount > 0 ? (
-                          <span className="px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 font-extrabold text-xs">
+                          <span className="px-2 py-0.5 rounded-full bg-blue-50 text-[#0878C9] border border-blue-200 font-bold text-xs">
                             {dept.activeCount} Pending
                           </span>
                         ) : (
                           <span className="text-slate-400 text-xs">0</span>
                         )}
                       </td>
-                      <td className="py-4 px-6 text-center font-mono font-bold text-emerald-700">
+                      <td className="py-3 px-5 text-center font-mono font-bold text-emerald-700">
                         {dept.acceptedCount} Approved
                       </td>
-                      <td className="py-4 px-6 text-center font-mono font-bold text-rose-600">
+                      <td className="py-3 px-5 text-center font-mono font-bold text-rose-600">
                         {dept.rejectedCount || 0}
                       </td>
-                      <td className="py-4 px-6 text-right">
+                      <td className="py-3 px-5 text-right">
                         {dept.rejectedCount > 0 ? (
-                          <span className="text-xs font-bold px-3 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
+                          <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
                             Rework Active
                           </span>
                         ) : dept.activeCount > 0 ? (
-                          <span className="text-xs font-bold px-3 py-1 rounded-full bg-blue-50 text-blue-800 border border-blue-200">
+                          <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-[#0878C9] border border-blue-200">
                             In Progress
                           </span>
                         ) : (
-                          <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                          <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
                             Clear
                           </span>
                         )}
@@ -790,12 +750,18 @@ export const ReportsAnalytics = () => {
 
       {/* TAB 3: SWITCHGEAR EQUIPMENT MIX PORTFOLIO */}
       {activeTab === 'equipment' && (
-        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden hover-lift transition-all">
-          <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div
+          className="bg-white rounded-2xl border overflow-hidden transition-all"
+          style={{
+            borderColor: '#DFEAF6',
+            boxShadow: '0 3px 8px rgba(15, 55, 100, 0.05)'
+          }}
+        >
+          <div className="p-5 border-b flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4" style={{ borderColor: '#EAF0F7' }}>
             <div>
               <div className="flex items-center space-x-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#1E5BB8]" />
-                <h3 className="text-base font-extrabold text-[#1E3A5F]">
+                <span className="w-2.5 h-2.5 rounded-full" style={{ background: '#0878C9' }} />
+                <h3 className="text-base font-bold" style={{ color: '#102B50' }}>
                   Switchgear Equipment Portfolio Mix
                 </h3>
               </div>
@@ -811,62 +777,75 @@ export const ReportsAnalytics = () => {
                 placeholder="Search equipment line or rating..."
                 value={equipmentSearch}
                 onChange={(e) => setEquipmentSearch(e.target.value)}
-                className="px-3.5 py-2 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 outline-none focus:border-[#1E5BB8] focus:bg-white w-64 transition-all"
+                className="px-3.5 py-2 text-xs font-semibold bg-white border border-[#DCE7F3] rounded-xl text-slate-800 placeholder-slate-400 outline-none focus:border-[#0878C9] focus:ring-2 focus:ring-[#0878C9]/20 w-64 transition-all"
               />
-              <span className="text-xs font-bold text-[#1E5BB8] bg-[#F0F5FD] px-3.5 py-1 rounded-full border border-[#D0E1F9] shrink-0">
+              <span
+                className="text-xs font-bold px-3 py-1 rounded-full border shrink-0"
+                style={{ background: '#EAF5FF', color: '#0878C9', borderColor: '#C5DFF5' }}
+              >
                 {filteredEquipment.length} Lines
               </span>
             </div>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-sm">
+            <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="bg-slate-50/90 border-b border-slate-200 text-slate-600 font-bold uppercase text-xs tracking-wider">
-                  <th className="py-4 px-6">Equipment Line</th>
-                  <th className="py-4 px-6">Product Classification</th>
-                  <th className="py-4 px-6">Standard Engineering Rating</th>
-                  <th className="py-4 px-6">Units Quoted</th>
-                  <th className="py-4 px-6">Total Pipeline Value</th>
-                  <th className="py-4 px-6">Portfolio Share</th>
-                  <th className="py-4 px-6">Demand Trend</th>
-                  <th className="py-4 px-6 text-right">Production Status</th>
+                <tr className="bg-[#EDF4FC] text-[#17365D] font-bold uppercase tracking-wider whitespace-nowrap border-b border-[#DFEAF6]">
+                  <th className="py-3 px-5">Equipment Line</th>
+                  <th className="py-3 px-5">Product Classification</th>
+                  <th className="py-3 px-5">Standard Engineering Rating</th>
+                  <th className="py-3 px-5 text-center">Units Quoted</th>
+                  <th className="py-3 px-5">Total Pipeline Value</th>
+                  <th className="py-3 px-5 text-center">Portfolio Share</th>
+                  <th className="py-3 px-5 text-center">Demand Trend</th>
+                  <th className="py-3 px-5 text-right">Production Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
-                {filteredEquipment.map((eq, i) => (
-                  <tr
-                    key={i}
-                    className="hover:bg-[#F0F5FD]/60 transition-colors duration-150 cursor-pointer"
-                  >
-                    <td className="py-4.5 px-6 font-bold text-[#1E3A5F]">{eq.name}</td>
-                    <td className="py-4.5 px-6 text-xs text-slate-500 font-semibold">{eq.type}</td>
-                    <td className="py-4.5 px-6 font-mono text-xs text-slate-700 font-bold">
-                      {eq.rating}
-                    </td>
-                    <td className="py-4.5 px-6 font-mono font-extrabold text-slate-900">
-                      {eq.units} Nos
-                    </td>
-                    <td className="py-4.5 px-6 font-mono font-black text-[#1E5BB8]">
-                      ₹ {Number(eq.totalValue).toLocaleString('en-IN')}
-                    </td>
-                    <td className="py-4.5 px-6">
-                      <span className="text-xs font-black px-2.5 py-1 rounded-full bg-slate-100 text-slate-800 font-mono">
-                        {eq.share}
-                      </span>
-                    </td>
-                    <td className="py-4.5 px-6 font-bold text-emerald-600 text-xs">
-                      {eq.trend}
-                    </td>
-                    <td className="py-4.5 px-6 text-right">
-                      <span
-                        className={`text-xs font-bold px-3 py-1 rounded-full border ${eq.badgeClass}`}
-                      >
-                        {eq.status}
-                      </span>
+                {filteredEquipment.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-12 text-center text-sm font-semibold text-slate-400">
+                      No switchgear equipment recorded yet. Create an enquiry to populate portfolio analysis.
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredEquipment.map((eq, i) => (
+                    <tr
+                      key={i}
+                      className="hover:bg-[#F3F8FE] transition-colors duration-150 cursor-pointer whitespace-nowrap"
+                    >
+                      <td className="py-3.5 px-5 font-bold text-[#102B50]">{eq.name}</td>
+                      <td className="py-3.5 px-5 text-xs text-slate-500 font-semibold">{eq.type}</td>
+                      <td className="py-3.5 px-5 font-mono text-xs text-slate-700 font-semibold">
+                        {eq.rating}
+                      </td>
+                      <td className="py-3.5 px-5 font-mono font-bold text-slate-900 text-center">
+                        {eq.units} Nos
+                      </td>
+                      <td className="py-3.5 px-5 font-mono font-bold text-[#0878C9]">
+                        <span className="inline-block whitespace-nowrap">
+                          ₹ {Number(eq.totalValue).toLocaleString('en-IN')}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-5 text-center">
+                        <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 font-mono">
+                          {eq.share}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-5 font-bold text-emerald-600 text-xs text-center">
+                        {eq.trend}
+                      </td>
+                      <td className="py-3.5 px-5 text-right">
+                        <span
+                          className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${eq.badgeClass}`}
+                        >
+                          {eq.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

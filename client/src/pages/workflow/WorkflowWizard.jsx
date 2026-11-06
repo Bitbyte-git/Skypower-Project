@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { WorkflowProvider, useWorkflow } from '../../context/WorkflowContext';
 import { Step1ClientRegister } from './steps/Step1ClientRegister';
@@ -21,13 +21,32 @@ const stepsMeta = [
 const WizardContent = () => {
   const { currentStep, goToStep } = useWorkflow();
 
+  // Scroll to top whenever step changes
+  useEffect(() => {
+    const mainEl = document.querySelector('main');
+    if (mainEl) {
+      mainEl.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+      mainEl.scrollTop = 0;
+    }
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [currentStep]);
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-16">
       {/* ============================================================
           ENTERPRISE TOP STEP PROGRESS INDICATOR
           Matching exact design: 1. Client -> 2. Project -> 3. Products -> 4. Pricing -> 5. Offering -> 6. PO Team
           ============================================================ */}
-      <div className="bg-white rounded-xl shadow-xs border border-slate-200/90 p-3 sm:p-4 select-none">
+      <div
+        className="rounded-2xl p-3 sm:p-4 select-none"
+        style={{
+          background: '#FFFFFF',
+          border: '1px solid #DCE7F3',
+          boxShadow: '0 3px 8px rgba(15, 55, 100, 0.05)'
+        }}
+      >
         <div className="flex items-center justify-between overflow-x-auto no-scrollbar gap-2 sm:gap-4 px-2">
           {stepsMeta.map((s, idx) => {
             const isCompleted = currentStep > s.step;
@@ -58,8 +77,14 @@ const WizardContent = () => {
                     </div>
                   ) : isCurrent ? (
                     /* Current: Active Orange Highlight Pill */
-                    <div className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-[#EE6F2D] to-[#D95B1B] text-white shadow-xs font-black text-xs tracking-tight">
-                      <div className="w-4 h-4 rounded-full bg-white text-[#EE6F2D] flex items-center justify-center font-bold text-[10px]">
+                    <div
+                      className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full text-white font-black text-xs tracking-tight"
+                      style={{
+                        background: 'linear-gradient(90deg, #FF8A20 0%, #FF6A0A 100%)',
+                        boxShadow: '0 4px 12px rgba(255, 122, 24, 0.35)'
+                      }}
+                    >
+                      <div className="w-4 h-4 rounded-full bg-white text-[#EA6208] flex items-center justify-center font-bold text-[10px]">
                         {s.step}
                       </div>
                       <span>{s.label}</span>

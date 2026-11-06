@@ -2,28 +2,58 @@
 
 @layer base {
   :root {
-    --sp-blue: #1E5BB8;
-    --sp-blue-dark: #174A96;
-    --sp-blue-light: #F0F5FD;
-    --sp-blue-border: #D0E1F9;
-    --sp-orange: #EE6F2D;
-    --sp-orange-dark: #D65A1A;
-    --sp-orange-light: #FFF5EE;
-    --sp-orange-border: #FCDCC9;
-    --sp-navy: #1E3A5F;
-    --industrial-dark: #0A0F1D;
+    /* Brand Colors */
+    --primary-navy: #062B59;
+    --primary-navy-dark: #031D40;
+    --primary-navy-light: #10477C;
+    --brand-orange: #FF7A18;
+    --brand-orange-dark: #EA6208;
+    --brand-orange-light: #FFF0E3;
+    --brand-blue: #0878C9;
+    --brand-blue-light: #EAF5FF;
+
+    /* Surfaces */
+    --app-background: #F2F7FD;
+    --surface-primary: #FFFFFF;
+    --surface-secondary: #F8FBFF;
+
+    /* Text */
+    --text-primary: #102B50;
+    --text-secondary: #526783;
+    --text-muted: #8495AB;
+
+    /* Borders */
+    --border-primary: #DCE7F3;
+    --border-secondary: #EAF0F7;
+
+    /* Semantic */
+    --success: #16A34A;
+    --warning: #F59E0B;
+    --danger: #DC2626;
+    --info: #0284C7;
+
+    /* Legacy compat */
+    --sp-blue: #0878C9;
+    --sp-blue-dark: #0668AA;
+    --sp-blue-light: #EAF5FF;
+    --sp-blue-border: #C5DFF5;
+    --sp-orange: #FF7A18;
+    --sp-orange-dark: #EA6208;
+    --sp-orange-light: #FFF0E3;
+    --sp-orange-border: #FFD4A8;
+    --sp-navy: #062B59;
+    --industrial-dark: #031D40;
     --surface-card: #FFFFFF;
-    --surface-bg: #F8FAFC;
+    --surface-bg: #F2F7FD;
   }
 
   body {
-    background-color: #F8FAFC;
-    color: #0F172A;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: linear-gradient(135deg, #F8FBFF 0%, #EEF5FD 55%, #E7F1FC 100%);
+    min-height: 100vh;
+    color: #102B50;
+    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
     margin: 0;
     padding: 0;
-    min-height: 100vh;
-    letter-spacing: 0;
     font-size: 14px;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
@@ -45,141 +75,266 @@
     margin: 0;
     padding: 0;
   }
+
+  h1, h2, h3, h4, h5, h6 {
+    color: #102B50;
+    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  }
+
+  input, select, textarea {
+    font-size: 14px;
+    color: #102B50;
+    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  }
 }
 
-/* Extraordinary UI Hover & Interaction Utilities */
+/* ============================================================
+   HOVER & INTERACTION UTILITIES
+   ============================================================ */
 .hover-lift {
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.22s ease;
 }
 .hover-lift:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 14px 28px -6px rgba(30, 91, 184, 0.12), 0 6px 12px -2px rgba(15, 23, 42, 0.04);
-  border-color: #D0E1F9;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(6, 43, 89, 0.10), 0 2px 8px rgba(6, 43, 89, 0.06);
+  border-color: #C5DFF5;
 }
-
 .hover-lift-orange:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 14px 28px -6px rgba(238, 111, 45, 0.14), 0 6px 12px -2px rgba(15, 23, 42, 0.04);
-  border-color: #FCDCC9;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(255, 122, 24, 0.14), 0 2px 8px rgba(255, 122, 24, 0.06);
+  border-color: #FFD4A8;
 }
 
+/* ============================================================
+   BUTTONS
+   ============================================================ */
 .btn-primary {
-  background: linear-gradient(135deg, #1E5BB8 0%, #174A96 100%);
+  background: linear-gradient(135deg, #0878C9 0%, #0564A8 100%);
   color: #FFFFFF;
+  font-weight: 600;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .btn-primary:hover {
-  background: linear-gradient(135deg, #2465C7 0%, #1A52A3 100%);
+  background: linear-gradient(135deg, #0A87DC 0%, #0670BB 100%);
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px -2px rgba(30, 91, 184, 0.35);
+  box-shadow: 0 6px 16px rgba(8, 120, 201, 0.30);
 }
-.btn-primary:active {
-  transform: scale(0.98);
-}
+.btn-primary:active { transform: scale(0.98); }
 
 .btn-accent {
-  background: linear-gradient(135deg, #EE6F2D 0%, #D65A1A 100%);
+  background: linear-gradient(135deg, #FF7A18 0%, #EA6208 100%);
   color: #FFFFFF;
+  font-weight: 600;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .btn-accent:hover {
-  background: linear-gradient(135deg, #F57835 0%, #E0621E 100%);
+  background: linear-gradient(135deg, #FF8A30 0%, #F56E10 100%);
   transform: translateY(-1px);
-  box-shadow: 0 6px 16px -2px rgba(238, 111, 45, 0.35);
+  box-shadow: 0 6px 16px rgba(255, 122, 24, 0.32);
 }
-.btn-accent:active {
-  transform: scale(0.98);
+.btn-accent:active { transform: scale(0.98); }
+
+/* ============================================================
+   CARD COMPONENTS
+   ============================================================ */
+.erp-card {
+  background: #FFFFFF;
+  border: 1px solid #DFEAF6;
+  border-radius: 16px;
+  box-shadow: 0 3px 8px rgba(15, 55, 100, 0.05), 0 10px 24px rgba(15, 55, 100, 0.07);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.erp-card:hover {
+  box-shadow: 0 6px 16px rgba(15, 55, 100, 0.08), 0 16px 32px rgba(15, 55, 100, 0.09);
 }
 
-/* Elegant Paper Form Styling with Minimalist Clean Aesthetic */
 .paper-sheet {
   background-color: #FFFFFF;
-  border: 1px solid #E2E8F0;
-  box-shadow: 0 4px 24px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.02);
+  border: 1px solid #DFEAF6;
+  box-shadow: 0 4px 16px rgba(6, 43, 89, 0.06), 0 1px 4px rgba(6, 43, 89, 0.04);
   border-radius: 16px;
   position: relative;
   transition: box-shadow 0.3s ease;
 }
-
 .paper-header {
-  border-bottom: 1.5px solid #E2E8F0;
+  border-bottom: 1.5px solid #DFEAF6;
   position: relative;
 }
 
-/* Form Section Title */
+/* ============================================================
+   FORM SECTION TITLE
+   ============================================================ */
 .form-section-title {
   display: flex;
   align-items: center;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #1E3A5F;
-  background-color: #F8FAFC;
-  padding: 11px 16px;
+  color: #062B59;
+  background-color: #F2F7FD;
+  padding: 10px 16px;
   border-radius: 10px;
-  border: 1px solid #E2E8F0;
-  border-left: 4px solid #1E5BB8;
+  border: 1px solid #DCE7F3;
+  border-left: 4px solid #FF7A18;
   margin-bottom: 16px;
 }
 
-input, select, textarea {
-  font-size: 14px;
-  color: #0F172A;
-}
-
-/* Minimalist Stamp Styling (High-Precision Engineering Clearance Pill) */
+/* ============================================================
+   STATUS STAMPS
+   ============================================================ */
 .stamp-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   text-transform: uppercase;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  padding: 5px 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 4px 10px;
   border-width: 1.5px;
   border-style: solid;
   border-radius: 8px;
   font-size: 11px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
-
 .stamp-approved {
-  color: #059669;
-  border-color: #059669;
-  background-color: #ECFDF5;
+  color: #16A34A;
+  border-color: #16A34A;
+  background-color: #F0FDF4;
 }
-
 .stamp-pending {
   color: #D97706;
   border-color: #D97706;
   background-color: #FFFBEB;
 }
-
 .stamp-returned {
-  color: #EE6F2D;
-  border-color: #EE6F2D;
-  background-color: #FFF5EE;
+  color: #EA6208;
+  border-color: #EA6208;
+  background-color: #FFF0E3;
 }
-
 .stamp-rejected {
   color: #DC2626;
   border-color: #DC2626;
   background-color: #FEF2F2;
 }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+/* ============================================================
+   TABLE
+   ============================================================ */
+.erp-table-header {
+  background: #EDF4FC;
+  color: #17365D;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
-::-webkit-scrollbar-track {
-  background: #F1F5F9;
+.erp-table-row:hover {
+  background: #F3F8FE;
 }
-::-webkit-scrollbar-thumb {
-  background: #CBD5E1;
-  border-radius: 3px;
+
+/* ============================================================
+   FORM CONTROLS
+   ============================================================ */
+.erp-input {
+  background: #FFFFFF;
+  border: 1px solid #DCE7F3;
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: #94A3B8;
+.erp-input:focus {
+  border-color: #0878C9;
+  box-shadow: 0 0 0 3px rgba(8, 120, 201, 0.12);
+  outline: none;
 }
+
+/* ============================================================
+   SCROLLBAR
+   ============================================================ */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: #EEF5FD; }
+::-webkit-scrollbar-thumb { background: #BAD3EC; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #8AB5D9; }
+
+/* Sidebar dark scrollbar - never render light/white track on dark navy */
+aside nav::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar {
+  width: 0px;
+  height: 0px;
+  display: none;
+}
+aside nav,
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+/* ============================================================
+   ANIMATIONS
+   ============================================================ */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up { animation: fadeInUp 0.3s ease forwards; }
+
+/* ============================================================
+   GLOBAL ENTERPRISE THEME ENHANCEMENTS (IMAGE 1 TARGET DESIGN)
+   ============================================================ */
+/* Universal White Cards with soft blue shadows and crisp light border */
+.bg-white.rounded-xl,
+.bg-white.rounded-2xl {
+  border-color: #DFEAF6 !important;
+  box-shadow: 0 3px 8px rgba(15, 55, 100, 0.05), 0 10px 24px rgba(15, 55, 100, 0.07);
+}
+
+/* Universal Currency & Monospace Value formatting — Never wrap Rupee symbol onto its own line */
+.font-mono,
+[class*="font-mono"] {
+  font-family: 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-feature-settings: 'tnum' 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Universal Enterprise Tables */
+table thead th {
+  white-space: nowrap;
+}
+
+table td.font-mono,
+table th.font-mono {
+  white-space: nowrap !important;
+}
+table thead tr {
+  background: #EDF4FC !important;
+  color: #17365D !important;
+  font-weight: 700 !important;
+}
+
+table tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+table tbody tr:hover {
+  background-color: #F3F8FE !important;
+}
+
+/* Universal Inputs & Form Controls */
+input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+select,
+textarea {
+  border-color: #DCE7F3;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):focus,
+select:focus,
+textarea:focus {
+  border-color: #0878C9 !important;
+  box-shadow: 0 0 0 3px rgba(8, 120, 201, 0.12) !important;
+  outline: none !important;
+}
+

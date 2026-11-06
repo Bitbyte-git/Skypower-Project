@@ -158,8 +158,6 @@ export const seedInitialData = async () => {
       console.log('[Seed] Sky Power Sales user created: sales@skypower.co.in / Sales@123');
     }
 
-    // Clean up any legacy PO Team login accounts (Only 3 roles: SALES, MANAGER, ADMIN)
-    await User.deleteMany({ email: 'po@skypower.co.in' });
     // 3.1 Ensure PO Team Lead exists
     let poUser = await User.findOne({ email: 'po@skypower.co.in' });
     if (!poUser) {
@@ -174,121 +172,8 @@ export const seedInitialData = async () => {
       });
       console.log('[Seed] Sky Power PO Team user created: po@skypower.co.in / Po@123');
     }
-    // 4. Ensure initial clients exist
-    const clientCount = await Client.countDocuments();
-    if (clientCount === 0) {
-      const sampleClient1 = await Client.create({
-        clientId: await generateNextClientID(),
-        companyName: 'Larsen & Toubro Ltd. (T&D Division)',
-        clientLocation: 'Chennai, Tamil Nadu',
-        contactPerson: 'S. Sundaram (Chief Electrical Engineer)',
-        mobile: '9840198401',
-        officePhone: '04422501000',
-        email: 's.sundaram@lntpower.com',
-        website: 'https://www.larsentoubro.com',
-        customerType: 'EPC Contractor',
-        billingAddress: {
-          street: 'Mount Poonamallee Road, Manapakkam',
-          city: 'Chennai',
-          state: 'Tamil Nadu',
-          postalCode: '600089',
-          country: 'India'
-        },
-        gstNumber: '33AAACL0140P1ZX',
-        createdBy: salesUser._id
-      });
-
-      const sampleClient2 = await Client.create({
-        clientId: await generateNextClientID(),
-        companyName: 'Tata Power Company Limited',
-        clientLocation: 'Mumbai, Maharashtra',
-        contactPerson: 'Vikram Joshi (Procurement Head)',
-        mobile: '9820098200',
-        officePhone: '02266658282',
-        email: 'vjoshi@tatapower.com',
-        website: 'https://www.tatapower.com',
-        customerType: 'Private Power Producer / IPP',
-        billingAddress: {
-          street: 'Bombay House, 24 Homi Mody Street',
-          city: 'Mumbai',
-          state: 'Maharashtra',
-          postalCode: '400001',
-          country: 'India'
-        },
-        gstNumber: '27AAACT2727Q1ZW',
-        createdBy: salesUser._id
-      });
-
-      // Seed an initial enquiry based on Book1.xlsx sample
-      const ern1 = await generateNextERN();
-      await Enquiry.create({
-        ern: ern1,
-        offerDate: new Date(),
-        clientId: sampleClient1._id,
-        customerType: sampleClient1.customerType,
-        project: {
-          projectName: '220/33/22KV Main Receiving Substation (MRSS-3)',
-          projectCategory: 'Transmission & Distribution Substation',
-          projectLocation: 'Sri City SEZ, Andhra Pradesh',
-          projectSiteAddress: 'Sector 4, Industrial Area, Sri City',
-          expectedDeliveryDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
-          projectDescription: 'Supply and installation of 22KV VCB Kiosks for plant power intake.',
-          projectScope: 'Engineering, Manufacturing, Routine Testing and Supply at site as per IEC 62271-200.',
-          specialRequirements: 'Seismic Zone III withstand, IP55 Outdoor Kiosk enclosure.',
-          internalRemarks: 'High priority turnkey tender. Client requires urgent dispatch schedule.',
-          referredBy: 'Tata Consulting Engineers'
-        },
-        products: [
-          {
-            productName: '22KV Outdoor VCB Kiosk Panel',
-            productType: 'HT Switchgear',
-            productDescription: '22KV 1250A 26.3kA / 3s Outdoor Vacuum Circuit Breaker Kiosk with motorized draw-out mechanism and numerical relay.',
-            voltageRating: '22 kV',
-            currentRating: '1250 A',
-            breakingCapacity: '26.3 kA / 3s',
-            equipmentConfiguration: 'Outdoor Kiosk with Weatherproof Canopy',
-            quantity: 4,
-            unit: 'Nos',
-            estimatedUnitValue: 650000,
-            totalProductValue: 2600000,
-            technicalSpecifications: 'Busbar: High Conductivity EC Grade Copper; Degree of Protection: IP55; Dual core CT/PT class 0.2s / 5P10; IEC 61850 Protocol.'
-          },
-          {
-            productName: '22KV Bus Coupler Panel',
-            productType: 'HT Switchgear',
-            productDescription: '22KV 1600A 26.3kA Outdoor Bus Coupler Panel with mechanical and electrical interlocking.',
-            voltageRating: '22 kV',
-            currentRating: '1600 A',
-            breakingCapacity: '26.3 kA / 3s',
-            equipmentConfiguration: 'Outdoor Kiosk',
-            quantity: 1,
-            unit: 'Nos',
-            estimatedUnitValue: 800000,
-            totalProductValue: 800000,
-            technicalSpecifications: '1600A Busbar rating; Motorized breaker rack-in/out; Trip circuit supervision.'
-          }
-        ],
-        enquiryType: ENQUIRY_TYPES.FIRM,
-        referredBy: 'Tata Consulting Engineers',
-        enquirySource: 'Tender Portal / E-Procurement',
-        assignedSalesEngineer: salesUser._id,
-        expectedProjectValue: 3400000,
-        commands: 'Client demands Siemens SIPROTEC 5 numerical relay with IEC 61850 protocol support and dual trip coil supervision.',
-        enquiryRemarks: 'Firm commercial offer to be submitted within 10 days.',
-        approvalStatus: APPROVAL_STATUSES.PENDING_APPROVAL,
-        commercialStatus: COMMERCIAL_STATUSES.IN_PROGRESS,
-        currentRevision: 1
-      });
-
-      await initializeProjectWorkflow(sampleEnquiry1, salesUser);
-      console.log(`[Seed] Seeded Sky Power switchgear enquiry with ERN: ${ern1}`);
-    }
-
-    // Ensure all existing enquiries have ProjectWorkflow initialized
-    const existingEnquiries = await Enquiry.find({});
-    for (const enq of existingEnquiries) {
-      await initializeProjectWorkflow(enq, salesUser);
-    }
+    // 4. Sample clients and enquiries seeding is removed so user can add real data directly
+    console.log('[Seed] Database is clean and ready for real client and project data entry.');
   } catch (err) {
     console.error('[Seed] Error during seeding:', err.message);
   }

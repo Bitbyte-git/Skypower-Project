@@ -47,11 +47,11 @@ export const WorkflowProvider = ({ children, initialEnquiryId = null }) => {
   // Step 3: Products (Multiple Products) — start empty; user adds products from scratch
   const [products, setProducts] = useState([]);
 
-  // Step 4: Pricing & Offering — basicPrice starts at 0 (user must enter it explicitly)
+  // Step 4: Pricing & Offering — starts at 0, configured dynamically
   const [pricing, setPricing] = useState({
     basicPrice: 0,
     transportType: 'Up & Down',
-    transportPrice: 20000,
+    transportPrice: 0,
     forBasis: 'Client Own Transport',
     gstType: 'INTRA_STATE',
     cgstRate: 9,
@@ -203,6 +203,8 @@ export const WorkflowProvider = ({ children, initialEnquiryId = null }) => {
         setClient({
           _id: res.client._id,
           clientId: res.client.clientId,
+          name: res.client.name || res.client.clientName || '',
+          clientName: res.client.clientName || res.client.name || '',
           companyName: res.client.companyName,
           customerType: res.client.customerType,
           contactPerson: res.client.contactPerson,

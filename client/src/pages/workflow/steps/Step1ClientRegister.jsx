@@ -16,6 +16,7 @@ export const Step1ClientRegister = () => {
   } = useWorkflow();
 
   const [formValues, setFormValues] = useState({
+    name: client.name || client.clientName || '',
     companyName: client.companyName || '',
     customerType: client.customerType || 'Contractor',
     contactPerson: client.contactPerson || '',
@@ -32,9 +33,10 @@ export const Step1ClientRegister = () => {
 
   // Sync state if client was previously set
   useEffect(() => {
-    if (client.companyName) {
+    if (client.companyName || client.name) {
       setFormValues({
-        companyName: client.companyName,
+        name: client.name || client.clientName || '',
+        companyName: client.companyName || '',
         customerType: client.customerType || 'Contractor',
         contactPerson: client.contactPerson || '',
         mobile: client.mobile || '',
@@ -70,6 +72,9 @@ export const Step1ClientRegister = () => {
 
   const validateNewClient = () => {
     const errs = {};
+    if (!formValues.name.trim()) {
+      errs.name = 'Name is required.';
+    }
     if (!formValues.companyName.trim()) {
       errs.companyName = 'Company Name is required.';
     }
@@ -138,6 +143,8 @@ export const Step1ClientRegister = () => {
     setClient({
       _id: c._id,
       clientId: c.clientId,
+      name: c.name || c.clientName || c.companyName || '',
+      clientName: c.clientName || c.name || c.companyName || '',
       companyName: c.companyName,
       customerType: c.customerType,
       contactPerson: c.contactPerson,
@@ -213,14 +220,39 @@ export const Step1ClientRegister = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {/* Company Name */}
-              <div className="md:col-span-2 space-y-1.5">
-                <label className="block text-xs font-bold text-slate-700">
-                  Company Name <span className="text-rose-500">*</span>
-                </label>
+              {/* Name */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-700">
+                    Name <span className="text-rose-500">*</span>
+                  </label>
+                  <span className="text-[10px] text-slate-400 font-medium">Client / Entity Name</span>
+                </div>
                 <input
                   type="text"
-                  placeholder="e.g. ABC Electricals Pvt. Ltd."
+                  placeholder="e.g. Media Mint"
+                  value={formValues.name}
+                  onChange={(e) => setFormValues({ ...formValues, name: e.target.value })}
+                  className={`w-full px-3.5 py-2.5 text-sm rounded-lg border bg-white focus:outline-hidden focus:ring-2 focus:ring-[#EE6F2D]/20 focus:border-[#EE6F2D] transition-colors ${
+                    formErrors.name ? 'border-rose-400 bg-rose-50/20' : 'border-slate-300'
+                  }`}
+                />
+                {formErrors.name && (
+                  <p className="text-[11px] text-rose-600 font-semibold">{formErrors.name}</p>
+                )}
+              </div>
+
+              {/* Company Name */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-700">
+                    Company Name <span className="text-rose-500">*</span>
+                  </label>
+                  <span className="text-[10px] text-slate-400 font-medium">Registered Legal Entity</span>
+                </div>
+                <input
+                  type="text"
+                  placeholder="e.g. Media Mint Pvt. Ltd."
                   value={formValues.companyName}
                   onChange={(e) => setFormValues({ ...formValues, companyName: e.target.value })}
                   className={`w-full px-3.5 py-2.5 text-sm rounded-lg border bg-white focus:outline-hidden focus:ring-2 focus:ring-[#EE6F2D]/20 focus:border-[#EE6F2D] transition-colors ${
