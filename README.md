@@ -96,4 +96,3 @@ node test-all-scenarios.js
 18. ✅ Quotation revision control (`QT-2026-0001-V1` -> `V2` with archived history)
 19. ✅ Follow-up tracking linked to enquiries and clients
 20. ✅ Immutable security and transactional audit logging
-
