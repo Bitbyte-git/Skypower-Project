@@ -3,8 +3,6 @@
   "version": "1.0.0",
   "description": "Switchgear & Electrical Panel Manufacturing ERP - Module 01: Marketing & Sales Management System",
   "scripts": {
-     "build": "cd server && npm install",
-    "start": "cd server && npm start"
-    "test:scenarios": "cd server && node test-all-scenarios.js"
+  "start": "cd server && npm install --omit=dev && npm start"
   }
 }
