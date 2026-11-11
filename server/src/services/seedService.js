@@ -171,10 +171,58 @@ export const seedInitialData = async () => {
         department: 'Purchase Order & Execution'
       });
       console.log('[Seed] Sky Power PO Team user created: po@skypower.co.in / Po@123');
+    } else if (poUser.role !== USER_ROLES.PO_TEAM) {
+      poUser.role = USER_ROLES.PO_TEAM;
+      await poUser.save();
     }
-    // 4. Sample clients and enquiries seeding is removed so user can add real data directly
-    console.log('[Seed] Database is clean and ready for real client and project data entry.');
+    // 4. Auto-synchronize any projects created by Sales to ensure visibility in Admin
+    await syncPendingEnquiries();
+    console.log('[Seed] Database is clean and synced for Admin & PO Team workflows.');
   } catch (err) {
     console.error('[Seed] Error during seeding:', err.message);
+  }
+};
+
+export const syncPendingEnquiries = async () => {
+  try {
+    // 1. Find any enquiries currently marked 'Draft' that have products or a project name from sales
+    const draftEnquiries = await Enquiry.find({
+      approvalStatus: APPROVAL_STATUSES.DRAFT,
+      $or: [
+        { 'products.0': { $exists: true } },
+        { 'project.projectName': { $exists: true, $ne: '' } },
+        { expectedProjectValue: { $gt: 0 } },
+        { 'commercialPricing.totalAmount': { $gt: 0 } }
+      ]
+    });
+
+    for (const enq of draftEnquiries) {
+      enq.approvalStatus = APPROVAL_STATUSES.PENDING_APPROVAL;
+      if (!enq.expectedProjectValue && enq.commercialPricing?.totalAmount) {
+        enq.expectedProjectValue = enq.commercialPricing.totalAmount;
+      }
+      await enq.save();
+      try {
+        await initializeProjectWorkflow(enq);
+      } catch (eWf) {}
+    }
+
+    // 2. Ensure all enquiries have expectedProjectValue populated and have ProjectWorkflow
+    const allEnquiries = await Enquiry.find();
+    for (const enq of allEnquiries) {
+      let needsSave = false;
+      if ((!enq.expectedProjectValue || enq.expectedProjectValue === 0) && enq.commercialPricing?.totalAmount) {
+        enq.expectedProjectValue = enq.commercialPricing.totalAmount;
+        needsSave = true;
+      }
+      if (needsSave) {
+        await enq.save();
+      }
+      try {
+        await initializeProjectWorkflow(enq);
+      } catch (eWf) {}
+    }
+  } catch (err) {
+    console.error('[Sync] Error syncing pending enquiries:', err.message);
   }
 };

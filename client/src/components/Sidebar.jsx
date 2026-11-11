@@ -17,17 +17,18 @@ import {
 import factoryBuildingImg from '../assets/sky-power-building.png';
 
 export const Sidebar = ({ isOpen = false, onClose = () => {} }) => {
-  const { user, isAdmin, isManager } = useAuth();
+  const { user, isAdmin, isManager, isPOTeam } = useAuth();
   const location = useLocation();
 
   const getDashboardPath = () => {
     if (isAdmin) return '/admin/dashboard';
     if (isManager) return '/manager/dashboard';
+    if (isPOTeam) return '/po/tracking';
     return '/sales/dashboard';
   };
 
   const navItems = [
-    { name: isManager ? 'Manager Console' : 'Dashboard', path: getDashboardPath(), icon: LayoutDashboard },
+    { name: isManager ? 'Manager Console' : isPOTeam ? 'PO Tracking Portal' : 'Dashboard', path: getDashboardPath(), icon: LayoutDashboard },
     {
       name: '10-Dept Workflow',
       path: '/departments/workflow',

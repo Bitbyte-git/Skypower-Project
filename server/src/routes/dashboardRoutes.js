@@ -12,7 +12,7 @@ const router = Router();
 router.use(requireAuth);
 
 router.get('/sales', getSalesDashboard);
-router.get('/admin', getReportsAnalytics);
+router.get('/admin', getAdminDashboard);
 router.get('/reports', getReportsAnalytics);
 router.get('/notifications', getNotifications);
 

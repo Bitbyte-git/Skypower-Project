@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWorkflow } from '../../../context/WorkflowContext';
+import { useAuth } from '../../../context/AuthContext';
 import { downloadEnquiryPDF } from '../../../utils/pdfMakerService';
 import {
   CheckCircle2,
@@ -14,7 +15,9 @@ import {
   Building2,
   Lock,
   ExternalLink,
-  AlertCircle
+  AlertCircle,
+  Send,
+  Clock
 } from 'lucide-react';
 
 export const Step6SendToPOTeam = () => {
@@ -28,7 +31,10 @@ export const Step6SendToPOTeam = () => {
     pricing,
     currentVersion,
     poData,
+    approvalStatus,
     submitFinalizeToPO,
+    submitForAdminApproval,
+    approveAsAdmin,
     prevStep,
     goToStep,
     saving,
@@ -36,8 +42,36 @@ export const Step6SendToPOTeam = () => {
     setError
   } = useWorkflow();
 
+  const { isAdmin } = useAuth();
   const [downloading, setDownloading] = useState(false);
+  const [approvingAdmin, setApprovingAdmin] = useState(false);
+  const [submittingApproval, setSubmittingApproval] = useState(false);
   const isSubmitted = Boolean(poData?.poId);
+  const isApproved = approvalStatus === 'Approved';
+
+  const handleAdminApproveNow = async () => {
+    setApprovingAdmin(true);
+    setError('');
+    try {
+      await approveAsAdmin('Cleared for PO Handover directly in Step 6');
+    } catch (err) {
+      // handled in context
+    } finally {
+      setApprovingAdmin(false);
+    }
+  };
+
+  const handleRequestApproval = async () => {
+    setSubmittingApproval(true);
+    setError('');
+    try {
+      await submitForAdminApproval();
+    } catch (err) {
+      // handled in context
+    } finally {
+      setSubmittingApproval(false);
+    }
+  };
 
   const handleFinalize = async () => {
     try {
@@ -190,15 +224,165 @@ export const Step6SendToPOTeam = () => {
               </button>
             </div>
           </div>
-        ) : (
+        ) : !isApproved ? (
           /* ============================================================
-             STATE A: PRE-SUBMISSION CONFIRMATION SCREEN
+             STATE A-1: ADMINISTRATIVE APPROVAL GATE LOCKED
              ============================================================ */
           <div className="space-y-6">
-            <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200 flex items-start space-x-3">
-              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-              <div className="text-xs text-amber-900 leading-relaxed">
-                <strong>Pre-Submission Verification:</strong> Review the technical scope and final approved values below. Once finalized, a unique Purchase Order record will be generated for the PO execution team.
+            <div className="p-5 rounded-xl bg-amber-50/90 border border-amber-300 space-y-4">
+              <div className="flex items-start space-x-3.5">
+                <div className="w-10 h-10 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center text-amber-700 shrink-0 mt-0.5">
+                  <Lock className="w-5 h-5" />
+                </div>
+                <div className="space-y-1 text-left flex-1">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-black text-amber-950 uppercase tracking-wide">
+                      Administrative Approval Gate Locked
+                    </h3>
+                    <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-amber-200/80 text-amber-900 border border-amber-300">
+                      Status: {approvalStatus || 'Draft'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-amber-900 leading-relaxed">
+                    This project requires <strong>Administrative Clearance</strong> before it can be handed over to the Purchase Order team. In accordance with enterprise governance, the PO Team cannot see, access, or process any project until Admin approval is formally granted.
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Banner */}
+              <div className="pt-3 border-t border-amber-200 flex flex-wrap items-center justify-between gap-3">
+                <p className="text-xs font-semibold text-amber-800">
+                  {isAdmin
+                    ? '⚡ Administrator Access: You have clearance authority to approve this project right now.'
+                    : approvalStatus === 'Submitted for Approval' || approvalStatus === 'Pending Approval'
+                    ? '⏳ Project has been submitted to Admin. Awaiting clearance review.'
+                    : '👉 Submit this enquiry to Admin for formal approval to unlock PO handover.'}
+                </p>
+
+                <div className="flex items-center space-x-2">
+                  {isAdmin ? (
+                    <button
+                      type="button"
+                      onClick={handleAdminApproveNow}
+                      disabled={approvingAdmin}
+                      className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-sm transition-all flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>{approvingAdmin ? 'Approving...' : 'Approve Project as Admin Now'}</span>
+                    </button>
+                  ) : approvalStatus === 'Submitted for Approval' || approvalStatus === 'Pending Approval' ? (
+                    <div className="px-3.5 py-1.5 rounded-lg bg-amber-100 text-amber-800 text-xs font-bold border border-amber-300 flex items-center space-x-1.5">
+                      <Clock className="w-3.5 h-3.5 animate-spin" />
+                      <span>Pending Admin Review</span>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleRequestApproval}
+                      disabled={submittingApproval}
+                      className="px-4 py-2 rounded-lg bg-[#031D40] hover:bg-[#0A4076] text-white text-xs font-bold shadow-sm transition-all flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>{submittingApproval ? 'Submitting...' : 'Submit to Admin for Approval'}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Scope Summary Preview */}
+            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs divide-y divide-slate-100 text-xs">
+              <div className="p-4 bg-slate-50 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Client Identifier</span>
+                  <p className="text-sm font-mono font-black text-[#1E5BB8]">{client.clientId || 'SP-CL-2026-0001'}</p>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Offering Version</span>
+                  <p className="text-sm font-mono font-black text-purple-700">{currentVersion} (Pending Approval)</p>
+                </div>
+              </div>
+
+              <div className="p-4 space-y-2">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Project Title</span>
+                <p className="text-sm font-bold text-[#0A1E3F]">{project.projectName || '11kV VCB Switchboard'}</p>
+                <p className="text-xs text-slate-500">
+                  Segment: {project.segment} ({project.subSegment}) • Type: {project.standardType}
+                </p>
+              </div>
+
+              {/* Products List Snapshot */}
+              <div className="p-4 space-y-2.5">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  Configured Technical Products ({products.length})
+                </span>
+                <div className="space-y-1.5">
+                  {products.map((p, idx) => (
+                    <div
+                      key={p.id || idx}
+                      className="p-2.5 rounded-lg bg-slate-50 border border-slate-200/80 flex items-center justify-between"
+                    >
+                      <div>
+                        <span className="font-bold text-slate-800 text-xs">
+                          {idx + 1}. {p.productDescription || p.productName}
+                        </span>
+                        <p className="text-[11px] font-mono text-slate-500">
+                          {p.kilovolt} • {p.ampere} • {p.kiloampere} • {p.durationSec} • {p.usage}
+                        </p>
+                      </div>
+                      <span className="font-mono font-bold text-slate-800 text-xs px-2.5 py-0.5 rounded-md bg-white border border-slate-200">
+                        Qty: {p.quantity || 1}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Commercial Total */}
+              <div className="p-4 bg-orange-50/50 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-[#EE6F2D] uppercase tracking-wider">Commercial Total</span>
+                  <p className="text-xs font-semibold text-slate-600">Subject to Admin Approval</p>
+                </div>
+                <div className="text-right">
+                  <span className="text-lg font-mono font-black text-[#EE6F2D]">
+                    ₹ {Number(pricing.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Bar */}
+            <div className="pt-6 border-t border-slate-100 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={prevStep}
+                className="px-5 py-2.5 rounded-lg border border-slate-300 text-slate-700 text-sm font-bold hover:bg-slate-50 transition-colors flex items-center space-x-1.5 cursor-pointer"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Back to Step 5</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={true}
+                title="PO Handover locked until Admin approval is granted"
+                className="px-7 py-3 rounded-lg bg-slate-300 text-slate-500 text-sm font-extrabold cursor-not-allowed flex items-center space-x-2"
+              >
+                <Lock className="w-4 h-4" />
+                <span>PO HANDOVER LOCKED (APPROVAL REQUIRED)</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* ============================================================
+             STATE A-2: PRE-SUBMISSION CONFIRMATION SCREEN (APPROVED)
+             ============================================================ */
+          <div className="space-y-6">
+            <div className="p-4 rounded-xl bg-emerald-50/80 border border-emerald-300 flex items-start space-x-3">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+              <div className="text-xs text-emerald-900 leading-relaxed">
+                <strong>Administrative Clearance Granted:</strong> This project has been approved by Admin and is cleared for handover. Review the technical scope and final approved values below. Clicking finalize will generate the Purchase Order for the PO execution team.
               </div>
             </div>
 

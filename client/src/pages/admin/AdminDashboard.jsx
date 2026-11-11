@@ -234,81 +234,89 @@ export const AdminDashboard = () => {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-sm">
-            <thead>
-              <tr className="border-b font-bold uppercase text-xs tracking-wider" style={{ background: '#EDF4FC', color: '#17365D', borderColor: '#DCE7F3' }}>
-                <th className="py-4 px-5 whitespace-nowrap">ERN Docket</th>
-                <th className="py-4 px-5 min-w-[210px]">Client / Buyer Entity</th>
-                <th className="py-4 px-5 min-w-[230px]">Substation Project Scope</th>
-                <th className="py-4 px-5 whitespace-nowrap">Estimated Value</th>
-                <th className="py-4 px-5 whitespace-nowrap">Sales Officer</th>
-                <th className="py-4 px-5 text-right whitespace-nowrap">Gate Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-medium">
-              {(data?.urgentPending || []).length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="py-12 text-center text-sm" style={{ color: '#8495AB' }}>
-                    No enquiries pending administrative clearance. All gates clear!
-                  </td>
-                </tr>
-              ) : (
-                data.urgentPending.map((enq) => (
-                  <tr
-                    key={enq._id}
-                    className="hover:bg-[#F3F8FE] transition-colors duration-150 group cursor-pointer"
-                  >
-                    <td className="py-4 px-5 font-mono font-black text-sm" style={{ color: '#0878C9' }}>
-                      <Link to={`/enquiries/${enq._id}`} className="hover:underline">
-                        {enq.ern}
-                      </Link>
-                    </td>
-                    <td className="py-4 px-5">
-                      <div className="font-bold text-slate-900 text-sm">
-                        {enq.clientId?.companyName || 'Not Specified'}
-                      </div>
-                      <div className="text-xs font-medium mt-0.5 flex items-center space-x-1.5" style={{ color: '#526783' }}>
-                        <span>{enq.clientId?.clientLocation || '-'}</span>
-                        {(enq.customerType || enq.clientId?.customerType) && (
-                          <>
-                            <span className="text-slate-300">•</span>
-                            <span className="font-semibold" style={{ color: '#0878C9' }}>
-                              {enq.customerType || enq.clientId?.customerType}
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                    <td className="py-4 px-5 max-w-xs">
-                      <div className="font-extrabold text-slate-800 text-sm truncate">
-                        {enq.project?.projectName || 'Project Not Named'}
-                      </div>
-                      <div className="text-xs truncate mt-0.5" style={{ color: '#8495AB' }}>
-                        {enq.project?.projectScope || enq.project?.projectLocation || 'HT/LT Engineering Supply'}
-                      </div>
-                    </td>
-                    <td className="py-4 px-5 font-mono font-black text-base whitespace-nowrap" style={{ color: '#102B50' }}>
-                      <span className="inline-block whitespace-nowrap">
-                        ₹ {Number(enq.expectedProjectValue || 0).toLocaleString('en-IN')}
-                      </span>
-                    </td>
-                    <td className="py-4 px-5 text-xs font-semibold whitespace-nowrap" style={{ color: '#526783' }}>
-                      {enq.assignedSalesEngineer?.name || enq.salesPersonId?.name || 'Sales Officer'}
-                    </td>
-                    <td className="py-4 px-5 text-right whitespace-nowrap">
-                      <Link
-                        to={`/enquiries/${enq._id}`}
-                        className="inline-flex items-center px-4 py-2 rounded-xl text-xs font-bold btn-accent text-white shadow-md transition-all duration-200"
-                      >
-                        <span>Review &amp; Clear Gate</span>
-                        <ArrowRight className="w-3.5 h-3.5 ml-1" />
-                      </Link>
-                    </td>
+          {(() => {
+            const pendingQueue = (data?.urgentPending && data.urgentPending.length > 0)
+              ? data.urgentPending
+              : (data?.recentPendingApprovals || []);
+
+            return (
+              <table className="w-full text-left border-collapse text-sm">
+                <thead>
+                  <tr className="border-b font-bold uppercase text-xs tracking-wider" style={{ background: '#EDF4FC', color: '#17365D', borderColor: '#DCE7F3' }}>
+                    <th className="py-4 px-5 whitespace-nowrap">ERN Docket</th>
+                    <th className="py-4 px-5 min-w-[210px]">Client / Buyer Entity</th>
+                    <th className="py-4 px-5 min-w-[230px]">Substation Project Scope</th>
+                    <th className="py-4 px-5 whitespace-nowrap">Estimated Value</th>
+                    <th className="py-4 px-5 whitespace-nowrap">Sales Officer</th>
+                    <th className="py-4 px-5 text-right whitespace-nowrap">Gate Action</th>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium">
+                  {pendingQueue.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-sm" style={{ color: '#8495AB' }}>
+                        No enquiries pending administrative clearance. All gates clear!
+                      </td>
+                    </tr>
+                  ) : (
+                    pendingQueue.map((enq) => (
+                      <tr
+                        key={enq._id}
+                        className="hover:bg-[#F3F8FE] transition-colors duration-150 group cursor-pointer"
+                      >
+                        <td className="py-4 px-5 font-mono font-black text-sm" style={{ color: '#0878C9' }}>
+                          <Link to={`/enquiries/${enq._id}`} className="hover:underline">
+                            {enq.ern}
+                          </Link>
+                        </td>
+                        <td className="py-4 px-5">
+                          <div className="font-bold text-slate-900 text-sm">
+                            {enq.clientId?.companyName || 'Not Specified'}
+                          </div>
+                          <div className="text-xs font-medium mt-0.5 flex items-center space-x-1.5" style={{ color: '#526783' }}>
+                            <span>{enq.clientId?.clientLocation || '-'}</span>
+                            {(enq.customerType || enq.clientId?.customerType) && (
+                              <>
+                                <span className="text-slate-300">•</span>
+                                <span className="font-semibold" style={{ color: '#0878C9' }}>
+                                  {enq.customerType || enq.clientId?.customerType}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-4 px-5 max-w-xs">
+                          <div className="font-extrabold text-slate-800 text-sm truncate">
+                            {enq.project?.projectName || 'Project Not Named'}
+                          </div>
+                          <div className="text-xs truncate mt-0.5" style={{ color: '#8495AB' }}>
+                            {enq.project?.projectScope || enq.project?.projectLocation || 'HT/LT Engineering Supply'}
+                          </div>
+                        </td>
+                        <td className="py-4 px-5 font-mono font-black text-base whitespace-nowrap" style={{ color: '#102B50' }}>
+                          <span className="inline-block whitespace-nowrap">
+                            ₹ {Number(enq.expectedProjectValue || enq.commercialPricing?.totalAmount || enq.offeringHistory?.[0]?.totalAmount || 0).toLocaleString('en-IN')}
+                          </span>
+                        </td>
+                        <td className="py-4 px-5 text-xs font-semibold whitespace-nowrap" style={{ color: '#526783' }}>
+                          {enq.assignedSalesEngineer?.name || enq.salesPersonId?.name || 'Sales Officer'}
+                        </td>
+                        <td className="py-4 px-5 text-right whitespace-nowrap">
+                          <Link
+                            to={`/enquiries/${enq._id}`}
+                            className="inline-flex items-center px-4 py-2 rounded-xl text-xs font-bold btn-accent text-white shadow-md transition-all duration-200"
+                          >
+                            <span>Review &amp; Clear Gate</span>
+                            <ArrowRight className="w-3.5 h-3.5 ml-1" />
+                          </Link>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            );
+          })()}
         </div>
       </div>
     </div>

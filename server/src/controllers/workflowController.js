@@ -1,9 +1,13 @@
 import { Client } from '../models/Client.js';
 import { Enquiry } from '../models/Enquiry.js';
 import { PurchaseOrder } from '../models/PurchaseOrder.js';
+import { ProjectWorkflow } from '../models/ProjectWorkflow.js';
+import { DepartmentApproval } from '../models/DepartmentApproval.js';
 import { generateNextClientID, generateNextERN, generateNextPOID } from '../services/counterService.js';
 import { logActivity } from '../services/auditService.js';
 import { USER_ROLES } from '../constants/roles.js';
+import { initializeProjectWorkflow, syncPendingEnquiries } from '../services/seedService.js';
+import { APPROVAL_STATUSES, DEPARTMENT_APPROVAL_STATUSES, PROJECT_WORKFLOW_STATUSES } from '../constants/statuses.js';
 
 /**
  * Step 1: Validate or Register Client
@@ -204,8 +208,16 @@ export const saveWorkflowDraft = async (req, res, next) => {
 
       if (project) enquiry.project = { ...enquiry.project, ...project };
       if (products && products.length > 0) enquiry.products = formattedProducts;
-      if (commercialPricing) enquiry.commercialPricing = { ...enquiry.commercialPricing, ...commercialPricing };
+      if (commercialPricing) {
+        enquiry.commercialPricing = { ...enquiry.commercialPricing, ...commercialPricing };
+        enquiry.expectedProjectValue = commercialPricing.totalAmount || enquiry.expectedProjectValue || 0;
+      }
       if (clientCustomId) enquiry.clientCustomId = clientCustomId;
+
+      // Automatically transition to Pending Approval when products and pricing are configured
+      if ((step >= 4 || (enquiry.products && enquiry.products.length > 0)) && enquiry.approvalStatus === 'Draft') {
+        enquiry.approvalStatus = 'Pending Approval';
+      }
 
       // Update current revision snapshot
       if (enquiry.offeringRevisions && enquiry.offeringRevisions.length > 0) {
@@ -217,6 +229,11 @@ export const saveWorkflowDraft = async (req, res, next) => {
 
       await enquiry.save();
 
+      // Ensure 10-Dept ProjectWorkflow is initialized and synced
+      try {
+        await initializeProjectWorkflow(enquiry, req.user);
+      } catch (eWf) {}
+
       return res.status(200).json({
         success: true,
         message: 'Enquiry workflow draft updated successfully.',
@@ -227,6 +244,7 @@ export const saveWorkflowDraft = async (req, res, next) => {
     // Create new enquiry
     const ern = await generateNextERN();
     const initialVersion = 'OFR-001';
+    const initialTotalAmount = commercialPricing?.totalAmount || 613600;
 
     const newEnquiry = await Enquiry.create({
       ern,
@@ -234,6 +252,7 @@ export const saveWorkflowDraft = async (req, res, next) => {
       clientCustomId,
       customerType: client.customerType || 'Contractor',
       offerDate: new Date(),
+      expectedProjectValue: initialTotalAmount,
       project: project || {
         standardType: 'Standard',
         projectName: '11kV VCB Switchboard for Project',
@@ -250,8 +269,6 @@ export const saveWorkflowDraft = async (req, res, next) => {
           usage: 'Indoor',
           ebMetering: 'Transformer Control',
           quantity: 1,
-          basicPrice: 500000,
-          totalBasicPrice: 500000,
           basicPrice: 50000,
           totalBasicPrice: 50000,
           productDescription: '11kV, 630A, 26.3 kA, 3 Sec, Indoor VCB Switchboard (Transformer Control)'
@@ -261,25 +278,20 @@ export const saveWorkflowDraft = async (req, res, next) => {
         priceBasis: 'Ex-Works: Salem, Tamil Nadu',
         transportPrice: 20000,
         forBasis: 'Client Own Transport (Default)',
-        subTotal: 520000,
         subTotal: 50000,
         gstType: 'INTRA_STATE',
         cgstRate: 9,
         sgstRate: 9,
         igstRate: 18,
-        cgstAmount: 46800,
-        sgstAmount: 46800,
         cgstAmount: 4500,
         sgstAmount: 4500,
         igstAmount: 0,
-        totalTaxAmount: 93600,
         totalTaxAmount: 9000,
         totalAmount: 59000,
-        totalAmount: 613600,
-        amountInWords: 'Six Lakhs Thirteen Thousand Six Hundred Rupees Only.'
+        amountInWords: 'Fifty Nine Thousand Rupees Only.'
       },
       assignedSalesEngineer: req.user._id,
-      approvalStatus: 'Draft',
+      approvalStatus: step >= 4 || formattedProducts.length > 0 ? 'Pending Approval' : 'Draft',
       currentOfferingVersion: initialVersion,
       offeringRevisions: [
         {
@@ -287,7 +299,7 @@ export const saveWorkflowDraft = async (req, res, next) => {
           versionNumber: 1,
           createdAt: new Date(),
           createdBy: req.user._id,
-          totalAmount: commercialPricing?.totalAmount || 613600,
+          totalAmount: initialTotalAmount,
           status: 'Draft',
           productsSnapshot: formattedProducts,
           pricingSnapshot: commercialPricing,
@@ -295,6 +307,11 @@ export const saveWorkflowDraft = async (req, res, next) => {
         }
       ]
     });
+
+    // Auto-initialize 10-Dept ProjectWorkflow
+    try {
+      await initializeProjectWorkflow(newEnquiry, req.user);
+    } catch (eWf) {}
 
     await logActivity({
       userId: req.user._id,
@@ -486,6 +503,83 @@ export const sendOfferingToClient = async (req, res, next) => {
 };
 
 /**
+ * Helper to ensure a unique PurchaseOrder record exists for an approved enquiry.
+ * Strictly respects Client ID privacy (strips name and address).
+ */
+export const createOrGetPOForEnquiry = async (enquiry, user = null, remarks = '') => {
+  if (!enquiry) return null;
+
+  // Check if PO already exists for this enquiry to prevent duplicates
+  let existingPO = await PurchaseOrder.findOne({ enquiryId: enquiry._id });
+  if (existingPO) return existingPO;
+
+  // Generate unique PO ID: PO-YYYY-XXXX (e.g. PO-2026-0089)
+  const poId = await generateNextPOID();
+  const clientCustomId = enquiry.clientCustomId || enquiry.clientId?.clientId || 'SP-CL-2026-0001';
+  const projectId = enquiry.project?.projectId || `PRJ-${enquiry.ern ? enquiry.ern.replace(/^ERN-/, '') : '2026-0001'}`;
+  const versionToFinalize = enquiry.currentOfferingVersion || 'OFR-001';
+
+  // Map technical specifications snapshot for PO team
+  const poProducts = (enquiry.products || []).map((p) => ({
+    productName: p.productName || 'VCB Switchboard',
+    kilovolt: p.kilovolt || '11 kV',
+    ampere: p.ampere || '630 A',
+    kiloampere: p.kiloampere || '26.3 kA',
+    durationSec: p.durationSec || 'For 3 Sec',
+    usage: p.usage || 'Indoor',
+    ebMetering: p.ebMetering || 'Transformer Control',
+    quantity: p.quantity || 1,
+    productDescription: p.productDescription || `${p.kilovolt || '11 kV'}, ${p.ampere || '630 A'}, ${p.kiloampere || '26.3 kA'}, ${p.durationSec || 'For 3 Sec'}, ${p.usage || 'Indoor'} ${p.productName || 'Switchboard'} (${p.ebMetering || 'Transformer Control'})`,
+    technicalSpecifications: p.technicalSpecifications || ''
+  }));
+
+  const finalApprovedAmount = enquiry.commercialPricing?.totalAmount || enquiry.expectedProjectValue || 0;
+  const submittedBy = user?._id || enquiry.assignedSalesEngineer || '6aec628cce913c1739474f50';
+
+  const po = await PurchaseOrder.create({
+    poId,
+    enquiryId: enquiry._id,
+    ern: enquiry.ern,
+    clientId: clientCustomId, // Strictly Client ID only
+    projectId,
+    projectTitle: enquiry.project?.projectName || 'HT Switchgear Project',
+    segment: enquiry.project?.segment || 'Renewable',
+    subSegment: enquiry.project?.subSegment || 'Wind',
+    offeringVersionId: versionToFinalize,
+    products: poProducts,
+    finalApprovedAmount,
+    status: 'Submitted to PO Team',
+    submittedBy,
+    submittedAt: new Date(),
+    timeline: [
+      {
+        status: 'Submitted to PO Team',
+        notes: remarks || `Offering ${versionToFinalize} approved by Admin and handed over to PO Team.`,
+        updatedBy: submittedBy,
+        updatedAt: new Date()
+      }
+    ]
+  });
+
+  // Update enquiry record
+  enquiry.approvalStatus = 'Approved';
+  enquiry.poDetails = {
+    poId: po.poId,
+    poObjectId: po._id,
+    submittedAt: po.submittedAt,
+    submittedBy
+  };
+
+  const rev = (enquiry.offeringRevisions || []).find((r) => r.versionId === versionToFinalize);
+  if (rev) {
+    rev.status = 'Approved';
+  }
+
+  await enquiry.save();
+  return po;
+};
+
+/**
  * Step 6: Finalize Approved Offering & Send to PO Team
  * Generates unique PO ID (PO-YYYY-XXXX).
  * Creates PurchaseOrder record using technical snapshot.
@@ -509,83 +603,16 @@ export const finalizeAndSendToPO = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Enquiry not found.' });
     }
 
-    // Check if PO already exists for this enquiry to prevent duplicates
-    const existingPO = await PurchaseOrder.findOne({ enquiryId: enquiry._id });
-    if (existingPO) {
-      return res.status(200).json({
-        success: true,
-        message: 'Offering has already been submitted to PO Team.',
-        po: existingPO,
-        poId: existingPO.poId,
-        clientId: existingPO.clientId,
-        offeringVersionId: existingPO.offeringVersionId
+    // STRICT ISO CLEARANCE GATE: Only Admin-Approved projects can be handed over to PO Team
+    if (enquiry.approvalStatus !== 'Approved') {
+      return res.status(403).json({
+        success: false,
+        message: `Administrative Approval Required: Project ${enquiry.ern} is currently in '${enquiry.approvalStatus}' status. Executive Admin must approve this project before it can be handed over to the PO Team.`
       });
     }
 
     const versionToFinalize = offeringVersionId || enquiry.currentOfferingVersion;
-
-    // Generate unique PO ID: PO-YYYY-XXXX (e.g. PO-2026-0089)
-    const poId = await generateNextPOID();
-    const clientCustomId = enquiry.clientCustomId || enquiry.clientId?.clientId || 'SP-CL-2026-0001';
-    const projectId = enquiry.project?.projectId || `PRJ-${enquiry.ern.replace(/^ERN-/, '')}`;
-
-    // Map technical specifications snapshot for PO team
-    const poProducts = (enquiry.products || []).map((p) => ({
-      productName: p.productName || 'VCB Switchboard',
-      kilovolt: p.kilovolt || '11 kV',
-      ampere: p.ampere || '630 A',
-      kiloampere: p.kiloampere || '26.3 kA',
-      durationSec: p.durationSec || 'For 3 Sec',
-      usage: p.usage || 'Indoor',
-      ebMetering: p.ebMetering || 'Transformer Control',
-      quantity: p.quantity || 1,
-      productDescription: p.productDescription || `${p.kilovolt}, ${p.ampere}, ${p.kiloampere}, ${p.durationSec}, ${p.usage} ${p.productName} (${p.ebMetering})`,
-      technicalSpecifications: p.technicalSpecifications || ''
-    }));
-
-    const finalApprovedAmount = enquiry.commercialPricing?.totalAmount || 0;
-
-    const po = await PurchaseOrder.create({
-      poId,
-      enquiryId: enquiry._id,
-      ern: enquiry.ern,
-      clientId: clientCustomId, // Strictly Client ID only
-      projectId,
-      projectTitle: enquiry.project?.projectName || 'HT Switchgear Project',
-      segment: enquiry.project?.segment || 'Renewable',
-      subSegment: enquiry.project?.subSegment || 'Wind',
-      offeringVersionId: versionToFinalize,
-      products: poProducts,
-      finalApprovedAmount,
-      status: 'Submitted to PO Team',
-      submittedBy: req.user._id,
-      submittedAt: new Date(),
-      timeline: [
-        {
-          status: 'Submitted to PO Team',
-          notes: `Offering ${versionToFinalize} approved and submitted for production handover.`,
-          updatedBy: req.user._id,
-          updatedAt: new Date()
-        }
-      ]
-    });
-
-    // Update enquiry record
-    enquiry.approvalStatus = 'Approved';
-    enquiry.poDetails = {
-      poId: po.poId,
-      poObjectId: po._id,
-      submittedAt: po.submittedAt,
-      submittedBy: req.user._id
-    };
-
-    // Mark finalized revision status
-    const rev = (enquiry.offeringRevisions || []).find((r) => r.versionId === versionToFinalize);
-    if (rev) {
-      rev.status = 'Approved';
-    }
-
-    await enquiry.save();
+    const po = await createOrGetPOForEnquiry(enquiry, req.user);
 
     await logActivity({
       userId: req.user._id,
@@ -594,7 +621,7 @@ export const finalizeAndSendToPO = async (req, res, next) => {
       entityType: 'PurchaseOrder',
       entityId: po._id,
       ern: enquiry.ern,
-      details: { poId: po.poId, clientId: clientCustomId, versionId: versionToFinalize },
+      details: { poId: po.poId, clientId: po.clientId, versionId: versionToFinalize },
       req
     });
 
@@ -602,7 +629,7 @@ export const finalizeAndSendToPO = async (req, res, next) => {
       success: true,
       message: 'Offering Successfully Submitted to PO Team',
       poId: po.poId,
-      clientId: clientCustomId,
+      clientId: po.clientId,
       offeringVersionId: versionToFinalize,
       submittedAt: po.submittedAt,
       po
@@ -621,8 +648,29 @@ export const getPOTrackingList = async (req, res, next) => {
     const isPOTeam = req.user.role === USER_ROLES.PO_TEAM;
     const { search, status, page = 1, limit = 50 } = req.query;
 
+    // Auto-sync: Ensure every Admin-approved enquiry has a corresponding PurchaseOrder record
+    try {
+      const approvedEnqs = await Enquiry.find({ approvalStatus: 'Approved' }).populate('clientId');
+      for (const enq of approvedEnqs) {
+        const hasPO = await PurchaseOrder.findOne({ enquiryId: enq._id });
+        if (!hasPO) {
+          await createOrGetPOForEnquiry(enq, null, 'Auto-synced for PO execution');
+        }
+      }
+    } catch (eSync) {
+      console.error('[PO Tracking Sync] Error:', eSync.message);
+    }
+
     const query = {};
     if (status) query.status = status;
+
+    // PO Team can strictly only see projects whose commercial requisition was Approved by Admin
+    if (isPOTeam) {
+      const approvedEnquiries = await Enquiry.find({ approvalStatus: 'Approved' }).select('_id');
+      const approvedEnquiryIds = approvedEnquiries.map((e) => e._id);
+      query.enquiryId = { $in: approvedEnquiryIds };
+    }
+
     if (search) {
       query.$or = [
         { poId: { $regex: search, $options: 'i' } },
@@ -712,6 +760,121 @@ export const updatePOStatus = async (req, res, next) => {
       success: true,
       message: `Purchase Order ${po.poId} status updated to '${po.status}'.`,
       po
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Submit Workflow Enquiry for Admin Approval
+ */
+export const submitWorkflowForApproval = async (req, res, next) => {
+  try {
+    const { enquiryId } = req.body;
+    const enquiry = await Enquiry.findById(enquiryId);
+    if (!enquiry) {
+      return res.status(404).json({ success: false, message: 'Enquiry not found.' });
+    }
+
+    const prev = enquiry.approvalStatus;
+    enquiry.approvalStatus = APPROVAL_STATUSES.PENDING_APPROVAL;
+    if (!enquiry.expectedProjectValue && enquiry.commercialPricing?.totalAmount) {
+      enquiry.expectedProjectValue = enquiry.commercialPricing.totalAmount;
+    }
+    await enquiry.save();
+
+    try {
+      await initializeProjectWorkflow(enquiry, req.user);
+    } catch (e) {}
+
+    await logActivity({
+      userId: req.user._id,
+      userRole: req.user.role,
+      action: prev === APPROVAL_STATUSES.RETURNED_FOR_CORRECTION ? 'ENQUIRY_RESUBMITTED' : 'ENQUIRY_SUBMITTED',
+      entityType: 'Enquiry',
+      entityId: enquiry._id,
+      ern: enquiry.ern,
+      details: { previousStatus: prev, newStatus: APPROVAL_STATUSES.PENDING_APPROVAL },
+      req
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: `Project ${enquiry.ern} successfully submitted for Executive Admin Approval.`,
+      enquiry
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Approve Workflow Enquiry directly as Admin
+ */
+export const approveWorkflowAsAdmin = async (req, res, next) => {
+  try {
+    if (req.user.role !== USER_ROLES.ADMIN) {
+      return res.status(403).json({ success: false, message: 'Access denied: Executive Admin clearance required.' });
+    }
+
+    const { enquiryId, remarks } = req.body;
+    const enquiry = await Enquiry.findById(enquiryId).populate('clientId');
+    if (!enquiry) {
+      return res.status(404).json({ success: false, message: 'Enquiry not found.' });
+    }
+
+    const prev = enquiry.approvalStatus;
+    enquiry.approvalStatus = APPROVAL_STATUSES.APPROVED;
+    await enquiry.save();
+
+    // Advance 10-Dept Workflow to PO_TEAM
+    try {
+      let wf = await ProjectWorkflow.findOne({ enquiryId: enquiry._id });
+      if (!wf) wf = await initializeProjectWorkflow(enquiry, req.user);
+      if (wf) {
+        await DepartmentApproval.findOneAndUpdate(
+          { workflowId: wf._id, departmentSequence: 1 },
+          {
+            status: DEPARTMENT_APPROVAL_STATUSES.ACCEPTED,
+            actionAt: new Date(),
+            actionBy: req.user._id,
+            actionByName: req.user.name,
+            actionByRole: req.user.role,
+            remarks: remarks || 'Approved by Executive Admin'
+          }
+        );
+        await DepartmentApproval.findOneAndUpdate(
+          { workflowId: wf._id, departmentSequence: 2 },
+          { status: DEPARTMENT_APPROVAL_STATUSES.PENDING }
+        );
+        wf.currentDepartmentSequence = 2;
+        wf.currentDepartmentCode = 'PO_TEAM';
+        wf.overallStatus = PROJECT_WORKFLOW_STATUSES.PENDING_PO_APPROVAL;
+        await wf.save();
+      }
+
+      // Generate or sync PurchaseOrder record for PO Team
+      await createOrGetPOForEnquiry(enquiry, req.user, remarks);
+    } catch (e) {
+      console.error('Error auto-creating PO on Admin approve in workflowController:', e);
+    }
+
+    await logActivity({
+      userId: req.user._id,
+      userRole: req.user.role,
+      action: 'ENQUIRY_APPROVED',
+      entityType: 'Enquiry',
+      entityId: enquiry._id,
+      ern: enquiry.ern,
+      details: { previousStatus: prev, newStatus: APPROVAL_STATUSES.APPROVED, remarks },
+      req
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: `Project ${enquiry.ern} successfully approved by Executive Admin. Cleared for PO Team handover.`,
+      enquiry
     });
   } catch (err) {
     next(err);

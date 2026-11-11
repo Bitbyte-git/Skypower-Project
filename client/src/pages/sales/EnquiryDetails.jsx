@@ -28,7 +28,9 @@ import {
   HelpCircle,
   Briefcase,
   Zap,
-  MapPin
+  MapPin,
+  Trash2,
+  Loader2
 } from 'lucide-react';
 
 export const EnquiryDetails = () => {
@@ -140,6 +142,17 @@ export const EnquiryDetails = () => {
     }
   };
 
+  const handleDeleteDocument = async (docId) => {
+    if (!window.confirm('Are you sure you want to remove this document attachment?')) return;
+    try {
+      await api.delete(`/enquiries/${id}/documents/${docId}`);
+      setMessage('Document removed successfully.');
+      fetchEnquiryDetails();
+    } catch (err) {
+      setError(err.message || 'Failed to remove document.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-28 space-y-3">
@@ -230,16 +243,16 @@ export const EnquiryDetails = () => {
             </>
           )}
 
-          {/* Admin Decision Actions (if Pending Approval) */}
-          {isAdmin && enquiry.approvalStatus === 'Pending Approval' && (
+          {/* Admin Decision Actions (if Pending Approval / Submitted / Draft) */}
+          {isAdmin && (enquiry.approvalStatus === 'Pending Approval' || enquiry.approvalStatus === 'Submitted for Approval' || enquiry.approvalStatus === 'Draft') && (
             <div className="flex items-center space-x-2">
               <button
                 type="button"
                 onClick={() => openDecisionModal('approve')}
-                className="inline-flex items-center px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer"
+                className="inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition-all cursor-pointer"
               >
                 <CheckCircle2 className="w-4 h-4 mr-1.5" />
-                Approve Requisition
+                Approve &amp; Send to PO Team
               </button>
               <button
                 type="button"
@@ -729,47 +742,122 @@ export const EnquiryDetails = () => {
         )}
 
         {/* =====================================================================
-            SECTION 5.0: SUPPORTING DOCUMENTS & DRAWINGS
+            SECTION 5.0: EXECUTIVE ADMINISTRATIVE CLEARANCE & PO TEAM DIRECTIVES
         ===================================================================== */}
         <div className="mb-8">
           <div className="form-section-title flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <span className="w-2.5 h-2.5 rounded-full bg-[#1E5BB8]" />
-              <span>5.0 Attached Engineering Drawings &amp; Specifications</span>
+              <span>5.0 Executive Administrative Clearance &amp; PO Team Directives</span>
             </div>
-            <label className="text-xs font-bold text-[#1E5BB8] hover:text-[#174A96] cursor-pointer flex items-center transition-colors">
-              <Upload className="w-3.5 h-3.5 mr-1" /> + Attach Engineering File
-              <input type="file" onChange={handleFileUpload} className="hidden" />
-            </label>
+            <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+              Clearance Gate: {enquiry.approvalStatus || 'Draft'}
+            </span>
           </div>
 
-          {(enquiry.documents || []).length === 0 ? (
-            <p className="text-xs text-slate-400 italic py-2">
-              No drawing attachments or technical specifications uploaded yet.
-            </p>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {enquiry.documents.map((doc, idx) => (
-                <div
-                  key={idx}
-                  className="flex items-center justify-between p-3 rounded-xl border border-slate-200 bg-slate-50/80 text-xs shadow-2xs hover:bg-slate-50 transition-colors"
-                >
-                  <div className="truncate">
-                    <span className="font-bold text-slate-900 block truncate">{doc.originalName}</span>
-                    <span className="text-[11px] text-slate-400">
-                      {(doc.fileSize / 1024).toFixed(1)} KB • {doc.documentType}
-                    </span>
-                  </div>
-                  <a
-                    href={doc.filePath}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-[#1E5BB8] font-bold hover:underline shrink-0 ml-3"
-                  >
-                    Download
-                  </a>
+          {isAdmin ? (
+            enquiry.approvalStatus === 'Approved' ? (
+              <div className="p-5 rounded-2xl bg-emerald-50/80 border border-emerald-300 text-emerald-950 space-y-2">
+                <div className="flex items-center space-x-2">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                  <h4 className="font-extrabold text-sm text-emerald-900">
+                    Administrative Clearance Granted &amp; Project Handed Over to PO Team
+                  </h4>
                 </div>
-              ))}
+                <p className="text-xs text-emerald-800 leading-relaxed">
+                  This project has been formally approved by the Executive Admin. Department 2 (PO Team) is unlocked and authorized to view technical specifications and generate Purchase Orders.
+                </p>
+                {enquiry.approvalHistory && enquiry.approvalHistory.length > 0 && (
+                  <div className="pt-2 text-xs text-emerald-900 border-t border-emerald-200 font-mono">
+                    <strong>Admin Notes:</strong>{' '}
+                    {enquiry.approvalHistory[enquiry.approvalHistory.length - 1]?.remarks || 'Approved for PO Team execution.'}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="p-5 rounded-2xl bg-amber-50/80 border border-amber-300 space-y-4">
+                <div className="flex items-start space-x-3">
+                  <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 mt-0.5">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-extrabold text-sm text-amber-950">
+                      Executive Admin Review &amp; PO Dispatch Gate
+                    </h4>
+                    <p className="text-xs text-amber-900 mt-0.5 leading-relaxed">
+                      Only you as Administrator can review the technical scope above, enter clearance notes, and dispatch this project to the Purchase Order team.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-amber-950">
+                    Administrative Review Notes &amp; Instructions for PO Team:
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={decisionRemarks}
+                    onChange={(e) => setDecisionRemarks(e.target.value)}
+                    placeholder="Enter notes or directives for the PO execution team (e.g. Commercially and technically cleared for PO Team execution)..."
+                    className="w-full text-xs p-3 rounded-xl border border-amber-300 bg-white focus:outline-none focus:ring-2 focus:ring-[#1E5BB8] font-sans"
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-amber-200">
+                  <span className="text-[11px] text-amber-800 font-semibold">
+                    Clicking "Approve &amp; Send to PO Team" unlocks Department 2 in the 10-Department Workflow.
+                  </span>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      type="button"
+                      disabled={actionLoading}
+                      onClick={async () => {
+                        setActionLoading(true);
+                        setError('');
+                        setMessage('');
+                        try {
+                          const res = await api.post(`/approvals/${id}/approve`, {
+                            remarks: decisionRemarks.trim() || 'Commercially and technically cleared for PO Team execution.'
+                          });
+                          setMessage(res.message);
+                          fetchEnquiryDetails();
+                        } catch (err) {
+                          setError(err.message || 'Approval failed.');
+                        } finally {
+                          setActionLoading(false);
+                        }
+                      }}
+                      className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-md transition-all flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>{actionLoading ? 'Approving & Sending...' : 'Approve & Send to PO Team'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => openDecisionModal('return')}
+                      className="px-4 py-2.5 rounded-xl border border-orange-300 bg-white hover:bg-orange-50 text-[#EE6F2D] text-xs font-bold shadow-xs transition-all flex items-center space-x-1.5 cursor-pointer"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      <span>Return to Sales with Notes</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )
+          ) : (
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600">
+              {enquiry.approvalStatus === 'Approved' ? (
+                <div className="flex items-center space-x-2 text-emerald-800 font-bold">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <span>Approved by Executive Admin. Cleared for PO Team Handover.</span>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2 text-amber-800 font-medium">
+                  <Clock className="w-4 h-4 text-amber-600" />
+                  <span>Awaiting Executive Admin Review and clearance before PO Team handover.</span>
+                </div>
+              )}
             </div>
           )}
         </div>

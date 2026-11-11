@@ -69,6 +69,7 @@ export const WorkflowProvider = ({ children, initialEnquiryId = null }) => {
   // Step 5: Offering Versions & History
   const [currentVersion, setCurrentVersion] = useState('OFR-001');
   const [revisions, setRevisions] = useState([]);
+  const [approvalStatus, setApprovalStatus] = useState('Draft');
 
   // Step 6: PO Handover
   const [poData, setPoData] = useState(null);
@@ -184,6 +185,10 @@ export const WorkflowProvider = ({ children, initialEnquiryId = null }) => {
         if (eq.poDetails?.poId) {
           setPoData(eq.poDetails);
         }
+
+        if (eq.approvalStatus) {
+          setApprovalStatus(eq.approvalStatus);
+        }
       }
     } catch (err) {
       console.error('Failed to load enquiry workflow:', err);
@@ -267,6 +272,9 @@ export const WorkflowProvider = ({ children, initialEnquiryId = null }) => {
         }
         if (res.enquiry.currentOfferingVersion) {
           setCurrentVersion(res.enquiry.currentOfferingVersion);
+        }
+        if (res.enquiry.approvalStatus) {
+          setApprovalStatus(res.enquiry.approvalStatus);
         }
         setCurrentStep(5);
         return res.enquiry;
@@ -410,6 +418,64 @@ export const WorkflowProvider = ({ children, initialEnquiryId = null }) => {
     }
   };
 
+  // Step 5 -> Admin Approval Gate
+  const submitForAdminApproval = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      let activeEnquiryId = enquiryId;
+      if (!activeEnquiryId) {
+        const payload = {
+          clientId: client._id,
+          clientData: client,
+          project,
+          products,
+          commercialPricing: pricing,
+          step: 5
+        };
+        const draftRes = await api.post('/workflow/draft', payload);
+        if (draftRes.success && draftRes.enquiry) {
+          activeEnquiryId = draftRes.enquiry._id;
+          setEnquiryId(activeEnquiryId);
+          setErn(draftRes.enquiry.ern);
+        }
+      }
+
+      const res = await api.post('/workflow/submit-approval', {
+        enquiryId: activeEnquiryId
+      });
+      if (res.success) {
+        setApprovalStatus('Pending Approval');
+        return res;
+      }
+    } catch (err) {
+      setError(err.message || 'Error submitting project for admin approval.');
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const approveAsAdmin = async (remarks = 'Approved by Executive Admin') => {
+    setSaving(true);
+    setError('');
+    try {
+      const res = await api.post('/workflow/approve-admin', {
+        enquiryId,
+        remarks
+      });
+      if (res.success) {
+        setApprovalStatus('Approved');
+        return res;
+      }
+    } catch (err) {
+      setError(err.message || 'Error approving project as admin.');
+      throw err;
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const nextStep = () => {
     setCurrentStep((prev) => Math.min(6, prev + 1));
   };
@@ -464,8 +530,12 @@ export const WorkflowProvider = ({ children, initialEnquiryId = null }) => {
     setCurrentVersion,
     revisions,
     setRevisions,
+    approvalStatus,
+    setApprovalStatus,
     submitNewRevision,
     sendOffering,
+    submitForAdminApproval,
+    approveAsAdmin,
 
     // Step 6
     poData,

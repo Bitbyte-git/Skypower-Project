@@ -102,10 +102,28 @@ export async function downloadEnquiryPDF(enquiryData) {
   const finalTotal = Number(comm.totalAmount || enquiryData.expectedProjectValue || (subTotal + gstAmount));
   const words = comm.amountInWords || numberToWords(finalTotal);
 
-  // Subject line product summary
-  const subjectProduct =
-    products[0]?.productDescription?.slice(0, 75) ||
-    '11kV Outdoor Type Standalone VCB Switchboard';
+  // Subject line product summary (intelligent multi-product formatting without truncation)
+  let subjectProductsText = '';
+  const validProducts = Array.isArray(products) ? products : [];
+  if (validProducts.length === 0) {
+    subjectProductsText = 'HT Switchgear Panels';
+  } else if (validProducts.length === 1) {
+    subjectProductsText =
+      validProducts[0].productDescription ||
+      validProducts[0].productName ||
+      '11kV Outdoor Type Standalone VCB Switchboard';
+  } else if (validProducts.length === 2) {
+    const p1 = validProducts[0].productDescription || validProducts[0].productName || 'HT Switchgear Panel';
+    const p2 = validProducts[1].productDescription || validProducts[1].productName || 'HT Switchgear Panel';
+    subjectProductsText = `${p1} & ${p2}`;
+  } else {
+    // 3 or more products
+    subjectProductsText = validProducts
+      .map((p, idx) => p.productDescription || p.productName || `Item ${idx + 1}`)
+      .join(', ');
+  }
+
+  const subjectLine = `Sub: Offer Price for supply of ${subjectProductsText} – Reg.,`;
 
   // Transport details — fully dynamic from form data
   const forBasis        = comm.forBasis || 'Client Own Transport';
@@ -292,11 +310,12 @@ export async function downloadEnquiryPDF(enquiryData) {
       // Salutation & Subject
       { text: 'Dear Sir,', fontSize: 8.5, color: '#000000', margin: [0, 0, 0, 8] },
       {
-        text: `Sub: "Offer Price" for supply of ${subjectProduct} – Reg.,`,
+        text: subjectLine,
         fontSize: 8.5,
         bold: true,
         color: '#000000',
-        margin: [0, 0, 0, 4]
+        lineHeight: 1.25,
+        margin: [0, 0, 0, 6]
       },
       {
         text: '**********',

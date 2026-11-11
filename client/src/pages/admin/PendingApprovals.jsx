@@ -12,7 +12,12 @@ import {
   AlertTriangle,
   ChevronDown,
   ChevronUp,
-  FileCheck
+  FileCheck,
+  Upload,
+  FileText,
+  Download,
+  Loader2,
+  ExternalLink
 } from 'lucide-react';
 
 export const PendingApprovals = () => {
@@ -25,8 +30,30 @@ export const PendingApprovals = () => {
   const [selectedEnquiry, setSelectedEnquiry] = useState(null);
   const [remarks, setRemarks] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [uploadingEnquiryId, setUploadingEnquiryId] = useState(null);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+
+  const handleFileUpload = async (enquiryId, file) => {
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('documentType', 'Technical specifications');
+
+    setUploadingEnquiryId(enquiryId);
+    setError('');
+    try {
+      await api.post(`/enquiries/${enquiryId}/upload`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      setSuccessMsg('Engineering document attached successfully.');
+      fetchPending();
+    } catch (err) {
+      setError(err.message || 'File upload failed.');
+    } finally {
+      setUploadingEnquiryId(null);
+    }
+  };
 
   const fetchPending = async () => {
     setLoading(true);
@@ -54,7 +81,7 @@ export const PendingApprovals = () => {
     } else if (type === 'reject') {
       setRemarks('Administrative rejection: non-compliant with standard plant manufacturing capabilities.');
     } else {
-      setRemarks('Technically and commercially cleared for quotation preparation.');
+      setRemarks('Technically and commercially cleared for PO Team execution and quotation generation.');
     }
     setError('');
   };
@@ -74,7 +101,7 @@ export const PendingApprovals = () => {
         ? 'Administrative review requested: please verify technical ratings, breaking capacity, and bill of quantities.'
         : activeModal === 'reject'
         ? 'Administrative rejection: non-compliant with standard plant manufacturing capabilities.'
-        : 'Technically and commercially cleared for quotation preparation.';
+        : 'Technically and commercially cleared for PO Team execution and quotation generation.';
 
     const finalRemarks = remarks.trim() || defaultRemark;
 
@@ -159,7 +186,7 @@ export const PendingApprovals = () => {
                     <div className="text-right">
                       <div className="text-[10px] uppercase font-semibold text-slate-400">Est. Value</div>
                       <div className="text-base font-black font-mono text-[#1E3A5F]">
-                        ₹ {Number(enq.expectedProjectValue || 0).toLocaleString('en-IN')}
+                        ₹ {Number(enq.expectedProjectValue || enq.commercialPricing?.totalAmount || enq.offeringHistory?.[0]?.totalAmount || 0).toLocaleString('en-IN')}
                       </div>
                     </div>
 
@@ -168,9 +195,9 @@ export const PendingApprovals = () => {
                       <button
                         type="button"
                         onClick={() => openDecisionModal(enq, 'approve')}
-                        className="inline-flex items-center px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs transition-all hover:-translate-y-0.5 cursor-pointer"
+                        className="inline-flex items-center px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs transition-all hover:-translate-y-0.5 cursor-pointer"
                       >
-                        <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Approve
+                        <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Approve &amp; Send to PO
                       </button>
 
                       <button
@@ -259,6 +286,22 @@ export const PendingApprovals = () => {
                           ))}
                         </tbody>
                       </table>
+                    </div>
+
+                    {/* Action Bar & Full Dossier Link */}
+                    <div className="pt-3 border-t border-slate-200 flex items-center justify-between">
+                      <div className="text-xs text-slate-500">
+                        <span>Review technical equipment scope above. Click </span>
+                        <strong className="text-emerald-700">Approve &amp; Send to PO</strong>
+                        <span> to add administrative notes and clear for PO execution.</span>
+                      </div>
+                      <Link
+                        to={`/enquiries/${enq._id}`}
+                        className="inline-flex items-center text-xs font-bold text-[#1E5BB8] hover:text-[#174A96] transition-colors"
+                      >
+                        <span>Open Full Technical Dossier</span>
+                        <ExternalLink className="w-3.5 h-3.5 ml-1" />
+                      </Link>
                     </div>
                   </div>
                 )}

@@ -124,13 +124,27 @@ export const generateQuotationPDF = async (quotation, client, companyProfile = {
       doc.font('Times-Roman').text('Dear Sir,', 45, y);
       y += 14;
 
-      const mainProduct = quotation.productPricing?.[0]?.productDescription ||
-        quotation.productPricing?.[0]?.productName ||
-        '11kV Outdoor Type Standalone VCB Switchboard';
+      const productItems = quotation.productPricing && quotation.productPricing.length > 0
+        ? quotation.productPricing
+        : [];
+      let subjectProducts = '';
+      if (productItems.length === 0) {
+        subjectProducts = 'HT Switchgear Panels';
+      } else if (productItems.length === 1) {
+        subjectProducts = productItems[0].productDescription || productItems[0].productName || '11kV Outdoor Type Standalone VCB Switchboard';
+      } else if (productItems.length === 2) {
+        const d1 = productItems[0].productDescription || productItems[0].productName || 'HT Switchgear Panel';
+        const d2 = productItems[1].productDescription || productItems[1].productName || 'HT Switchgear Panel';
+        subjectProducts = `${d1} & ${d2}`;
+      } else {
+        subjectProducts = productItems.map((p, i) => p.productDescription || p.productName || `Item ${i + 1}`).join(', ');
+      }
 
-      doc.font('Times-Bold')
-         .text(`Sub: "Offer Price" for supply of ${mainProduct.slice(0, 70)} – Reg.,`, 45, y);
-      y += 14;
+      const subjectLine = `Sub: Offer Price for supply of ${subjectProducts} – Reg.,`;
+
+      doc.font('Times-Bold').fontSize(8.5)
+         .text(subjectLine, 45, y, { width: 505, lineGap: 2 });
+      y = doc.y + 8;
 
       doc.font('Times-Roman').fontSize(8.5)
          .text('With reference to the above, we are pleased to submit our techno commercial offer for your kind perusal', 45, y);

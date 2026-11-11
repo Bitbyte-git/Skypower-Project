@@ -87,6 +87,13 @@ export const getProjectWorkflows = async (req, res, next) => {
 
     const query = {};
 
+    // PO Team can strictly only see projects whose commercial requisition was Approved by Admin
+    if (req.user?.role === USER_ROLES.PO_TEAM) {
+      const approvedEnquiries = await Enquiry.find({ approvalStatus: 'Approved' }).select('_id');
+      const approvedEnquiryIds = approvedEnquiries.map((e) => e._id);
+      query.enquiryId = { $in: approvedEnquiryIds };
+    }
+
     // 1. Department-level filtering based on DepartmentApproval records
     if (departmentSequence || departmentCode) {
       let targetSeq = departmentSequence ? Number(departmentSequence) : null;
@@ -101,8 +108,8 @@ export const getProjectWorkflows = async (req, res, next) => {
 
         if (status && ['Pending', 'Accepted', 'Rejected'].includes(status)) {
           approvalFilter.status = status;
-        } else if (status === 'ALL') {
-          // All projects that have reached or passed through this department
+        } else {
+          // All projects that have reached or passed through this department (exclude Waiting)
           approvalFilter.status = { $in: ['Pending', 'Accepted', 'Rejected'] };
         }
 

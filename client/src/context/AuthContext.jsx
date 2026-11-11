@@ -66,6 +66,7 @@ export const AuthProvider = ({ children }) => {
     isAdmin: user?.role === 'ADMIN',
     isManager: user?.role === 'MANAGER',
     isSales: user?.role === 'SALES',
+    isPOTeam: user?.role === 'PO_TEAM',
     canManageWorkflows: user?.role === 'ADMIN' || user?.role === 'MANAGER'
   };
 

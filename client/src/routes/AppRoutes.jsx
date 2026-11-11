@@ -47,6 +47,7 @@ export const AppRoutes = () => {
   const getHomeRoute = () => {
     if (user?.role === 'ADMIN') return '/admin/dashboard';
     if (user?.role === 'MANAGER') return '/manager/dashboard';
+    if (user?.role === 'PO_TEAM') return '/po/tracking';
     return '/sales/dashboard';
   };
 
@@ -64,8 +65,8 @@ export const AppRoutes = () => {
         }
       />
 
-      {/* Protected Routes Layout - ONLY 3 ROLES: ADMIN, MANAGER, SALES */}
-      <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'SALES']} />}>
+      {/* Protected Routes Layout */}
+      <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'SALES', 'PO_TEAM']} />}>
         <Route element={<MainLayout />}>
           {/* Default Root Redirect */}
           <Route path="/" element={<Navigate to={getHomeRoute()} replace />} />

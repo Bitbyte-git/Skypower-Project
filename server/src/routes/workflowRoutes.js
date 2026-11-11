@@ -8,7 +8,9 @@ import {
   sendOfferingToClient,
   finalizeAndSendToPO,
   getPOTrackingList,
-  updatePOStatus
+  updatePOStatus,
+  submitWorkflowForApproval,
+  approveWorkflowAsAdmin
 } from '../controllers/workflowController.js';
 import { requireAuth, requireRoles } from '../middleware/auth.js';
 import { USER_ROLES } from '../constants/roles.js';
@@ -28,6 +30,8 @@ router.get('/enquiry/:id', requireRoles([USER_ROLES.SALES, USER_ROLES.ADMIN]), g
 // Step 5: Offering Management & Revisions
 router.post('/offering-revision', requireRoles([USER_ROLES.SALES, USER_ROLES.ADMIN]), createOfferingRevision);
 router.post('/offering-send', requireRoles([USER_ROLES.SALES, USER_ROLES.ADMIN]), sendOfferingToClient);
+router.post('/submit-approval', requireRoles([USER_ROLES.SALES, USER_ROLES.ADMIN]), submitWorkflowForApproval);
+router.post('/approve-admin', requireRoles([USER_ROLES.ADMIN]), approveWorkflowAsAdmin);
 
 // Step 6: Finalize & PO Handover
 router.post('/finalize-to-po', requireRoles([USER_ROLES.SALES, USER_ROLES.ADMIN]), finalizeAndSendToPO);

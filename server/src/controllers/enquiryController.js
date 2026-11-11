@@ -323,6 +323,45 @@ export const uploadEnquiryDocument = async (req, res, next) => {
   }
 };
 
+/**
+ * Delete an uploaded document from an enquiry
+ */
+export const deleteEnquiryDocument = async (req, res, next) => {
+  try {
+    const { id, docId } = req.params;
+    const enquiry = await Enquiry.findById(id);
+
+    if (!enquiry) {
+      return res.status(404).json({
+        success: false,
+        message: 'Enquiry not found.'
+      });
+    }
+
+    const docIndex = (enquiry.documents || []).findIndex(
+      (d) => d._id?.toString() === docId || d.fileName === docId
+    );
+
+    if (docIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: 'Document attachment not found.'
+      });
+    }
+
+    const removedDoc = enquiry.documents.splice(docIndex, 1)[0];
+    await enquiry.save();
+
+    return res.status(200).json({
+      success: true,
+      message: `Document '${removedDoc.originalName || 'file'}' removed successfully.`,
+      documents: enquiry.documents
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const handoverToRD = async (req, res, next) => {
   try {
     const { id } = req.params;

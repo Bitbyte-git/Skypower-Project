@@ -5,6 +5,7 @@ import { Followup } from '../models/Followup.js';
 import { ProjectWorkflow } from '../models/ProjectWorkflow.js';
 import { DepartmentApproval } from '../models/DepartmentApproval.js';
 import { Department } from '../models/Department.js';
+import { syncPendingEnquiries } from '../services/seedService.js';
 import {
   APPROVAL_STATUSES,
   COMMERCIAL_STATUSES,
@@ -84,6 +85,18 @@ export const getSalesDashboard = async (req, res, next) => {
 
 export const getAdminDashboard = async (req, res, next) => {
   try {
+    // 1. Auto-synchronize any projects created in sales side
+    await syncPendingEnquiries();
+
+    // 2. Pending filter includes all enquiries requiring admin review
+    const pendingFilter = {
+      $or: [
+        { approvalStatus: { $in: [APPROVAL_STATUSES.PENDING_APPROVAL, APPROVAL_STATUSES.SUBMITTED, 'Submitted to Admin'] } },
+        { approvalStatus: APPROVAL_STATUSES.DRAFT, 'products.0': { $exists: true } },
+        { approvalStatus: APPROVAL_STATUSES.DRAFT, 'project.projectName': { $exists: true, $ne: '' } }
+      ]
+    };
+
     const [
       totalClients,
       totalEnquiries,
@@ -100,18 +113,18 @@ export const getAdminDashboard = async (req, res, next) => {
     ] = await Promise.all([
       Client.countDocuments(),
       Enquiry.countDocuments(),
-      Enquiry.countDocuments({ approvalStatus: APPROVAL_STATUSES.PENDING_APPROVAL }),
+      Enquiry.countDocuments(pendingFilter),
       Enquiry.countDocuments({ approvalStatus: APPROVAL_STATUSES.APPROVED }),
       Enquiry.countDocuments({ approvalStatus: APPROVAL_STATUSES.RETURNED_FOR_CORRECTION }),
       Enquiry.countDocuments({ approvalStatus: APPROVAL_STATUSES.REJECTED }),
       Enquiry.countDocuments({ commercialStatus: COMMERCIAL_STATUSES.WON }),
       Enquiry.countDocuments({ commercialStatus: COMMERCIAL_STATUSES.LOST }),
       Quotation.countDocuments(),
-      Enquiry.find({ approvalStatus: APPROVAL_STATUSES.PENDING_APPROVAL })
+      Enquiry.find(pendingFilter)
         .populate('clientId', 'companyName clientLocation customerType')
         .populate('assignedSalesEngineer', 'name email')
         .sort({ updatedAt: -1 })
-        .limit(5),
+        .limit(10),
       Enquiry.aggregate([
         {
           $group: {
@@ -140,6 +153,11 @@ export const getAdminDashboard = async (req, res, next) => {
         wonValue = item.totalValue;
       }
     });
+
+    if (totalPipelineValue === 0) {
+      const allEnqs = await Enquiry.find().select('expectedProjectValue commercialPricing');
+      totalPipelineValue = allEnqs.reduce((acc, e) => acc + (Number(e.expectedProjectValue || e.commercialPricing?.totalAmount || 0)), 0);
+    }
 
     const stageDistribution = [
       { stage: 'Drafts', count: await Enquiry.countDocuments({ approvalStatus: APPROVAL_STATUSES.DRAFT }), color: '#94A3B8' },
@@ -175,6 +193,15 @@ export const getAdminDashboard = async (req, res, next) => {
       topEquipment: p.topEquipment
     }));
 
+    // Format urgent pending items with guaranteed expected project values
+    const urgentPending = recentPendingApprovals.map((e) => {
+      const obj = e.toObject ? e.toObject() : { ...e };
+      if (!obj.expectedProjectValue && obj.commercialPricing?.totalAmount) {
+        obj.expectedProjectValue = obj.commercialPricing.totalAmount;
+      }
+      return obj;
+    });
+
     return res.status(200).json({
       success: true,
       metrics: {
@@ -190,7 +217,8 @@ export const getAdminDashboard = async (req, res, next) => {
         totalPipelineValue,
         wonValue
       },
-      recentPendingApprovals,
+      urgentPending,
+      recentPendingApprovals: urgentPending,
       customerTypeDistribution: customerTypeAgg,
       pipelineValueDistribution: pipelineValueAgg,
       stageDistribution,

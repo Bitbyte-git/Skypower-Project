@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Lock, Mail, AlertCircle, ArrowRight, Zap, ShieldCheck, ClipboardList } from 'lucide-react';
+import { Lock, Mail, AlertCircle, ArrowRight, Zap, ShieldCheck, ClipboardList, Package } from 'lucide-react';
 
 export const Login = () => {
   const [email, setEmail] = useState('sales@skypower.co.in');
@@ -22,6 +22,8 @@ export const Login = () => {
         navigate('/admin/dashboard');
       } else if (loggedUser.role === 'MANAGER') {
         navigate('/manager/dashboard');
+      } else if (loggedUser.role === 'PO_TEAM') {
+        navigate('/po/tracking');
       } else {
         navigate('/workflow');
       }
@@ -47,6 +49,12 @@ export const Login = () => {
   const setSalesCredentials = () => {
     setEmail('sales@skypower.co.in');
     setPassword('Sales@123');
+    setError('');
+  };
+
+  const setPOTeamCredentials = () => {
+    setEmail('po@skypower.co.in');
+    setPassword('Po@123');
     setError('');
   };
 
@@ -180,7 +188,7 @@ export const Login = () => {
             <p className="text-[11px] uppercase tracking-wider text-center mb-3 font-bold" style={{ color: '#8495AB' }}>
               Instant Demo Access
             </p>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <button
                 type="button"
                 onClick={setSalesCredentials}
@@ -221,6 +229,20 @@ export const Login = () => {
               >
                 <Zap className="w-4 h-4 mb-0.5" style={{ color: '#EA6208' }} />
                 <span>Admin Login</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={setPOTeamCredentials}
+                className="flex flex-col items-center justify-center py-2.5 px-1 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shadow-2xs hover:-translate-y-0.5"
+                style={{
+                  background: '#ECFDF5',
+                  color: '#059669',
+                  border: '1px solid #A7F3D0'
+                }}
+              >
+                <Package className="w-4 h-4 mb-0.5" style={{ color: '#059669' }} />
+                <span>PO Team</span>
               </button>
             </div>
           </div>

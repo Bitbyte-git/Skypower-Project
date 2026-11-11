@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useWorkflow } from '../../../context/WorkflowContext';
+import { useAuth } from '../../../context/AuthContext';
 import { downloadEnquiryPDF } from '../../../utils/pdfMakerService';
 import { getStandardUnitPrice, formatIndianCommas, parseIndianCommas } from '../../../utils/pricingRules';
 import {
@@ -20,7 +21,10 @@ import {
   GripHorizontal,
   Plus,
   Minus,
-  Trash2
+  Trash2,
+  Percent,
+  ShieldCheck,
+  Lock
 } from 'lucide-react';
 
 export const Step5OfferingManagement = () => {
@@ -34,22 +38,30 @@ export const Step5OfferingManagement = () => {
     currentVersion,
     setCurrentVersion,
     revisions,
+    approvalStatus,
     submitNewRevision,
     sendOffering,
+    submitForAdminApproval,
+    approveAsAdmin,
     prevStep,
     nextStep,
+    goToStep,
     saving,
     error,
     setError
   } = useWorkflow();
 
+  const { isAdmin } = useAuth();
+  const [submittingApproval, setSubmittingApproval] = useState(false);
+  const [approvingAdmin, setApprovingAdmin] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [showRevisionModal, setShowRevisionModal] = useState(false);
   const [revisionSummary, setRevisionSummary] = useState('');
 
   // ── Revision modal state: seed from actual pricing & products ──
-  const [reductionAmount, setReductionAmount] = useState('');
+  const [bulkDiscountType, setBulkDiscountType] = useState('percent'); // 'percent' | 'amount'
+  const [bulkDiscountValue, setBulkDiscountValue] = useState('');
   const [newTransportPrice, setNewTransportPrice] = useState(0);
   const [newForBasis, setNewForBasis] = useState('Client Own Transport');
   const [revisedProducts, setRevisedProducts] = useState([]);
@@ -122,7 +134,8 @@ export const Step5OfferingManagement = () => {
   const openRevisionModal = () => {
     setError('');
     setRevisionSummary('');
-    setReductionAmount('');
+    setBulkDiscountValue('');
+    setBulkDiscountType('percent');
     setModalPosition({ x: 0, y: 0 });
     setShowAddProductInline(false);
 
@@ -141,6 +154,8 @@ export const Step5OfferingManagement = () => {
             ...p,
             id: p.id || `rev-prod-${idx}`,
             basicPrice: bp,
+            discountType: p.discountType || 'amount',
+            discountValue: p.discountValue !== undefined && p.discountValue !== null ? p.discountValue : '',
             quantity: qty,
             totalBasicPrice: bp * qty
           };
@@ -178,13 +193,47 @@ export const Step5OfferingManagement = () => {
     });
   };
 
-  const handleUpdateAllProductsPrice = (newPrice) => {
-    const priceNum = Math.max(0, Number(newPrice) || 0);
+  const handleUpdateRevProductDiscount = (idx, val) => {
+    setRevisedProducts((prev) => {
+      const updated = [...prev];
+      updated[idx] = {
+        ...updated[idx],
+        discountValue: val
+      };
+      return updated;
+    });
+  };
+
+  const handleToggleRevProductDiscountType = (idx) => {
+    setRevisedProducts((prev) => {
+      const updated = [...prev];
+      const curr = updated[idx].discountType || 'amount';
+      updated[idx] = {
+        ...updated[idx],
+        discountType: curr === 'amount' ? 'percent' : 'amount'
+      };
+      return updated;
+    });
+  };
+
+  const handleApplyBulkDiscount = () => {
+    const val = Number(bulkDiscountValue) || 0;
+    if (val <= 0) return;
     setRevisedProducts((prev) =>
       prev.map((p) => ({
         ...p,
-        basicPrice: priceNum,
-        totalBasicPrice: priceNum * (Number(p.quantity) || 1)
+        discountType: bulkDiscountType,
+        discountValue: bulkDiscountValue
+      }))
+    );
+  };
+
+  const handleClearAllDiscounts = () => {
+    setBulkDiscountValue('');
+    setRevisedProducts((prev) =>
+      prev.map((p) => ({
+        ...p,
+        discountValue: ''
       }))
     );
   };
@@ -208,6 +257,8 @@ export const Step5OfferingManagement = () => {
       id: `rev-add-${Date.now()}`,
       productDescription: desc,
       basicPrice: bp,
+      discountType: 'amount',
+      discountValue: '',
       quantity: qty,
       totalBasicPrice: bp * qty
     };
@@ -218,17 +269,46 @@ export const Step5OfferingManagement = () => {
   // Live recalculation inside revision modal
   const revisionPreview = useMemo(() => {
     const totalUnits = revisedProducts.reduce((sum, p) => sum + (Number(p.quantity) || 1), 0);
-    const benchmarkBasePrice = revisedProducts.length > 0
-      ? Number(revisedProducts[0].basicPrice) || Number(pricing.basicPrice) || 0
-      : Number(pricing.basicPrice) || 0;
 
-    const reduction = Math.max(0, Number(reductionAmount) || 0);
+    let totalBaseBasic = 0;
+    let totalBasic = 0;
+    let totalDiscount = 0;
 
-    const totalBasic = revisedProducts.reduce((acc, p) => {
-      const unitP = Number(p.basicPrice) || benchmarkBasePrice;
-      const effectiveUnit = Math.max(0, unitP - reduction);
-      return acc + (effectiveUnit * (Number(p.quantity) || 1));
-    }, 0);
+    const evaluatedProducts = revisedProducts.map((p) => {
+      const base = Math.max(0, Number(p.basicPrice) || 0);
+      const qty = Math.max(1, Number(p.quantity) || 1);
+      const dVal = Math.max(0, Number(p.discountValue) || 0);
+      const dType = p.discountType || 'amount';
+
+      let effectivePrice = base;
+      let unitSavings = 0;
+
+      if (dVal > 0) {
+        if (dType === 'percent') {
+          const pct = Math.min(100, dVal);
+          unitSavings = Math.round(base * (pct / 100));
+          effectivePrice = Math.max(0, base - unitSavings);
+        } else {
+          unitSavings = Math.min(base, dVal);
+          effectivePrice = Math.max(0, base - unitSavings);
+        }
+      }
+
+      const lineTotal = effectivePrice * qty;
+      const baseLineTotal = base * qty;
+
+      totalBaseBasic += baseLineTotal;
+      totalBasic += lineTotal;
+      totalDiscount += (unitSavings * qty);
+
+      return {
+        ...p,
+        basePrice: base,
+        effectivePrice,
+        unitSavings,
+        lineTotal
+      };
+    });
 
     const transport = newForBasis === 'Client Own Transport' ? 0 : (Number(newTransportPrice) || 0);
     const subTotal   = totalBasic + transport;
@@ -239,14 +319,12 @@ export const Step5OfferingManagement = () => {
     const tax        = cgst + sgst + igst;
     const total      = subTotal + tax;
 
-    const effectiveBenchmark = Math.max(0, benchmarkBasePrice - reduction);
-
     return {
-      benchmarkBasePrice,
-      reduction,
-      effectiveBenchmark,
+      evaluatedProducts,
       totalUnits,
+      totalBaseBasic,
       totalBasic,
+      totalDiscount,
       transport,
       subTotal,
       cgst,
@@ -256,7 +334,7 @@ export const Step5OfferingManagement = () => {
       total,
       isIntra
     };
-  }, [revisedProducts, reductionAmount, newTransportPrice, newForBasis, pricing.basicPrice, pricing.gstType]);
+  }, [revisedProducts, newTransportPrice, newForBasis, pricing.gstType]);
 
   // Fallback demo revisions if brand new
   const displayRevisions =
@@ -312,6 +390,34 @@ export const Step5OfferingManagement = () => {
     }
   };
 
+  const handleSubmitForApproval = async () => {
+    setSubmittingApproval(true);
+    setSuccessMsg('');
+    setError('');
+    try {
+      await submitForAdminApproval();
+      setSuccessMsg('Project requisition successfully submitted to Executive Admin for review & approval.');
+    } catch (err) {
+      // error handled in context
+    } finally {
+      setSubmittingApproval(false);
+    }
+  };
+
+  const handleQuickAdminApprove = async () => {
+    setApprovingAdmin(true);
+    setSuccessMsg('');
+    setError('');
+    try {
+      await approveAsAdmin('Direct clearance by Executive Admin');
+      setSuccessMsg('Project approved by Executive Admin! Cleared for Purchase Order team handover.');
+    } catch (err) {
+      // error handled in context
+    } finally {
+      setApprovingAdmin(false);
+    }
+  };
+
   const handleCreateRevisionSubmit = async (e) => {
     e.preventDefault();
     if (revisedProducts.length === 0) {
@@ -320,32 +426,34 @@ export const Step5OfferingManagement = () => {
     }
 
     const effectiveSummary = revisionSummary.trim() || (
-      revisionPreview.reduction > 0
-        ? `Client requested price reduction of ₹ ${revisionPreview.reduction.toLocaleString('en-IN')} per unit`
+      revisionPreview.totalDiscount > 0
+        ? `Commercial revision with ₹ ${revisionPreview.totalDiscount.toLocaleString('en-IN')} total price reduction across products`
         : `Commercial revision with ${revisedProducts.length} product(s) (Total ${revisionPreview.totalUnits} units)`
     );
 
     try {
-      const reduction = revisionPreview.reduction;
-
-      const finalRevisedProducts = revisedProducts.map((p) => {
-        const bp = Number(p.basicPrice) || revisionPreview.benchmarkBasePrice;
-        const effPrice = Math.max(0, bp - reduction);
-        const qty = Math.max(1, Number(p.quantity) || 1);
+      const finalRevisedProducts = revisionPreview.evaluatedProducts.map((p) => {
         return {
           ...p,
-          basicPrice: effPrice,
-          quantity: qty,
-          totalBasicPrice: effPrice * qty
+          basicPrice: p.effectivePrice,
+          originalBasicPrice: p.basePrice,
+          discountType: p.discountType || 'amount',
+          discountValue: Number(p.discountValue) || 0,
+          quantity: Number(p.quantity) || 1,
+          totalBasicPrice: p.lineTotal
         };
       });
+
+      const avgBasicPrice = finalRevisedProducts.length > 0 && revisionPreview.totalUnits > 0
+        ? Math.round(revisionPreview.totalBasic / revisionPreview.totalUnits)
+        : 0;
 
       // Use live-computed preview values so the snapshot is always consistent
       const revisedPricing = {
         ...pricing,
         forBasis: newForBasis,
-        basicPrice: revisionPreview.effectiveBenchmark,
-        reductionAmount: reduction,
+        basicPrice: avgBasicPrice,
+        reductionAmount: revisionPreview.totalDiscount,
         transportPrice: revisionPreview.transport,
         subTotal: revisionPreview.subTotal,
         cgstAmount: revisionPreview.cgst,
@@ -358,7 +466,7 @@ export const Step5OfferingManagement = () => {
       await submitNewRevision(effectiveSummary, finalRevisedProducts, revisedPricing);
       setShowRevisionModal(false);
       setRevisionSummary('');
-      setReductionAmount('');
+      setBulkDiscountValue('');
       setSuccessMsg('New revision created successfully with updated products and commercial pricing.');
     } catch (err) {
       // error handled in context
@@ -402,6 +510,15 @@ export const Step5OfferingManagement = () => {
           <span className="text-xs font-mono font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
             Active: {currentVersion}
           </span>
+          <span className={`text-xs font-bold px-3 py-1 rounded-full border flex items-center space-x-1 ${
+            approvalStatus === 'Approved'
+              ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+              : approvalStatus === 'Pending Approval'
+              ? 'bg-amber-100 text-amber-800 border-amber-300'
+              : 'bg-slate-100 text-slate-700 border-slate-300'
+          }`}>
+            <span>Gate: {approvalStatus || 'Draft'}</span>
+          </span>
         </div>
       </div>
 
@@ -419,6 +536,86 @@ export const Step5OfferingManagement = () => {
             <span>{successMsg}</span>
           </div>
         )}
+
+        {/* ============================================================
+            ADMINISTRATIVE CLEARANCE GATE STATUS CARD
+            ============================================================ */}
+        <div className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-2xs ${
+          approvalStatus === 'Approved'
+            ? 'bg-emerald-50/80 border-emerald-200'
+            : approvalStatus === 'Pending Approval'
+            ? 'bg-amber-50/80 border-amber-200'
+            : 'bg-blue-50/80 border-blue-200'
+        }`}>
+          <div className="flex items-start space-x-3">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+              approvalStatus === 'Approved'
+                ? 'bg-emerald-100 text-emerald-700'
+                : approvalStatus === 'Pending Approval'
+                ? 'bg-amber-100 text-amber-700'
+                : 'bg-blue-100 text-blue-700'
+            }`}>
+              {approvalStatus === 'Approved' ? <ShieldCheck className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <h4 className="text-sm font-extrabold text-[#0A1E3F]">
+                  {approvalStatus === 'Approved'
+                    ? 'Project Cleared by Executive Admin'
+                    : approvalStatus === 'Pending Approval'
+                    ? 'Awaiting Administrative Clearance'
+                    : 'Project Ready for Administrative Review'}
+                </h4>
+                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${
+                  approvalStatus === 'Approved'
+                    ? 'bg-emerald-200 text-emerald-900'
+                    : approvalStatus === 'Pending Approval'
+                    ? 'bg-amber-200 text-amber-900'
+                    : 'bg-blue-200 text-blue-900'
+                }`}>
+                  {approvalStatus || 'Draft'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 mt-0.5">
+                {approvalStatus === 'Approved'
+                  ? 'Commercial & technical scope approved by Executive Admin. Cleared for PO Team handover.'
+                  : approvalStatus === 'Pending Approval'
+                  ? 'Requisition is currently in the Admin Approval Queue. PO Team handover unlocks after approval.'
+                  : 'Submit this project to Executive Admin for commercial review and gate clearance.'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {approvalStatus !== 'Approved' && (
+              <button
+                type="button"
+                onClick={handleSubmitForApproval}
+                disabled={submittingApproval || approvalStatus === 'Pending Approval'}
+                className={`px-4 py-2 rounded-xl text-xs font-bold shadow-xs transition-all flex items-center space-x-1.5 cursor-pointer ${
+                  approvalStatus === 'Pending Approval'
+                    ? 'bg-amber-100 text-amber-800 border border-amber-300 opacity-90 cursor-default'
+                    : 'btn-accent text-white'
+                }`}
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>{submittingApproval ? 'Submitting...' : approvalStatus === 'Pending Approval' ? 'In Admin Review Queue' : 'Submit to Admin for Approval'}</span>
+              </button>
+            )}
+
+            {isAdmin && approvalStatus !== 'Approved' && (
+              <button
+                type="button"
+                onClick={handleQuickAdminApprove}
+                disabled={approvingAdmin}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all flex items-center space-x-1.5 cursor-pointer"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>{approvingAdmin ? 'Approving...' : 'Approve as Admin'}</span>
+              </button>
+            )}
+          </div>
+        </div>
 
         {/* ============================================================
             METADATA SUMMARY CARD
@@ -521,14 +718,6 @@ export const Step5OfferingManagement = () => {
                           >
                             <Download className="w-4 h-4" />
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => handleSendToClient(rev.versionId)}
-                            className="p-1.5 rounded-md text-blue-600 hover:bg-blue-50 transition-colors cursor-pointer"
-                            title="Re-Send to Client"
-                          >
-                            <Send className="w-4 h-4" />
-                          </button>
                         </div>
                       </td>
                     </tr>
@@ -567,16 +756,6 @@ export const Step5OfferingManagement = () => {
               <Download className="w-3.5 h-3.5 text-emerald-600" />
               <span>{downloading ? 'Generating PDF...' : 'Download PDF'}</span>
             </button>
-
-            <button
-              type="button"
-              onClick={() => handleSendToClient()}
-              disabled={saving}
-              className="px-4 py-2.5 rounded-lg border border-blue-300 bg-blue-50 hover:bg-blue-100 text-[#1E5BB8] text-xs font-bold shadow-xs transition-colors flex items-center space-x-1.5 cursor-pointer disabled:opacity-50"
-            >
-              <Send className="w-3.5 h-3.5 text-[#1E5BB8]" />
-              <span>Re-Send to Client</span>
-            </button>
           </div>
         </div>
 
@@ -587,7 +766,7 @@ export const Step5OfferingManagement = () => {
           <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-hidden">
             <div
               style={{ transform: `translate(${modalPosition.x}px, ${modalPosition.y}px)` }}
-              className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-lg max-h-[90vh] flex flex-col my-auto transition-shadow"
+              className="bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-2xl max-h-[90vh] flex flex-col my-auto transition-shadow"
             >
               {/* Draggable Header */}
               <div
@@ -633,11 +812,12 @@ export const Step5OfferingManagement = () => {
                       1. PRODUCTS IN THIS REVISION (ADD / REDUCE / REMOVE)
                       ============================================================ */}
                   <div className="space-y-2 p-3 bg-slate-50/90 rounded-xl border border-slate-200">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-800">
                         <span>Configured Products ({revisedProducts.length})</span>
                         <span className="text-[10px] text-slate-500 font-normal">• {revisionPreview.totalUnits} Units Total</span>
                       </div>
+
                       <button
                         type="button"
                         onClick={() => setShowAddProductInline(!showAddProductInline)}
@@ -648,47 +828,173 @@ export const Step5OfferingManagement = () => {
                       </button>
                     </div>
 
+                    {/* Quick discount across all products */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 p-2 bg-white rounded-lg border border-slate-200/90 text-xs shadow-2xs">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="text-[11px] font-bold text-slate-700">Apply to All:</span>
+                        <div className="inline-flex rounded border border-slate-300 overflow-hidden bg-slate-50">
+                          <button
+                            type="button"
+                            onClick={() => setBulkDiscountType('percent')}
+                            className={`px-2 py-0.5 text-[11px] font-bold cursor-pointer transition-colors ${
+                              bulkDiscountType === 'percent'
+                                ? 'bg-[#EE6F2D] text-white'
+                                : 'text-slate-600 hover:bg-slate-200'
+                            }`}
+                            title="Percentage reduction (%)"
+                          >
+                            %
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setBulkDiscountType('amount')}
+                            className={`px-2 py-0.5 text-[11px] font-bold cursor-pointer transition-colors ${
+                              bulkDiscountType === 'amount'
+                                ? 'bg-[#EE6F2D] text-white'
+                                : 'text-slate-600 hover:bg-slate-200'
+                            }`}
+                            title="Fixed amount reduction (₹)"
+                          >
+                            ₹
+                          </button>
+                        </div>
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder={bulkDiscountType === 'percent' ? "e.g. 5%" : "e.g. 1000"}
+                          value={bulkDiscountValue}
+                          onChange={(e) => setBulkDiscountValue(e.target.value)}
+                          className="w-24 px-2 py-1 text-xs font-mono font-bold rounded border border-slate-300 bg-white focus:border-[#EE6F2D] focus:outline-hidden"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleApplyBulkDiscount}
+                          className="px-2.5 py-1 text-[11px] font-bold bg-[#0A4076] hover:bg-[#031D40] text-white rounded cursor-pointer transition-colors"
+                        >
+                          Apply
+                        </button>
+                        {revisedProducts.some((p) => Number(p.discountValue) > 0) && (
+                          <button
+                            type="button"
+                            onClick={handleClearAllDiscounts}
+                            className="text-[11px] font-semibold text-slate-500 hover:text-rose-600 underline cursor-pointer ml-1"
+                          >
+                            Clear All
+                          </button>
+                        )}
+                      </div>
+
+                      {revisionPreview.totalDiscount > 0 && (
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                          Total Saved: ₹ {revisionPreview.totalDiscount.toLocaleString('en-IN')}
+                        </span>
+                      )}
+                    </div>
+
                     {/* Product rows list */}
-                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                      {revisedProducts.map((p, idx) => {
-                        const pBase = Number(p.basicPrice) || revisionPreview.benchmarkBasePrice;
-                        const pEffective = Math.max(0, pBase - revisionPreview.reduction);
-                        const pLineTotal = pEffective * (Number(p.quantity) || 1);
+                    <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                      {revisionPreview.evaluatedProducts.map((p, idx) => {
+                        const dType = p.discountType || 'amount';
+                        const isReduced = Number(p.discountValue) > 0;
 
                         return (
                           <div
                             key={p.id || idx}
-                            className="p-2.5 rounded-lg bg-white border border-slate-200 text-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 shadow-2xs"
+                            className="p-2.5 rounded-lg bg-white border border-slate-200 text-xs shadow-2xs hover:border-slate-300 transition-all space-y-2"
                           >
-                            <div className="min-w-0 flex-1">
-                              <p className="font-bold text-slate-800 truncate text-[11px]">
-                                {p.productDescription || `${p.kilovolt || '11kV'} ${p.productName || 'Switchboard'}`}
-                              </p>
-                              <div className="flex items-center space-x-1.5 mt-1">
-                                <span className="text-[11px] font-semibold text-slate-500">Unit Price:</span>
+                            {/* Product Header & Line Total */}
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 flex-1">
+                                <p className="font-bold text-slate-800 text-[11px] leading-tight truncate">
+                                  {p.productDescription || `${p.kilovolt || '11kV'} ${p.productName || 'Switchboard'}`}
+                                </p>
+                              </div>
+
+                              <div className="text-right shrink-0 flex items-center space-x-2">
+                                <div>
+                                  <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-tight">Line Total</span>
+                                  <span className="font-mono font-black text-[#1E5BB8] text-xs">
+                                    ₹ {p.lineTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteRevProduct(idx)}
+                                  className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer transition-colors"
+                                  title="Remove Product"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Adjustment Controls */}
+                            <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-slate-100 bg-slate-50/70 -mx-2.5 -mb-2.5 px-2.5 py-1.5 rounded-b-lg">
+                              {/* Base Unit Price */}
+                              <div className="flex items-center space-x-1">
+                                <span className="text-[10px] font-semibold text-slate-500">Base Price:</span>
                                 <div className="relative flex items-center">
-                                  <span className="absolute left-1.5 text-slate-400 font-bold text-[11px]">₹</span>
+                                  <span className="absolute left-1.5 text-slate-400 font-bold text-[10px]">₹</span>
                                   <input
                                     type="number"
                                     min="0"
                                     value={p.basicPrice}
                                     onChange={(e) => handleUpdateRevProductPrice(idx, e.target.value)}
-                                    className="w-28 pl-4 pr-1 py-0.5 text-xs font-mono font-bold rounded border border-slate-300 bg-white focus:border-[#EE6F2D] focus:outline-hidden"
+                                    className="w-24 pl-4 pr-1 py-0.5 text-xs font-mono font-bold rounded border border-slate-300 bg-white focus:border-[#EE6F2D] focus:outline-hidden"
+                                    title="Base unit price"
                                   />
                                 </div>
-                                {revisionPreview.reduction > 0 && (
-                                  <span className="text-[10px] font-bold text-rose-500 bg-rose-50 px-1 py-0.5 rounded border border-rose-200">
-                                    Eff: ₹{pEffective.toLocaleString('en-IN')}
+                              </div>
+
+                              {/* Reduce Amount / Percentage */}
+                              <div className="flex items-center space-x-1.5">
+                                <span className="text-[10px] font-bold text-rose-600">Reduce:</span>
+                                <div className="inline-flex rounded border border-slate-300 overflow-hidden bg-white shadow-2xs">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleRevProductDiscountType(idx)}
+                                    className={`px-1.5 py-0.5 text-[10px] font-bold cursor-pointer transition-colors ${
+                                      dType === 'amount'
+                                        ? 'bg-rose-600 text-white'
+                                        : 'text-slate-600 hover:bg-slate-100'
+                                    }`}
+                                    title="Reduce by fixed ₹ amount"
+                                  >
+                                    ₹
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleRevProductDiscountType(idx)}
+                                    className={`px-1.5 py-0.5 text-[10px] font-bold cursor-pointer transition-colors ${
+                                      dType === 'percent'
+                                        ? 'bg-rose-600 text-white'
+                                        : 'text-slate-600 hover:bg-slate-100'
+                                    }`}
+                                    title="Reduce by % percentage"
+                                  >
+                                    %
+                                  </button>
+                                </div>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max={dType === 'percent' ? 100 : undefined}
+                                  placeholder={dType === 'percent' ? "% off" : "₹ off"}
+                                  value={p.discountValue ?? ''}
+                                  onChange={(e) => handleUpdateRevProductDiscount(idx, e.target.value)}
+                                  className="w-20 px-2 py-0.5 text-xs font-mono font-bold rounded border border-rose-300 bg-white focus:border-rose-500 focus:outline-hidden text-rose-900"
+                                />
+                                {isReduced && (
+                                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                                    Eff: ₹{p.effectivePrice.toLocaleString('en-IN')}
                                   </span>
                                 )}
                               </div>
-                            </div>
 
-                            <div className="flex items-center space-x-3 shrink-0 self-end sm:self-center">
                               {/* Quantity Counter */}
                               <div className="flex items-center space-x-1">
                                 <span className="text-[10px] font-semibold text-slate-500">Qty:</span>
-                                <div className="inline-flex items-center space-x-1 bg-slate-100 px-1.5 py-0.5 rounded-md border border-slate-200">
+                                <div className="inline-flex items-center space-x-1 bg-white px-1.5 py-0.5 rounded border border-slate-200 shadow-2xs">
                                   <button
                                     type="button"
                                     onClick={() => handleUpdateRevQty(idx, -1)}
@@ -710,24 +1016,6 @@ export const Step5OfferingManagement = () => {
                                   </button>
                                 </div>
                               </div>
-
-                              {/* Explicit Line Total */}
-                              <div className="text-right min-w-[95px]">
-                                <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-tight">Line Total</span>
-                                <span className="font-mono font-black text-[#1E5BB8] text-xs">
-                                  ₹ {pLineTotal.toLocaleString('en-IN')}
-                                </span>
-                              </div>
-
-                              {/* Remove Product */}
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteRevProduct(idx)}
-                                className="p-1 text-slate-400 hover:text-rose-600 cursor-pointer transition-colors"
-                                title="Remove Product"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
                             </div>
                           </div>
                         );
@@ -826,59 +1114,10 @@ export const Step5OfferingManagement = () => {
                   </div>
 
                   {/* ============================================================
-                      2. COMMERCIAL & PRICING ADJUSTMENTS
+                      2. COMMERCIAL & PRICING ADJUSTMENTS (FOR BASIS & TRANSPORT)
                       ============================================================ */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-slate-50/80 rounded-xl border border-slate-200">
-                    {/* Live Unit Basic Price benchmark */}
-                    <div className="space-y-1">
-                      <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">
-                        Current Unit Basic Price (₹)
-                      </label>
-                      <div className="relative flex items-center">
-                        <span className="absolute left-2.5 text-slate-500 font-bold text-xs">₹</span>
-                        <input
-                          type="number"
-                          min="0"
-                          value={revisionPreview.benchmarkBasePrice}
-                          onChange={(e) => handleUpdateAllProductsPrice(e.target.value)}
-                          className="w-full pl-6 pr-2 py-2 text-xs font-mono font-bold rounded-lg border border-slate-300 bg-white focus:outline-hidden focus:ring-2 focus:ring-[#EE6F2D]/20 focus:border-[#EE6F2D] text-slate-800"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Reduce Amount Input */}
-                    <div className="space-y-1">
-                      <label className="block text-[11px] font-bold text-rose-600 uppercase tracking-wider">
-                        Reduce Amount (₹) <span className="text-slate-400 font-normal">per unit</span>
-                      </label>
-                      <div className="relative flex items-center">
-                        <span className="absolute left-2.5 text-slate-500 font-bold text-xs">₹</span>
-                        <input
-                          type="number"
-                          min="0"
-                          placeholder="e.g. 500 or 1000"
-                          value={reductionAmount}
-                          onChange={(e) => setReductionAmount(e.target.value)}
-                          className="w-full pl-6 pr-2 py-2 text-xs font-mono font-bold rounded-lg border border-rose-300 focus:border-rose-500 bg-white focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 text-rose-900"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Effective Unit Basic Price display */}
-                    <div className="sm:col-span-2 p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-between text-xs">
-                      <span className="font-bold text-emerald-900">Effective Basic Price / Unit:</span>
-                      <span className="font-mono font-black text-emerald-700 text-sm flex items-center space-x-1.5">
-                        <span>₹ {revisionPreview.effectiveBenchmark.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
-                        {revisionPreview.reduction > 0 && (
-                          <span className="text-[10px] font-bold text-rose-600 bg-white px-1.5 py-0.5 rounded border border-rose-200">
-                            -₹ {revisionPreview.reduction.toLocaleString('en-IN')}
-                          </span>
-                        )}
-                      </span>
-                    </div>
-
-                    {/* FOR Basis & Transport */}
-                    <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="space-y-2 p-3 bg-slate-50/80 rounded-xl border border-slate-200">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider">FOR Basis</label>
                         <select
@@ -911,6 +1150,15 @@ export const Step5OfferingManagement = () => {
                         />
                       </div>
                     </div>
+
+                    {revisionPreview.totalDiscount > 0 && (
+                      <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-between text-xs">
+                        <span className="font-bold text-emerald-900">Total Price Reduction Across Products:</span>
+                        <span className="font-mono font-black text-emerald-700 text-xs">
+                          - ₹ {revisionPreview.totalDiscount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* ============================================================
@@ -924,7 +1172,12 @@ export const Step5OfferingManagement = () => {
                       <tbody className="divide-y divide-slate-100">
                         <tr>
                           <td className="px-3 py-1.5 text-slate-600">
-                            Basic Price × Units ({Number(revisionPreview.effectiveBenchmark).toLocaleString('en-IN')} × {revisionPreview.totalUnits})
+                            Total Products Basic ({revisionPreview.totalUnits} unit{revisionPreview.totalUnits > 1 ? 's' : ''})
+                            {revisionPreview.totalDiscount > 0 && (
+                              <span className="ml-2 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                                -₹{revisionPreview.totalDiscount.toLocaleString('en-IN')} off
+                              </span>
+                            )}
                           </td>
                           <td className="px-3 py-1.5 text-right font-mono font-semibold text-slate-800">
                             ₹ {revisionPreview.totalBasic.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
@@ -1026,7 +1279,7 @@ export const Step5OfferingManagement = () => {
             onClick={nextStep}
             className="px-6 py-2.5 rounded-lg bg-gradient-to-r from-[#EE6F2D] to-[#D95B1B] hover:from-[#E46220] hover:to-[#C65015] text-white text-sm font-bold shadow-md shadow-orange-500/20 transition-all flex items-center space-x-2 cursor-pointer"
           >
-            <span>Finalize &amp; Send to PO Team</span>
+            <span>{approvalStatus === 'Approved' ? 'Next: Send to PO Team' : 'Next: View PO Handover Gate'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>

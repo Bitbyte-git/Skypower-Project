@@ -1,21 +1,47 @@
 import { Enquiry } from '../models/Enquiry.js';
 import { Approval } from '../models/Approval.js';
-import { APPROVAL_STATUSES } from '../constants/statuses.js';
+import { ProjectWorkflow } from '../models/ProjectWorkflow.js';
+import { DepartmentApproval } from '../models/DepartmentApproval.js';
+import {
+  APPROVAL_STATUSES,
+  PROJECT_WORKFLOW_STATUSES,
+  DEPARTMENT_APPROVAL_STATUSES
+} from '../constants/statuses.js';
 import { logActivity } from '../services/auditService.js';
+import { initializeProjectWorkflow, syncPendingEnquiries } from '../services/seedService.js';
+import { createOrGetPOForEnquiry } from './workflowController.js';
 
 export const getPendingApprovals = async (req, res, next) => {
   try {
-    const pendingEnquiries = await Enquiry.find({
-      approvalStatus: APPROVAL_STATUSES.PENDING_APPROVAL
-    })
+    // 1. Auto-synchronize pending enquiries from sales
+    await syncPendingEnquiries();
+
+    // 2. Query all enquiries awaiting administrative clearance
+    const pendingQuery = {
+      $or: [
+        { approvalStatus: { $in: [APPROVAL_STATUSES.PENDING_APPROVAL, APPROVAL_STATUSES.SUBMITTED, 'Submitted to Admin'] } },
+        { approvalStatus: APPROVAL_STATUSES.DRAFT, 'products.0': { $exists: true } },
+        { approvalStatus: APPROVAL_STATUSES.DRAFT, 'project.projectName': { $exists: true, $ne: '' } }
+      ]
+    };
+
+    const pendingEnquiries = await Enquiry.find(pendingQuery)
       .populate('clientId', 'companyName clientLocation contactPerson mobile customerType')
       .populate('assignedSalesEngineer', 'name email phone')
       .sort({ updatedAt: -1 });
 
+    const formatted = pendingEnquiries.map((e) => {
+      const obj = e.toObject ? e.toObject() : { ...e };
+      if (!obj.expectedProjectValue && obj.commercialPricing?.totalAmount) {
+        obj.expectedProjectValue = obj.commercialPricing.totalAmount;
+      }
+      return obj;
+    });
+
     return res.status(200).json({
       success: true,
-      count: pendingEnquiries.length,
-      enquiries: pendingEnquiries
+      count: formatted.length,
+      enquiries: formatted
     });
   } catch (err) {
     next(err);
@@ -27,7 +53,7 @@ export const approveEnquiry = async (req, res, next) => {
     const { id } = req.params;
     const { remarks } = req.body;
 
-    const enquiry = await Enquiry.findById(id);
+    const enquiry = await Enquiry.findById(id).populate('clientId');
     if (!enquiry) {
       return res.status(404).json({
         success: false,
@@ -35,10 +61,15 @@ export const approveEnquiry = async (req, res, next) => {
       });
     }
 
-    if (enquiry.approvalStatus !== APPROVAL_STATUSES.PENDING_APPROVAL) {
+    if (
+      enquiry.approvalStatus !== APPROVAL_STATUSES.PENDING_APPROVAL &&
+      enquiry.approvalStatus !== APPROVAL_STATUSES.SUBMITTED &&
+      enquiry.approvalStatus !== 'Submitted to Admin' &&
+      enquiry.approvalStatus !== APPROVAL_STATUSES.DRAFT
+    ) {
       return res.status(400).json({
         success: false,
-        message: `Only enquiries in 'Pending Approval' status can be approved (Current: ${enquiry.approvalStatus}).`
+        message: `Only enquiries in 'Pending Approval' or 'Draft' status can be approved (Current: ${enquiry.approvalStatus}).`
       });
     }
 
@@ -52,10 +83,44 @@ export const approveEnquiry = async (req, res, next) => {
       ern: enquiry.ern,
       action: 'APPROVED',
       adminId: req.user._id,
-      adminRemarks: remarks || 'Approved for Quotation preparation.',
+      adminRemarks: remarks || 'Approved for Quotation preparation and PO Handover.',
       previousStatus,
       newStatus: APPROVAL_STATUSES.APPROVED
     });
+
+    // Advance 10-Dept Workflow to PO_TEAM (Department 2)
+    try {
+      let wf = await ProjectWorkflow.findOne({ enquiryId: enquiry._id });
+      if (!wf) {
+        wf = await initializeProjectWorkflow(enquiry, req.user);
+      }
+      if (wf) {
+        await DepartmentApproval.findOneAndUpdate(
+          { workflowId: wf._id, departmentSequence: 1 },
+          {
+            status: DEPARTMENT_APPROVAL_STATUSES.ACCEPTED,
+            actionAt: new Date(),
+            actionBy: req.user._id,
+            actionByName: req.user.name,
+            actionByRole: req.user.role,
+            remarks: remarks || 'Approved by Executive Admin'
+          }
+        );
+        await DepartmentApproval.findOneAndUpdate(
+          { workflowId: wf._id, departmentSequence: 2 },
+          { status: DEPARTMENT_APPROVAL_STATUSES.PENDING }
+        );
+        wf.currentDepartmentSequence = 2;
+        wf.currentDepartmentCode = 'PO_TEAM';
+        wf.overallStatus = PROJECT_WORKFLOW_STATUSES.PENDING_PO_APPROVAL;
+        await wf.save();
+      }
+
+      // Generate or sync PurchaseOrder record for PO Team
+      await createOrGetPOForEnquiry(enquiry, req.user, remarks);
+    } catch (errWf) {
+      console.error('Error syncing ProjectWorkflow & PO on Admin approve:', errWf);
+    }
 
     await logActivity({
       userId: req.user._id,
@@ -70,7 +135,7 @@ export const approveEnquiry = async (req, res, next) => {
 
     return res.status(200).json({
       success: true,
-      message: `Enquiry ${enquiry.ern} has been approved. It is now eligible for quotation generation.`,
+      message: `Enquiry ${enquiry.ern} has been approved. It is now eligible for quotation generation and PO Team handover.`,
       enquiry,
       approval: approvalRecord
     });
@@ -99,11 +164,13 @@ export const returnEnquiry = async (req, res, next) => {
 
     if (
       enquiry.approvalStatus !== APPROVAL_STATUSES.PENDING_APPROVAL &&
+      enquiry.approvalStatus !== APPROVAL_STATUSES.SUBMITTED &&
+      enquiry.approvalStatus !== 'Draft' &&
       enquiry.approvalStatus !== APPROVAL_STATUSES.APPROVED
     ) {
       return res.status(400).json({
         success: false,
-        message: `Only enquiries in 'Pending Approval' or 'Approved' status can be returned for correction (Current: ${enquiry.approvalStatus}).`
+        message: `Only enquiries awaiting approval or approved can be returned for correction (Current: ${enquiry.approvalStatus}).`
       });
     }
 
