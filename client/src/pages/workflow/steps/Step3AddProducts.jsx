@@ -68,12 +68,12 @@ export const Step3AddProducts = () => {
 
   // Auto-generate description
   const generateDescription = (p) => {
-    const pName = p.productName === 'Others' && p.customProductName ? p.customProductName : p.productName;
-    const kv = p.kilovolt === 'Others' && p.customKilovolt ? p.customKilovolt : p.kilovolt;
-    const amp = p.ampere === 'Others' && p.customAmpere ? p.customAmpere : p.ampere;
-    const ka = p.kiloampere === 'Others' && p.customKiloampere ? p.customKiloampere : p.kiloampere;
-    const dur = p.durationSec === 'Others' && p.customDurationSec ? p.customDurationSec : p.durationSec;
-    const app = p.ebMetering === 'Others' && p.customEbMetering ? p.customEbMetering : p.ebMetering;
+    const pName = p.productName === 'Custom' && p.customProductName ? p.customProductName : p.productName;
+    const kv = p.kilovolt === 'Custom' && p.customKilovolt ? p.customKilovolt : p.kilovolt;
+    const amp = p.ampere === 'Custom' && p.customAmpere ? p.customAmpere : p.ampere;
+    const ka = p.kiloampere === 'Custom' && p.customKiloampere ? p.customKiloampere : p.kiloampere;
+    const dur = p.durationSec === 'Custom' && p.customDurationSec ? p.customDurationSec : p.durationSec;
+    const app = p.ebMetering === 'Custom' && p.customEbMetering ? p.customEbMetering : p.ebMetering;
 
     return `${kv}, ${amp}, ${ka}, ${dur}, ${p.usage} ${pName} (${app})`;
   };
@@ -81,6 +81,31 @@ export const Step3AddProducts = () => {
   const handleAddOrUpdate = (e) => {
     e.preventDefault();
     setError('');
+
+    if (currentProduct.productName === 'Custom' && !currentProduct.customProductName.trim()) {
+      setError('Please enter a custom Product Name.');
+      return;
+    }
+    if (currentProduct.kilovolt === 'Custom' && !currentProduct.customKilovolt.trim()) {
+      setError('Please enter a custom Kilovolt (kV) value.');
+      return;
+    }
+    if (currentProduct.ampere === 'Custom' && !currentProduct.customAmpere.trim()) {
+      setError('Please enter a custom Ampere (A) value.');
+      return;
+    }
+    if (currentProduct.kiloampere === 'Custom' && !currentProduct.customKiloampere.trim()) {
+      setError('Please enter a custom Short Circuit (kA) value.');
+      return;
+    }
+    if (currentProduct.durationSec === 'Custom' && !currentProduct.customDurationSec.trim()) {
+      setError('Please enter a custom Duration (Sec) value.');
+      return;
+    }
+    if (currentProduct.ebMetering === 'Custom' && !currentProduct.customEbMetering.trim()) {
+      setError('Please enter a custom Application.');
+      return;
+    }
 
     const desc = generateDescription(currentProduct);
     const basicPrice = Number(currentProduct.basicPrice) || 0;
@@ -219,9 +244,9 @@ export const Step3AddProducts = () => {
                   className="w-full px-3 py-2 text-xs rounded-lg border border-slate-300 bg-white focus:outline-hidden focus:ring-2 focus:ring-[#EE6F2D]/20 focus:border-[#EE6F2D]"
                 >
                   <option value="VCB Switchboard">VCB Switchboard</option>
-                  <option value="Others">Others</option>
+                  <option value="Custom">Custom</option>
                 </select>
-                {currentProduct.productName === 'Others' && (
+                {currentProduct.productName === 'Custom' && (
                   <input
                     type="text"
                     placeholder="Custom Product Name"
@@ -245,16 +270,25 @@ export const Step3AddProducts = () => {
                   <option value="11 kV">11 kV</option>
                   <option value="22 kV">22 kV</option>
                   <option value="33 kV">33 kV</option>
-                  <option value="Others">Others</option>
+                  <option value="Custom">Custom</option>
                 </select>
-                {currentProduct.kilovolt === 'Others' && (
-                  <input
-                    type="text"
-                    placeholder="Custom kV (e.g. 6.6 kV)"
-                    value={currentProduct.customKilovolt}
-                    onChange={(e) => setCurrentProduct({ ...currentProduct, customKilovolt: e.target.value })}
-                    className="w-full mt-1.5 px-3 py-1.5 text-xs rounded-lg border border-slate-300 bg-white"
-                  />
+                {currentProduct.kilovolt === 'Custom' && (
+                  <div className="mt-1.5 flex items-center rounded-lg border border-slate-300 bg-white overflow-hidden focus-within:ring-2 focus-within:ring-[#EE6F2D]/20 focus-within:border-[#EE6F2D]">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="e.g. 6.6"
+                      value={(currentProduct.customKilovolt || '').replace(/\s*kV$/i, '')}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/[^0-9.]/g, '');
+                        setCurrentProduct({ ...currentProduct, customKilovolt: raw ? `${raw} kV` : '' });
+                      }}
+                      className="w-full px-3 py-1.5 text-xs bg-transparent focus:outline-hidden"
+                    />
+                    <span className="px-2.5 py-1.5 text-xs font-bold text-slate-600 bg-slate-100 border-l border-slate-200 select-none shrink-0">
+                      kV
+                    </span>
+                  </div>
                 )}
               </div>
 
@@ -271,16 +305,25 @@ export const Step3AddProducts = () => {
                   <option value="630 A">630 A</option>
                   <option value="800 A">800 A</option>
                   <option value="1250 A">1250 A</option>
-                  <option value="Others">Others</option>
+                  <option value="Custom">Custom</option>
                 </select>
-                {currentProduct.ampere === 'Others' && (
-                  <input
-                    type="text"
-                    placeholder="Custom Ampere (e.g. 2000 A)"
-                    value={currentProduct.customAmpere}
-                    onChange={(e) => setCurrentProduct({ ...currentProduct, customAmpere: e.target.value })}
-                    className="w-full mt-1.5 px-3 py-1.5 text-xs rounded-lg border border-slate-300 bg-white"
-                  />
+                {currentProduct.ampere === 'Custom' && (
+                  <div className="mt-1.5 flex items-center rounded-lg border border-slate-300 bg-white overflow-hidden focus-within:ring-2 focus-within:ring-[#EE6F2D]/20 focus-within:border-[#EE6F2D]">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="e.g. 2000"
+                      value={(currentProduct.customAmpere || '').replace(/\s*A$/i, '')}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/[^0-9.]/g, '');
+                        setCurrentProduct({ ...currentProduct, customAmpere: raw ? `${raw} A` : '' });
+                      }}
+                      className="w-full px-3 py-1.5 text-xs bg-transparent focus:outline-hidden"
+                    />
+                    <span className="px-2.5 py-1.5 text-xs font-bold text-slate-600 bg-slate-100 border-l border-slate-200 select-none shrink-0">
+                      A
+                    </span>
+                  </div>
                 )}
               </div>
 
@@ -296,16 +339,25 @@ export const Step3AddProducts = () => {
                 >
                   <option value="25 kA">25 kA</option>
                   <option value="26.3 kA">26.3 kA</option>
-                  <option value="Others">Others</option>
+                  <option value="Custom">Custom</option>
                 </select>
-                {currentProduct.kiloampere === 'Others' && (
-                  <input
-                    type="text"
-                    placeholder="Custom kA (e.g. 31.5 kA)"
-                    value={currentProduct.customKiloampere}
-                    onChange={(e) => setCurrentProduct({ ...currentProduct, customKiloampere: e.target.value })}
-                    className="w-full mt-1.5 px-3 py-1.5 text-xs rounded-lg border border-slate-300 bg-white"
-                  />
+                {currentProduct.kiloampere === 'Custom' && (
+                  <div className="mt-1.5 flex items-center rounded-lg border border-slate-300 bg-white overflow-hidden focus-within:ring-2 focus-within:ring-[#EE6F2D]/20 focus-within:border-[#EE6F2D]">
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="e.g. 31.5"
+                      value={(currentProduct.customKiloampere || '').replace(/\s*kA$/i, '')}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/[^0-9.]/g, '');
+                        setCurrentProduct({ ...currentProduct, customKiloampere: raw ? `${raw} kA` : '' });
+                      }}
+                      className="w-full px-3 py-1.5 text-xs bg-transparent focus:outline-hidden"
+                    />
+                    <span className="px-2.5 py-1.5 text-xs font-bold text-slate-600 bg-slate-100 border-l border-slate-200 select-none shrink-0">
+                      kA
+                    </span>
+                  </div>
                 )}
               </div>
 
@@ -321,16 +373,28 @@ export const Step3AddProducts = () => {
                 >
                   <option value="For 3 Sec">3 Sec</option>
                   <option value="For 1 Sec">1 Sec</option>
-                  <option value="Others">Others</option>
+                  <option value="Custom">Custom</option>
                 </select>
-                {currentProduct.durationSec === 'Others' && (
-                  <input
-                    type="text"
-                    placeholder="Custom Duration"
-                    value={currentProduct.customDurationSec}
-                    onChange={(e) => setCurrentProduct({ ...currentProduct, customDurationSec: e.target.value })}
-                    className="w-full mt-1.5 px-3 py-1.5 text-xs rounded-lg border border-slate-300 bg-white"
-                  />
+                {currentProduct.durationSec === 'Custom' && (
+                  <div className="mt-1.5 flex items-center rounded-lg border border-slate-300 bg-white overflow-hidden focus-within:ring-2 focus-within:ring-[#EE6F2D]/20 focus-within:border-[#EE6F2D]">
+                    <span className="px-2.5 py-1.5 text-xs font-bold text-slate-600 bg-slate-100 border-r border-slate-200 select-none shrink-0">
+                      For
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="e.g. 5"
+                      value={(currentProduct.customDurationSec || '').replace(/^For\s*/i, '').replace(/\s*Sec$/i, '')}
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/[^0-9.]/g, '');
+                        setCurrentProduct({ ...currentProduct, customDurationSec: raw ? `For ${raw} Sec` : '' });
+                      }}
+                      className="w-full px-2.5 py-1.5 text-xs bg-transparent focus:outline-hidden"
+                    />
+                    <span className="px-2.5 py-1.5 text-xs font-bold text-slate-600 bg-slate-100 border-l border-slate-200 select-none shrink-0">
+                      Sec
+                    </span>
+                  </div>
                 )}
               </div>
 
@@ -362,9 +426,9 @@ export const Step3AddProducts = () => {
                   <option value="Transformer Control">Transformer Control</option>
                   <option value="Point of Supply">Point of Supply</option>
                   <option value="EB Metering">EB Metering</option>
-                  <option value="Others">Others</option>
+                  <option value="Custom">Custom</option>
                 </select>
-                {currentProduct.ebMetering === 'Others' && (
+                {currentProduct.ebMetering === 'Custom' && (
                   <input
                     type="text"
                     placeholder="Custom Application"
@@ -521,7 +585,11 @@ export const Step3AddProducts = () => {
                           {p.productDescription || generateDescription(p)}
                         </p>
                         <span className="inline-block mt-0.5 text-[10px] font-mono text-slate-400">
-                          {p.kilovolt} • {p.ampere} • {p.kiloampere} • {p.durationSec} • {p.usage}
+                          {p.kilovolt === 'Custom' && p.customKilovolt ? p.customKilovolt : p.kilovolt} •{' '}
+                          {p.ampere === 'Custom' && p.customAmpere ? p.customAmpere : p.ampere} •{' '}
+                          {p.kiloampere === 'Custom' && p.customKiloampere ? p.customKiloampere : p.kiloampere} •{' '}
+                          {p.durationSec === 'Custom' && p.customDurationSec ? p.customDurationSec : p.durationSec} •{' '}
+                          {p.usage}
                         </span>
                       </td>
                       <td className="py-3 px-3 text-right font-mono font-bold text-slate-700">

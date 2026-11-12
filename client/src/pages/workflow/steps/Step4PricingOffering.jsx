@@ -221,7 +221,7 @@ export const Step4PricingOffering = () => {
         </div>
 
         {/* ============================================================
-            AMOUNT SUMMARY
+            AMOUNT SUMMARY (2 PARTS: PRODUCT + TRANSPORT WITH SEPARATED GST)
             ============================================================ */}
         <div className="space-y-4">
           <div className="flex items-center space-x-2 text-xs font-black uppercase tracking-wider text-[#EE6F2D]">
@@ -229,120 +229,174 @@ export const Step4PricingOffering = () => {
             <span>Amount Summary</span>
           </div>
 
-          <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
-                <tr>
-                  <th className="py-2.5 px-4">Description</th>
-                  <th className="py-2.5 px-4 text-right">Amount (₹)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                <tr>
-                  <td className="py-2.5 px-4 font-semibold text-slate-800">
-                    Configured Products ({products.length} {products.length === 1 ? 'Product' : 'Products'}, {totalQuantity} {totalQuantity === 1 ? 'Unit' : 'Units'})
-                  </td>
-                  <td className="py-2.5 px-4 text-right font-mono font-semibold">
-                    ₹ {totalBasic.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </td>
-                </tr>
-
-                <tr>
-                  <td className="py-2.5 px-4">
-                    Transport
-                    {pricing.forBasis === 'Client Own Transport' ? (
-                      <span className="ml-2 text-[10px] text-emerald-600 font-bold">(Client Own — Not Charged)</span>
-                    ) : (
-                      <span className="text-slate-500 font-medium"> ({pricing.transportType || 'Up & Down'})</span>
-                    )}
-                  </td>
-                  <td className="py-2.5 px-4 text-right font-mono font-semibold">
-                    {pricing.forBasis === 'Client Own Transport' ? (
-                      <span className="text-emerald-600">₹ 0.00</span>
-                    ) : (
-                      `₹ ${Number(pricing.transportPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
-                    )}
-                  </td>
-                </tr>
-
-                <tr className="bg-slate-50 font-bold text-slate-900">
-                  <td className="py-2.5 px-4">Subtotal</td>
-                  <td className="py-2.5 px-4 text-right font-mono">
-                    ₹ {Number(pricing.subTotal).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </td>
-                </tr>
-
-                {pricing.gstType === 'INTRA_STATE' ? (
-                  <>
-                    <tr>
-                      <td className="py-2 px-4 text-slate-600">CGST @ 9%</td>
-                      <td className="py-2 px-4 text-right font-mono text-slate-600">
-                        ₹ {Number(pricing.cgstAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="py-2 px-4 text-slate-600">SGST @ 9%</td>
-                      <td className="py-2 px-4 text-right font-mono text-slate-600">
-                        ₹ {Number(pricing.sgstAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </td>
-                    </tr>
-                  </>
-                ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* PART 1: PRODUCT AMOUNT SUMMARY */}
+            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs flex flex-col">
+              <div className="px-4 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between">
+                <span className="text-xs font-black uppercase tracking-wider text-[#0A1E3F]">
+                  Product Summary
+                </span>
+                <span className="text-[10px] font-bold text-slate-500">
+                  {products.length} {products.length === 1 ? 'Product' : 'Products'} • {totalQuantity} {totalQuantity === 1 ? 'Unit' : 'Units'}
+                </span>
+              </div>
+              <table className="w-full text-left text-xs flex-1">
+                <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
                   <tr>
-                    <td className="py-2 px-4 text-slate-600">IGST @ 18%</td>
-                    <td className="py-2 px-4 text-right font-mono text-slate-600">
-                      ₹ {Number(pricing.igstAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    <td className="py-2.5 px-4 font-semibold text-slate-800">Configured Products (Basic)</td>
+                    <td className="py-2.5 px-4 text-right font-mono font-semibold">
+                      ₹ {totalBasic.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </td>
                   </tr>
-                )}
 
-                {/* Final Total Amount */}
-                <tr className="bg-gradient-to-r from-orange-50 to-amber-50 border-t-2 border-[#EE6F2D] font-black text-sm">
-                  <td className="py-3.5 px-4 text-[#0A1E3F]">Total Amount</td>
-                  <td className="py-3.5 px-4 text-right font-mono text-[#EE6F2D] text-base">
-                    ₹ {Number(pricing.totalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+                  {pricing.gstType === 'INTRA_STATE' ? (
+                    <>
+                      <tr>
+                        <td className="py-2 px-4 text-slate-600">CGST @ 9%</td>
+                        <td className="py-2 px-4 text-right font-mono text-slate-600">
+                          ₹ {Number(pricing.productCgst || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 px-4 text-slate-600">SGST @ 9%</td>
+                        <td className="py-2 px-4 text-right font-mono text-slate-600">
+                          ₹ {Number(pricing.productSgst || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    </>
+                  ) : (
+                    <tr>
+                      <td className="py-2 px-4 text-slate-600">IGST @ 18%</td>
+                      <td className="py-2 px-4 text-right font-mono text-slate-600">
+                        ₹ {Number(pricing.productIgst || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  )}
+
+                  <tr className="bg-blue-50/70 font-black text-[#0A1E3F] border-t border-blue-200">
+                    <td className="py-3 px-4">Product Total (Incl. GST)</td>
+                    <td className="py-3 px-4 text-right font-mono text-[#1E5BB8]">
+                      ₹ {Number(pricing.productTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* PART 2: TRANSPORT CHARGES SUMMARY */}
+            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-xs flex flex-col">
+              <div className="px-4 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between">
+                <span className="text-xs font-black uppercase tracking-wider text-[#0A1E3F]">
+                  Transport Charges
+                </span>
+                <span className="text-[10px] font-bold text-slate-500">
+                  {pricing.forBasis === 'Client Own Transport'
+                    ? 'Client Own'
+                    : (pricing.transportType || 'Up & Down')}
+                </span>
+              </div>
+              <table className="w-full text-left text-xs flex-1">
+                <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                  <tr>
+                    <td className="py-2.5 px-4 font-semibold text-slate-800">
+                      Transport Charges
+                      {pricing.forBasis === 'Client Own Transport' && (
+                        <span className="ml-1.5 text-[10px] text-emerald-600 font-bold">(Not Charged)</span>
+                      )}
+                    </td>
+                    <td className="py-2.5 px-4 text-right font-mono font-semibold">
+                      {pricing.forBasis === 'Client Own Transport' ? (
+                        <span className="text-emerald-600">₹ 0.00</span>
+                      ) : (
+                        `₹ ${Number(pricing.transportPrice || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+                      )}
+                    </td>
+                  </tr>
+
+                  {pricing.gstType === 'INTRA_STATE' ? (
+                    <>
+                      <tr>
+                        <td className="py-2 px-4 text-slate-600">CGST @ 9%</td>
+                        <td className="py-2 px-4 text-right font-mono text-slate-600">
+                          ₹ {Number(pricing.transportCgst || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="py-2 px-4 text-slate-600">SGST @ 9%</td>
+                        <td className="py-2 px-4 text-right font-mono text-slate-600">
+                          ₹ {Number(pricing.transportSgst || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    </>
+                  ) : (
+                    <tr>
+                      <td className="py-2 px-4 text-slate-600">IGST @ 18%</td>
+                      <td className="py-2 px-4 text-right font-mono text-slate-600">
+                        ₹ {Number(pricing.transportIgst || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  )}
+
+                  <tr className="bg-blue-50/70 font-black text-[#0A1E3F] border-t border-blue-200">
+                    <td className="py-3 px-4">Transport Total (Incl. GST)</td>
+                    <td className="py-3 px-4 text-right font-mono text-[#1E5BB8]">
+                      ₹ {Number(pricing.transportTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* GRAND TOTAL (PART 1 + PART 2) */}
+          <div className="border-2 border-[#EE6F2D] rounded-xl bg-gradient-to-r from-orange-50 to-amber-50 px-5 py-3.5 flex items-center justify-between shadow-xs">
+            <div>
+              <div className="text-sm font-black text-[#0A1E3F]">Grand Total Amount</div>
+              <div className="text-[11px] font-semibold text-slate-600 mt-0.5">
+                Subtotal: ₹ {Number(pricing.subTotal || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })} + Total GST: ₹ {Number(pricing.totalTaxAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </div>
+            </div>
+            <div className="text-right font-mono font-black text-[#EE6F2D] text-lg">
+              ₹ {Number(pricing.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            </div>
           </div>
         </div>
 
-        {/* ============================================================
+          {/* ============================================================
             AMOUNT IN WORDS
             ============================================================ */}
-        <div className="space-y-1.5 p-4 rounded-xl bg-slate-50 border border-slate-200">
-          <div className="text-[11px] font-black uppercase tracking-wider text-slate-500">
-            Amount In Words
+          <div className="space-y-1.5 p-4 rounded-xl bg-slate-50 border border-slate-200">
+            <div className="text-[11px] font-black uppercase tracking-wider text-slate-500">
+              Amount In Words
+            </div>
+            <p className="text-xs font-bold text-[#0A1E3F] italic leading-relaxed">
+              {pricing.amountInWords || 'Zero Rupees Only.'}
+            </p>
           </div>
-          <p className="text-xs font-bold text-[#0A1E3F] italic leading-relaxed">
-            {pricing.amountInWords || 'Zero Rupees Only.'}
-          </p>
-        </div>
 
-        {/* Action Bar */}
-        <div className="pt-6 border-t border-slate-100 flex items-center justify-between">
-          <button
-            type="button"
-            onClick={prevStep}
-            className="px-5 py-2.5 rounded-lg border border-slate-300 text-slate-700 text-sm font-bold hover:bg-slate-50 transition-colors flex items-center space-x-1.5 cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Back</span>
-          </button>
+          {/* Action Bar */}
+          <div className="pt-6 border-t border-slate-100 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={prevStep}
+              className="px-5 py-2.5 rounded-lg border border-slate-300 text-slate-700 text-sm font-bold hover:bg-slate-50 transition-colors flex items-center space-x-1.5 cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={handleCreateOffering}
-            disabled={saving}
-            className="px-6 py-2.5 rounded-lg bg-gradient-to-r from-[#EE6F2D] to-[#D95B1B] hover:from-[#E46220] hover:to-[#C65015] text-white text-sm font-bold shadow-md shadow-orange-500/20 transition-all flex items-center space-x-2 cursor-pointer disabled:opacity-50"
-          >
-            <span>{saving ? 'Creating Offering Draft...' : 'Create Offering (Draft)'}</span>
-            <ArrowRight className="w-4 h-4" />
-          </button>
+            <button
+              type="button"
+              onClick={handleCreateOffering}
+              disabled={saving}
+              className="px-6 py-2.5 rounded-lg bg-gradient-to-r from-[#EE6F2D] to-[#D95B1B] hover:from-[#E46220] hover:to-[#C65015] text-white text-sm font-bold shadow-md shadow-orange-500/20 transition-all flex items-center space-x-2 cursor-pointer disabled:opacity-50"
+            >
+              <span>{saving ? 'Creating Offering Draft...' : 'Create Offering (Draft)'}</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  );
+      );
 };
 

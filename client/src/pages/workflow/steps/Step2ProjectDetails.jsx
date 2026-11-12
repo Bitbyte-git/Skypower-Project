@@ -19,13 +19,13 @@ export const Step2ProjectDetails = () => {
   const getSubSegmentOptions = (seg) => {
     switch (seg) {
       case 'Renewable':
-        return ['Wind', 'Solar', 'Others'];
+        return ['Wind', 'Solar', 'Custom'];
       case 'Industry & Commercial':
-        return ['Industry', 'Building', 'Colleges', 'Commercial', 'Others'];
-      case 'Others':
-        return ['Others'];
+        return ['Industry', 'Building', 'Colleges', 'Commercial', 'Custom'];
+      case 'Custom':
+        return ['Custom'];
       default:
-        return ['Others'];
+        return ['Custom'];
     }
   };
 
@@ -34,7 +34,7 @@ export const Step2ProjectDetails = () => {
     setFormValues({
       ...formValues,
       segment: newSeg,
-      subSegment: opts[0] || 'Others',
+      subSegment: opts[0] || 'Custom',
       customSubSegment: ''
     });
   };
@@ -48,7 +48,7 @@ export const Step2ProjectDetails = () => {
       return;
     }
 
-    if (formValues.subSegment === 'Others' && !formValues.customSubSegment.trim()) {
+    if (formValues.subSegment === 'Custom' && !formValues.customSubSegment.trim()) {
       setError('Please specify the custom sub-segment.');
       return;
     }
@@ -129,7 +129,7 @@ export const Step2ProjectDetails = () => {
               >
                 <option value="Renewable">Renewable</option>
                 <option value="Industry & Commercial">Industry &amp; Commercial</option>
-                <option value="Others">Others</option>
+                <option value="Custom">Custom</option>
               </select>
             </div>
 
@@ -151,8 +151,8 @@ export const Step2ProjectDetails = () => {
               </select>
             </div>
 
-            {/* Custom Sub-Segment if "Others" */}
-            {formValues.subSegment === 'Others' && (
+            {/* Custom Sub-Segment if "Custom" */}
+            {formValues.subSegment === 'Custom' && (
               <div className="md:col-span-2 space-y-1.5">
                 <label className="block text-xs font-bold text-slate-700">
                   Custom Sub-Segment Specification <span className="text-rose-500">*</span>
@@ -183,7 +183,7 @@ export const Step2ProjectDetails = () => {
                 </div>
                 <div>
                   <h4 className="text-xs font-extrabold text-emerald-950">Renewable</h4>
-                  <p className="text-[11px] text-emerald-800 font-medium mt-0.5">Wind / Solar / Others</p>
+                  <p className="text-[11px] text-emerald-800 font-medium mt-0.5">Wind / Solar / Custom</p>
                 </div>
               </div>
 
@@ -194,7 +194,7 @@ export const Step2ProjectDetails = () => {
                 </div>
                 <div>
                   <h4 className="text-xs font-extrabold text-blue-950">Industry</h4>
-                  <p className="text-[11px] text-blue-800 font-medium mt-0.5">Chemical / Process / Others</p>
+                  <p className="text-[11px] text-blue-800 font-medium mt-0.5">Chemical / Process / Custom</p>
                 </div>
               </div>
 
@@ -205,7 +205,7 @@ export const Step2ProjectDetails = () => {
                 </div>
                 <div>
                   <h4 className="text-xs font-extrabold text-purple-950">Commercial</h4>
-                  <p className="text-[11px] text-purple-800 font-medium mt-0.5">Building / Colleges / Others</p>
+                  <p className="text-[11px] text-purple-800 font-medium mt-0.5">Building / Colleges / Custom</p>
                 </div>
               </div>
             </div>

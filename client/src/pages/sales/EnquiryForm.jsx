@@ -58,7 +58,7 @@ export const EnquiryForm = () => {
     project: {
       standardType: 'Standard', // 'Standard' | 'Non Standard'
       projectName: '', // Project Title
-      segment: 'Commercial', // 'Renewable' | 'Industry' | 'Commercial' | 'Others'
+      segment: 'Commercial', // 'Renewable' | 'Industry' | 'Commercial' | 'Custom'
       subSegment: 'Building',
       customSegment: '',
       expectedDeliveryDate: '',
@@ -265,8 +265,8 @@ export const EnquiryForm = () => {
 
   // Helper to compose dynamic product description
   const composeProductDescription = (p) => {
-    const pName = p.productName === 'Others' && p.customProductName ? p.customProductName : p.productName;
-    const eb = p.ebMetering === 'Others' && p.customEbMetering ? `(${p.customEbMetering})` : p.ebMetering;
+    const pName = p.productName === 'Custom' && p.customProductName ? p.customProductName : p.productName;
+    const eb = p.ebMetering === 'Custom' && p.customEbMetering ? `(${p.customEbMetering})` : p.ebMetering;
     return `${p.kilovolt}, ${p.ampere}, ${p.kiloampere} for ${p.durationSec} ${p.usage} Type Standalone ${pName} ${eb} as per our specification and bill of materials Make (Skypower switchgears)`;
   };
 
@@ -991,7 +991,7 @@ export const EnquiryForm = () => {
                   if (seg === 'Renewable') defaultSub = 'Solar';
                   else if (seg === 'Industry') defaultSub = 'Chemical';
                   else if (seg === 'Commercial') defaultSub = 'Building';
-                  else defaultSub = 'Others';
+                  else defaultSub = 'Custom';
 
                   setFormData({
                     ...formData,
@@ -1003,7 +1003,7 @@ export const EnquiryForm = () => {
                 <option value="Commercial">Commercial (Building, College...)</option>
                 <option value="Renewable">Renewable (Solar, Wind...)</option>
                 <option value="Industry">Industry (Chemical, Textile...)</option>
-                <option value="Others">Others</option>
+                <option value="Custom">Custom</option>
               </select>
             </div>
 
@@ -1025,7 +1025,7 @@ export const EnquiryForm = () => {
                 >
                   <option value="Solar">Solar Power Plant</option>
                   <option value="Wind">Wind Farm Substation</option>
-                  <option value="Others">Others</option>
+                  <option value="Custom">Custom</option>
                 </select>
               )}
 
@@ -1044,7 +1044,7 @@ export const EnquiryForm = () => {
                   <option value="Colleges">Colleges &amp; Universities</option>
                   <option value="Hospital / Healthcare">Hospital / Healthcare</option>
                   <option value="IT Park / Data Center">IT Park / Data Center</option>
-                  <option value="Others">Others</option>
+                  <option value="Custom">Custom</option>
                 </select>
               )}
 
@@ -1064,11 +1064,11 @@ export const EnquiryForm = () => {
                   <option value="Steel">Steel Plant</option>
                   <option value="Pharma">Pharmaceutical</option>
                   <option value="Cement">Cement Factory</option>
-                  <option value="Others">Others</option>
+                  <option value="Custom">Custom</option>
                 </select>
               )}
 
-              {formData.project.segment === 'Others' && (
+              {formData.project.segment === 'Custom' && (
                 <input
                   type="text"
                   value={formData.project.subSegment}
@@ -1175,7 +1175,7 @@ export const EnquiryForm = () => {
                         className="w-full px-3 py-2.5 text-xs border border-slate-300 rounded-xl bg-slate-50/50 font-bold text-slate-900 focus:bg-white focus:border-[#1E5BB8] outline-none transition-all"
                       >
                         <option value="VCB Switchboard">VCB Switchboard</option>
-                        <option value="Others">Others</option>
+                        <option value="Custom">Custom</option>
                       </select>
                     </div>
 
@@ -1192,7 +1192,7 @@ export const EnquiryForm = () => {
                         <option value="11 kV">11 kV</option>
                         <option value="22 kV">22 kV</option>
                         <option value="33 kV">33 kV</option>
-                        <option value="Others">Others</option>
+                        <option value="Custom">Custom</option>
                       </select>
                     </div>
 
@@ -1209,7 +1209,7 @@ export const EnquiryForm = () => {
                         <option value="630 A">630 A</option>
                         <option value="800 A">800 A</option>
                         <option value="1250 A">1250 A</option>
-                        <option value="Others">Others</option>
+                        <option value="Custom">Custom</option>
                       </select>
                     </div>
 
@@ -1225,7 +1225,7 @@ export const EnquiryForm = () => {
                       >
                         <option value="25 kA">25 kA</option>
                         <option value="26.3 kA">26.3 kA</option>
-                        <option value="Others">Others</option>
+                        <option value="Custom">Custom</option>
                       </select>
                     </div>
                   </div>
@@ -1249,7 +1249,7 @@ export const EnquiryForm = () => {
                       >
                         <option value="For 3 Sec">For 3 Sec</option>
                         <option value="For 1 Sec">For 1 Sec</option>
-                        <option value="Others">Others</option>
+                        <option value="Custom">Custom</option>
                       </select>
                     </div>
 
@@ -1281,7 +1281,7 @@ export const EnquiryForm = () => {
                         <option value="(Transformer Control)">(Transformer Control)</option>
                         <option value="(Point of supply)">(Point of supply)</option>
                         <option value="(EB Metering)">(EB Metering)</option>
-                        <option value="Others">Others</option>
+                        <option value="Custom">Custom</option>
                       </select>
                     </div>
                   </div>

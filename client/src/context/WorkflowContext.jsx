@@ -85,26 +85,45 @@ export const WorkflowProvider = ({ children, initialEnquiryId = null }) => {
     const transport = isClientOwnTransport ? 0 : (Number(pricing.transportPrice) || 0);
     const subTotal = totalBasic + transport;
 
-    let cgstAmount = 0;
-    let sgstAmount = 0;
-    let igstAmount = 0;
-    let totalTax = 0;
+    let productCgst = 0;
+    let productSgst = 0;
+    let productIgst = 0;
+    let transportCgst = 0;
+    let transportSgst = 0;
+    let transportIgst = 0;
 
     if (pricing.gstType === 'INTRA_STATE') {
-      cgstAmount = Math.round(subTotal * (pricing.cgstRate / 100));
-      sgstAmount = Math.round(subTotal * (pricing.sgstRate / 100));
-      totalTax = cgstAmount + sgstAmount;
+      productCgst = Math.round(totalBasic * (pricing.cgstRate / 100));
+      productSgst = Math.round(totalBasic * (pricing.sgstRate / 100));
+      transportCgst = Math.round(transport * (pricing.cgstRate / 100));
+      transportSgst = Math.round(transport * (pricing.sgstRate / 100));
     } else {
-      igstAmount = Math.round(subTotal * (pricing.igstRate / 100));
-      totalTax = igstAmount;
+      productIgst = Math.round(totalBasic * (pricing.igstRate / 100));
+      transportIgst = Math.round(transport * (pricing.igstRate / 100));
     }
 
-    const totalAmount = subTotal + totalTax;
+    const productTotal = totalBasic + productCgst + productSgst + productIgst;
+    const transportTotal = transport + transportCgst + transportSgst + transportIgst;
+
+    const cgstAmount = productCgst + transportCgst;
+    const sgstAmount = productSgst + transportSgst;
+    const igstAmount = productIgst + transportIgst;
+    const totalTax = cgstAmount + sgstAmount + igstAmount;
+
+    const totalAmount = productTotal + transportTotal;
     const words = numberToWords(totalAmount);
 
     setPricing((prev) => ({
       ...prev,
       subTotal,
+      productCgst,
+      productSgst,
+      productIgst,
+      productTotal,
+      transportCgst,
+      transportSgst,
+      transportIgst,
+      transportTotal,
       cgstAmount,
       sgstAmount,
       igstAmount,

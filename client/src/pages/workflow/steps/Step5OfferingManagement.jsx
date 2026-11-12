@@ -1035,7 +1035,7 @@ export const Step5OfferingManagement = () => {
                               className="w-full px-2 py-1 text-xs rounded border border-slate-300 bg-white"
                             >
                               <option value="VCB Switchboard">VCB Switchboard</option>
-                              <option value="Others">Others</option>
+                              <option value="Custom">Custom</option>
                             </select>
                           </div>
                           <div>
