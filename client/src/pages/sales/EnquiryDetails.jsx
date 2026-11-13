@@ -105,6 +105,16 @@ export const EnquiryDetails = () => {
     fetchEnquiryDetails();
   }, [id]);
 
+  useEffect(() => {
+    if (enquiry?.ern) {
+      const prevTitle = document.title;
+      document.title = `Docket - ${enquiry.ern} - Sky Power Switchgears`;
+      return () => {
+        document.title = prevTitle;
+      };
+    }
+  }, [enquiry?.ern]);
+
   const handleSubmitForApproval = async () => {
     setActionLoading(true);
     setMessage('');
@@ -179,7 +189,7 @@ export const EnquiryDetails = () => {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 pb-24">
+    <div className="max-w-6xl mx-auto space-y-6 pb-24 print:max-w-none print:space-y-4 print:pb-0 print:m-0 print:p-0">
       {/* 1. Top Controls & Navigation Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200/90 shadow-sm print:hidden">
         <div className="flex items-center space-x-3.5">
@@ -311,13 +321,13 @@ export const EnquiryDetails = () => {
 
       {/* 2. Notifications & Alerts */}
       {message && (
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-semibold flex items-center space-x-2.5 shadow-xs">
+        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-semibold flex items-center space-x-2.5 shadow-xs print:hidden">
           <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
           <span>{message}</span>
         </div>
       )}
       {error && (
-        <div className="p-4 rounded-xl bg-rose-50 border border-rose-300 text-rose-900 text-xs font-semibold flex items-center space-x-2.5 shadow-xs">
+        <div className="p-4 rounded-xl bg-rose-50 border border-rose-300 text-rose-900 text-xs font-semibold flex items-center space-x-2.5 shadow-xs print:hidden">
           <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600" />
           <span>{error}</span>
         </div>
@@ -325,7 +335,7 @@ export const EnquiryDetails = () => {
 
       {/* Returned for Correction Banner */}
       {enquiry.approvalStatus === 'Returned for Correction' && (
-        <div className="p-5 rounded-2xl bg-[#FFF5EE] border border-[#FCDCC9] text-orange-950 flex items-start space-x-3.5 shadow-xs">
+        <div className="p-5 rounded-2xl bg-[#FFF5EE] border border-[#FCDCC9] text-orange-950 flex items-start space-x-3.5 shadow-xs print:hidden">
           <RotateCcw className="w-5 h-5 text-[#EE6F2D] shrink-0 mt-0.5" />
           <div className="flex-1">
             <h3 className="text-xs font-black uppercase tracking-wider text-[#D65A1A]">
@@ -350,7 +360,7 @@ export const EnquiryDetails = () => {
       {/* =========================================================================
           AUTHENTIC PAPER DOCUMENT SHEET (OFFICIAL LETTERHEAD REQUISITION)
       ========================================================================= */}
-      <div className="paper-sheet p-8 sm:p-12 text-slate-900 bg-white border border-slate-200/90 rounded-2xl shadow-sm">
+      <div className="paper-sheet p-8 sm:p-12 text-slate-900 bg-white border border-slate-200/90 rounded-2xl shadow-sm print:p-0 print:border-none print:shadow-none print:rounded-none">
         {/* 1. Official Letterhead Header */}
         <div className="paper-header pb-6 mb-8 border-b border-slate-200">
           <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
@@ -790,7 +800,7 @@ export const EnquiryDetails = () => {
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 print:hidden">
                   <label className="block text-xs font-bold text-amber-950">
                     Administrative Review Notes &amp; Instructions for PO Team:
                   </label>
@@ -803,7 +813,7 @@ export const EnquiryDetails = () => {
                   />
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-amber-200">
+                <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-amber-200 print:hidden">
                   <span className="text-[11px] text-amber-800 font-semibold">
                     Clicking "Approve &amp; Send to PO Team" unlocks Department 2 in the 10-Department Workflow.
                   </span>
@@ -965,7 +975,7 @@ export const EnquiryDetails = () => {
 
       {/* Admin Action Decision Modal */}
       {decisionModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 print:hidden">
           <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-lg w-full p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center space-x-2">
               {decisionModal === 'approve' && <CheckCircle2 className="w-5 h-5 text-emerald-600" />}

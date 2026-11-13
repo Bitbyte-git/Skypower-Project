@@ -79,7 +79,7 @@ export const Sidebar = ({ isOpen = false, onClose = () => {} }) => {
       style={{
         background: 'linear-gradient(180deg, #031D40 0%, #062B59 55%, #0A4076 100%)'
       }}
-      className={`fixed inset-y-0 left-0 z-50 w-64 flex flex-col shrink-0 select-none shadow-2xl transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${
+      className={`fixed inset-y-0 left-0 z-50 w-64 flex flex-col shrink-0 select-none shadow-2xl transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 print:hidden ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
       }`}
     >

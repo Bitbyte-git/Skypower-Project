@@ -202,7 +202,7 @@ export const Navbar = ({ onToggleSidebar = () => {} }) => {
 
   return (
     <header
-      className="h-16 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-40 select-none relative"
+      className="h-16 px-4 sm:px-6 flex items-center justify-between sticky top-0 z-40 select-none relative print:hidden"
       style={{
         background: 'linear-gradient(90deg, #FFFFFF 0%, #F4F9FF 100%)',
         borderBottom: '1px solid #DCE7F3',

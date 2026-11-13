@@ -8,14 +8,14 @@ export const MainLayout = () => {
 
   return (
     <div
-      className="flex h-screen overflow-hidden relative"
+      className="flex h-screen overflow-hidden relative print:h-auto print:overflow-visible print:block print:bg-white"
       style={{ background: 'linear-gradient(135deg, #F8FBFF 0%, #EEF5FD 55%, #E7F1FC 100%)' }}
     >
       {/* Mobile Backdrop Overlay */}
       {mobileSidebarOpen && (
         <div
           onClick={() => setMobileSidebarOpen(false)}
-          className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-xs transition-opacity duration-200"
+          className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-xs transition-opacity duration-200 print:hidden"
           aria-hidden="true"
         />
       )}
@@ -26,9 +26,9 @@ export const MainLayout = () => {
         onClose={() => setMobileSidebarOpen(false)}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden print:overflow-visible print:h-auto print:block">
         <Navbar onToggleSidebar={() => setMobileSidebarOpen((prev) => !prev)} />
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8 print:p-0 print:m-0 print:overflow-visible print:h-auto print:block">
           <Outlet />
         </main>
       </div>
