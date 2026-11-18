@@ -9,7 +9,9 @@ import {
   managerForward,
   departmentAction,
   salesResubmit,
-  getDashboardStats
+  getDashboardStats,
+  updateAdvancePayment,
+  updateDrawingOADetails
 } from '../controllers/projectWorkflowController.js';
 
 const router = Router();
@@ -42,11 +44,11 @@ router.post(
   managerForward
 );
 
-// 3. Department Action: Accept or Reject (Only General Manager and Admin can approve/reject)
+// 3. Department Action: Accept or Reject (General Manager, Admin, and Accountant for Stage 3)
 router.post(
   '/:id/department-action',
   requireAuth,
-  requireRoles([USER_ROLES.MANAGER, USER_ROLES.ADMIN]),
+  requireRoles([USER_ROLES.MANAGER, USER_ROLES.ADMIN, USER_ROLES.ACCOUNTANT]),
   departmentAction
 );
 
@@ -56,6 +58,22 @@ router.post(
   requireAuth,
   requireRoles([USER_ROLES.SALES, USER_ROLES.ADMIN]),
   salesResubmit
+);
+
+// 5. Advance Payment Update
+router.put(
+  '/:id/advance-payment',
+  requireAuth,
+  requireRoles([USER_ROLES.MANAGER, USER_ROLES.ADMIN, USER_ROLES.SALES, USER_ROLES.ACCOUNTANT]),
+  updateAdvancePayment
+);
+
+// 6. Drawing / Order Acknowledgement Update
+router.put(
+  '/:id/drawing-oa',
+  requireAuth,
+  requireRoles([USER_ROLES.MANAGER, USER_ROLES.ADMIN, USER_ROLES.SALES, USER_ROLES.PO_TEAM]),
+  updateDrawingOADetails
 );
 
 export default router;

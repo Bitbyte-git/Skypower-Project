@@ -25,7 +25,7 @@ import {
 import { useNavigate, useLocation } from 'react-router-dom';
 
 export const Navbar = ({ onToggleSidebar = () => {} }) => {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, isAccountant } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const isPOTeam = user?.role === 'PO_TEAM';
@@ -183,7 +183,10 @@ export const Navbar = ({ onToggleSidebar = () => {} }) => {
   let roleTitle = 'Sales Executive';
   let userName = user?.name || 'Rajesh Sharma';
 
-  if (isPOTeam) {
+  if (isAccountant || user?.role === 'ACCOUNTANT') {
+    roleTitle = 'Accounts & Finance Lead';
+    userName = user?.name || 'Ananya Roy';
+  } else if (isPOTeam) {
     roleTitle = 'PO Team Lead';
     userName = user?.name || 'Suresh Kumar';
   } else if (isAdmin && location.pathname.startsWith('/admin')) {

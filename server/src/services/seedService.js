@@ -32,6 +32,11 @@ export const seedDepartments = async () => {
       { upsert: true, new: true }
     );
   }
+  // Sync sequence 3 name to 'Advance Payment' across approvals
+  await DepartmentApproval.updateMany(
+    { departmentSequence: 3 },
+    { departmentName: 'Advance Payment' }
+  );
 };
 
 export const initializeProjectWorkflow = async (enquiry, creatorUser = null) => {
@@ -88,7 +93,8 @@ export const initializeProjectWorkflow = async (enquiry, creatorUser = null) => 
 export const SEED_USER_IDS = {
   ADMIN: new mongoose.Types.ObjectId('000000000000000000000001'),
   SALES: new mongoose.Types.ObjectId('000000000000000000000002'),
-  PO: new mongoose.Types.ObjectId('000000000000000000000003')
+  PO: new mongoose.Types.ObjectId('000000000000000000000003'),
+  ACCOUNTANT: new mongoose.Types.ObjectId('000000000000000000000004')
 };
 
 export const seedInitialData = async () => {
@@ -174,6 +180,24 @@ export const seedInitialData = async () => {
     } else if (poUser.role !== USER_ROLES.PO_TEAM) {
       poUser.role = USER_ROLES.PO_TEAM;
       await poUser.save();
+    }
+
+    // 3.2 Ensure Accountant User exists
+    let accountantUser = await User.findOne({ email: 'accountant@skypower.co.in' });
+    if (!accountantUser) {
+      accountantUser = await User.create({
+        _id: SEED_USER_IDS.ACCOUNTANT,
+        name: 'Ananya Roy (Accounts & Finance Head)',
+        email: 'accountant@skypower.co.in',
+        password: 'Accountant@123',
+        role: USER_ROLES.ACCOUNTANT,
+        phone: '9840198401',
+        department: 'Finance & Statutory Accounts'
+      });
+      console.log('[Seed] Sky Power Accountant user created: accountant@skypower.co.in / Accountant@123');
+    } else if (accountantUser.role !== USER_ROLES.ACCOUNTANT) {
+      accountantUser.role = USER_ROLES.ACCOUNTANT;
+      await accountantUser.save();
     }
     // 4. Auto-synchronize any projects created by Sales to ensure visibility in Admin
     await syncPendingEnquiries();

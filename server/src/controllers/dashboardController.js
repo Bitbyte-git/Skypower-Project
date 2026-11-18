@@ -234,7 +234,7 @@ export const getReportsAnalytics = async (req, res, next) => {
     const DEPT_SPECS = [
       { sequence: 1, code: 'SALES', name: 'Sales & Marketing', canViewClient: true },
       { sequence: 2, code: 'PO_TEAM', name: 'PO Team', canViewClient: false },
-      { sequence: 3, code: 'ACCOUNTANT', name: 'Accountant', canViewClient: true },
+      { sequence: 3, code: 'ACCOUNTANT', name: 'Advance Payment', canViewClient: true },
       { sequence: 4, code: 'DRAWING', name: 'Drawing / OA', canViewClient: false },
       { sequence: 5, code: 'CT_PT', name: 'CT & PT', canViewClient: false },
       { sequence: 6, code: 'FABRICATION', name: 'Fabrication', canViewClient: false },

@@ -86,6 +86,43 @@ const projectWorkflowSchema = new mongoose.Schema(
       default: 0,
       min: 0,
       max: 100
+    },
+    advancePaymentDetails: {
+      amount: { type: Number, default: 0 },
+      percentage: { type: Number, default: 50 },
+      paymentDate: { type: Date, default: null },
+      paymentMode: { type: String, default: 'RTGS' },
+      referenceNumber: { type: String, default: '' },
+      bankName: { type: String, default: '' },
+      status: {
+        type: String,
+        enum: ['Pending', 'Received', 'Cleared', 'Partially Received'],
+        default: 'Pending'
+      },
+      clearedAt: { type: Date, default: null },
+      clearedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+      clearedByName: { type: String, default: '' },
+      remarks: { type: String, default: '' }
+    },
+    drawingOADetails: {
+      gaDrawingNumber: { type: String, default: '' },
+      sldDrawingNumber: { type: String, default: '' },
+      proformaInvoiceNumber: { type: String, default: '' },
+      proformaInvoiceDate: { type: Date, default: null },
+      orderAcknowledgementNumber: { type: String, default: '' },
+      orderAcknowledgementDate: { type: Date, default: null },
+      customerApprovalStatus: {
+        type: String,
+        enum: ['Pending Customer Approval', 'Approved with Code 1 (Clean)', 'Approved with Code 2 (Proceed with Comments)', 'Revision Required'],
+        default: 'Approved with Code 1 (Clean)'
+      },
+      ctRatioConfirmed: { type: String, default: '' },
+      targetDispatchDate: { type: Date, default: null },
+      attachmentUrl: { type: String, default: '' },
+      approvedAt: { type: Date, default: null },
+      approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+      approvedByName: { type: String, default: '' },
+      remarks: { type: String, default: '' }
     }
   },
   {

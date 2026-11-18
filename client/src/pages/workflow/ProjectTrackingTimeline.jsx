@@ -15,7 +15,8 @@ import {
   Layers,
   ChevronRight,
   ExternalLink,
-  Download
+  Download,
+  CreditCard
 } from 'lucide-react';
 import { downloadEnquiryPDF } from '../../utils/pdfMakerService';
 
@@ -391,6 +392,70 @@ export const ProjectTrackingTimeline = () => {
                             <div className="flex items-center text-slate-400 text-[11px]">
                               <Calendar className="w-3 h-3 mr-1" />
                               <span>{new Date(app.reviewedAt).toLocaleString('en-IN')}</span>
+                            </div>
+                          )}
+
+                          {/* Advance Payment Details Box for Stage 3 */}
+                          {app.departmentSequence === 3 && workflow.advancePaymentDetails?.amount > 0 && (
+                            <div className="mt-2.5 p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-xs space-y-1.5">
+                              <div className="flex items-center justify-between font-bold text-emerald-950">
+                                <span className="flex items-center space-x-1.5">
+                                  <CreditCard className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span>Advance Payment Received &amp; Cleared</span>
+                                </span>
+                                <span className="font-mono text-emerald-700 font-extrabold text-sm">
+                                  ₹ {Number(workflow.advancePaymentDetails.amount).toLocaleString('en-IN')} ({workflow.advancePaymentDetails.percentage || 50}%)
+                                </span>
+                              </div>
+                              <div className="text-[11px] text-emerald-800 flex flex-wrap gap-x-3 gap-y-0.5">
+                                {workflow.advancePaymentDetails.paymentDate && (
+                                  <span>Date: <strong>{new Date(workflow.advancePaymentDetails.paymentDate).toLocaleDateString('en-IN')}</strong></span>
+                                )}
+                                <span>Mode: <strong>{workflow.advancePaymentDetails.paymentMode || 'RTGS'}</strong></span>
+                                {workflow.advancePaymentDetails.referenceNumber && (
+                                  <span>UTR/Ref: <strong className="font-mono">{workflow.advancePaymentDetails.referenceNumber}</strong></span>
+                                )}
+                                {workflow.advancePaymentDetails.bankName && (
+                                  <span>Bank: <strong>{workflow.advancePaymentDetails.bankName}</strong></span>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Drawing & Order Acknowledgement Details Box for Stage 4 */}
+                          {app.departmentSequence === 4 && (workflow.drawingOADetails?.gaDrawingNumber || isAccepted) && (
+                            <div className="mt-2.5 p-3 rounded-lg bg-blue-50 border border-blue-200 text-xs space-y-1.5">
+                              <div className="flex items-center justify-between font-bold text-blue-950">
+                                <span className="flex items-center space-x-1.5">
+                                  <FileText className="w-3.5 h-3.5 text-blue-600" />
+                                  <span>Drawing &amp; Order Acknowledgement Clearance</span>
+                                </span>
+                                {workflow.drawingOADetails?.customerApprovalStatus && (
+                                  <span className="font-mono text-emerald-800 font-extrabold text-[11px] bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200">
+                                    {workflow.drawingOADetails.customerApprovalStatus}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[11px] text-blue-950 grid grid-cols-2 gap-x-3 gap-y-1 mt-1">
+                                {workflow.drawingOADetails?.gaDrawingNumber && (
+                                  <span>GA Drawing: <strong className="font-mono text-slate-900">{workflow.drawingOADetails.gaDrawingNumber}</strong></span>
+                                )}
+                                {workflow.drawingOADetails?.sldDrawingNumber && (
+                                  <span>SLD / Schematic: <strong className="font-mono text-slate-900">{workflow.drawingOADetails.sldDrawingNumber}</strong></span>
+                                )}
+                                {workflow.drawingOADetails?.proformaInvoiceNumber && (
+                                  <span>Proforma Invoice: <strong className="font-mono text-slate-900">{workflow.drawingOADetails.proformaInvoiceNumber}</strong></span>
+                                )}
+                                {workflow.drawingOADetails?.orderAcknowledgementNumber && (
+                                  <span>OA Ref: <strong className="font-mono text-slate-900">{workflow.drawingOADetails.orderAcknowledgementNumber}</strong></span>
+                                )}
+                                {workflow.drawingOADetails?.ctRatioConfirmed && (
+                                  <span className="col-span-2">Customer Confirmed CT Ratio: <strong className="text-emerald-800">{workflow.drawingOADetails.ctRatioConfirmed}</strong></span>
+                                )}
+                                {workflow.drawingOADetails?.targetDispatchDate && (
+                                  <span className="col-span-2">Target Dispatch Date: <strong className="text-slate-900">{new Date(workflow.drawingOADetails.targetDispatchDate).toLocaleDateString('en-IN')}</strong></span>
+                                )}
+                              </div>
                             </div>
                           )}
 

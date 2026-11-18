@@ -64,8 +64,8 @@ export const DEPARTMENT_APPROVAL_STATUSES = {
 export const DEPARTMENTS_LIST = [
   { sequence: 1, code: 'SALES', name: 'Sales & Marketing', canViewClientDetails: true },
   { sequence: 2, code: 'PO_TEAM', name: 'Purchase Order (PO) Team', canViewClientDetails: false },
-  { sequence: 3, code: 'ACCOUNTANT', name: 'Accountant', canViewClientDetails: true },
-  { sequence: 4, code: 'DRAWING', name: 'Drawing / Order Acknowledgement', canViewClientDetails: false },
+  { sequence: 3, code: 'ACCOUNTANT', name: 'Advance Payment', canViewClientDetails: true },
+  { sequence: 4, code: 'DRAWING', name: 'Drawing / Order Acknowledgement', canViewClientDetails: true },
   { sequence: 5, code: 'CT_PT', name: 'CT & PT', canViewClientDetails: false },
   { sequence: 6, code: 'FABRICATION', name: 'Fabrication', canViewClientDetails: false },
   { sequence: 7, code: 'METERING_DOOR', name: 'Metering Door', canViewClientDetails: false },

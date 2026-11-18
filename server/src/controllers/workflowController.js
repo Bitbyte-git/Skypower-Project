@@ -2,7 +2,9 @@ import { Client } from '../models/Client.js';
 import { Enquiry } from '../models/Enquiry.js';
 import { PurchaseOrder } from '../models/PurchaseOrder.js';
 import { ProjectWorkflow } from '../models/ProjectWorkflow.js';
+import { Department } from '../models/Department.js';
 import { DepartmentApproval } from '../models/DepartmentApproval.js';
+import { WorkflowHistory } from '../models/WorkflowHistory.js';
 import { generateNextClientID, generateNextERN, generateNextPOID } from '../services/counterService.js';
 import { logActivity } from '../services/auditService.js';
 import { USER_ROLES } from '../constants/roles.js';
@@ -746,20 +748,75 @@ export const updatePOStatus = async (req, res, next) => {
 
     await po.save();
 
+    let advancedWorkflow = null;
+    // When PO is Completed, automatically advance the 10-Dept workflow to Stage 3: Advance Payment
+    if (po.status === 'Completed') {
+      const workflow = await ProjectWorkflow.findOne({ enquiryId: po.enquiryId });
+      if (workflow) {
+        if (workflow.currentDepartmentSequence <= 2) {
+          await DepartmentApproval.findOneAndUpdate(
+            { workflowId: workflow._id, departmentSequence: 2 },
+            {
+              status: DEPARTMENT_APPROVAL_STATUSES.ACCEPTED,
+              reviewedBy: req.user._id,
+              reviewedAt: new Date(),
+              remarks: notes || 'PO technical execution completed. Cleared for Stage 3: Advance Payment.'
+            }
+          );
+
+          await DepartmentApproval.findOneAndUpdate(
+            { workflowId: workflow._id, departmentSequence: 3 },
+            {
+              status: DEPARTMENT_APPROVAL_STATUSES.PENDING
+            }
+          );
+
+          const dept3 = await Department.findOne({ sequenceNumber: 3 });
+          workflow.currentDepartmentId = dept3?._id || workflow.currentDepartmentId;
+          workflow.currentDepartmentCode = 'ACCOUNTANT';
+          workflow.currentDepartmentSequence = 3;
+          workflow.overallStatus = PROJECT_WORKFLOW_STATUSES.UNDER_DEPARTMENT_REVIEW;
+          workflow.completionPercentage = 30;
+          await workflow.save();
+
+          await WorkflowHistory.create({
+            workflowId: workflow._id,
+            enquiryId: workflow.enquiryId,
+            projectTrackingId: workflow.projectTrackingId,
+            departmentCode: 'PO_TEAM',
+            departmentName: 'PO Team',
+            action: 'Accepted & Forwarded to Advance Payment',
+            actionBy: req.user._id,
+            actionByName: req.user.name,
+            actionByRole: req.user.role,
+            previousStatus: PROJECT_WORKFLOW_STATUSES.PENDING_PO_APPROVAL,
+            newStatus: PROJECT_WORKFLOW_STATUSES.UNDER_DEPARTMENT_REVIEW,
+            remarks: notes || 'PO completed. Project forwarded to Stage 3: Advance Payment.'
+          });
+
+          advancedWorkflow = workflow;
+        }
+      }
+    }
+
     await logActivity({
       userId: req.user._id,
       userRole: req.user.role,
       action: 'PO_STATUS_UPDATED',
       entityType: 'PurchaseOrder',
       entityId: po._id,
-      details: { poId: po.poId, newStatus: po.status },
+      details: { poId: po.poId, newStatus: po.status, advancedToStage: po.status === 'Completed' ? 3 : null },
       req
     });
 
     return res.status(200).json({
       success: true,
-      message: `Purchase Order ${po.poId} status updated to '${po.status}'.`,
-      po
+      message: po.status === 'Completed'
+        ? `Purchase Order ${po.poId} completed! Project successfully advanced to Stage 3: Advance Payment.`
+        : `Purchase Order ${po.poId} status updated to '${po.status}'.`,
+      po,
+      advancedWorkflow,
+      nextStage: po.status === 'Completed' ? { sequence: 3, name: 'Advance Payment', code: 'ACCOUNTANT' } : null
     });
   } catch (err) {
     next(err);

@@ -22,15 +22,16 @@ import {
   ChevronRight,
   ShieldCheck,
   ShieldAlert,
-  Download
+  Download,
+  CreditCard
 } from 'lucide-react';
 import { downloadEnquiryPDF } from '../../utils/pdfMakerService';
 
 const DEPARTMENTS = [
   { sequence: 1, code: 'SALES', name: 'Sales & Marketing', canViewClient: true },
   { sequence: 2, code: 'PO_TEAM', name: 'PO Team', canViewClient: false },
-  { sequence: 3, code: 'ACCOUNTANT', name: 'Accountant', canViewClient: true },
-  { sequence: 4, code: 'DRAWING', name: 'Drawing / OA', canViewClient: false },
+  { sequence: 3, code: 'ACCOUNTANT', name: 'Advance Payment', canViewClient: true },
+  { sequence: 4, code: 'DRAWING', name: 'Drawing / Order Acknowledgement', canViewClient: true },
   { sequence: 5, code: 'CT_PT', name: 'CT & PT', canViewClient: false },
   { sequence: 6, code: 'FABRICATION', name: 'Fabrication', canViewClient: false },
   { sequence: 7, code: 'METERING_DOOR', name: 'Metering Door', canViewClient: false },
@@ -42,10 +43,10 @@ const DEPARTMENTS = [
 export const DepartmentWorkflowView = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user, isAdmin, isManager, isSales } = useAuth();
+  const { user, isAdmin, isManager, isSales, isAccountant } = useAuth();
 
-  // Selected Department (default from URL or sequence 2)
-  const initialDeptSeq = Number(searchParams.get('dept')) || 2;
+  // Selected Department (default from URL or sequence 3 for Accountant, otherwise 2)
+  const initialDeptSeq = Number(searchParams.get('dept')) || (user?.role === 'ACCOUNTANT' ? 3 : 2);
   const [selectedDeptSeq, setSelectedDeptSeq] = useState(initialDeptSeq);
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || 'ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -84,6 +85,17 @@ export const DepartmentWorkflowView = () => {
     fetchWorkflows();
     fetchStats();
   }, [selectedDeptSeq, statusFilter]);
+
+  // Close action modal on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && actionModal.isOpen && !actionModal.submitting) {
+        closeActionModal();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [actionModal.isOpen, actionModal.submitting]);
 
   const fetchWorkflows = async () => {
     try {
@@ -124,15 +136,70 @@ export const DepartmentWorkflowView = () => {
   };
 
   const openActionModal = (type, workflow) => {
+    const enq = workflow?.enquiryId || {};
+    const totalVal = Number(enq.commercialPricing?.totalAmount || enq.expectedProjectValue || 0);
+    const existingAP = workflow?.advancePaymentDetails || enq.advancePaymentDetails || {};
+    const defaultPct = existingAP.percentage || 50;
+    const defaultAmt = existingAP.amount || (totalVal ? Math.round((totalVal * defaultPct) / 100) : 0);
+
+    const existingDraw = workflow?.drawingOADetails || enq.drawingOADetails || {};
+    const pid = workflow?.projectTrackingId || 'PRJ-2026-0001';
+    const autoGANo = existingDraw.gaDrawingNumber || `GA-${pid}-R0`;
+    const autoSLDNo = existingDraw.sldDrawingNumber || `SLD-${pid}`;
+    const autoPINo = existingDraw.proformaInvoiceNumber || (enq.ern ? `PI-${enq.ern.replace(/^ERN-/, '')}` : `PI-${pid.replace(/^PRJ-/, '')}`);
+    const autoOANo = existingDraw.orderAcknowledgementNumber || `OA-${pid.replace(/^PRJ-/, '')}`;
+    const defaultCTRatio = existingDraw.ctRatioConfirmed || (enq.products?.[0]?.ampere ? `${enq.products[0].ampere.replace(/[^0-9]/g, '') || '630'}/5A, Class 0.5s, 15VA` : '200/5A, Class 0.5s, 15VA');
+    const defaultDispatchDate = existingDraw.targetDispatchDate
+      ? new Date(existingDraw.targetDispatchDate).toISOString().split('T')[0]
+      : enq.project?.expectedDeliveryDate
+      ? new Date(enq.project.expectedDeliveryDate).toISOString().split('T')[0]
+      : '';
+
+    const defaultRemarks =
+      (selectedDeptSeq === 4 && (type === 'ACCEPT' || type === 'REACCEPT')
+        ? 'GA Drawing, SLD, Proforma Invoice, and Order Acknowledgement verified and issued. CT ratio confirmed. Handed over to Stage 5: CT & PT.'
+        : selectedDeptSeq === 3 && (type === 'ACCEPT' || type === 'REACCEPT')
+        ? 'Advance payment received and verified. Cleared for Stage 4: Drawing / OA.'
+        : selectedDeptSeq === 2 && type === 'ACCEPT'
+        ? 'PO technical scope approved. Handed over to Stage 3: Advance Payment.'
+        : existingAP.remarks || '');
+
     setActionModal({
       isOpen: true,
       type,
       workflow,
-      remarks: '',
+      remarks: defaultRemarks,
       rejectionReason: '',
       responsibleDepartmentSequence: selectedDeptSeq || 1,
       submitting: false,
-      validationError: ''
+      validationError: '',
+      advancePaymentDetails: {
+        amount: defaultAmt,
+        percentage: defaultPct,
+        paymentDate: existingAP.paymentDate
+          ? new Date(existingAP.paymentDate).toISOString().split('T')[0]
+          : new Date().toISOString().split('T')[0],
+        paymentMode: existingAP.paymentMode || 'RTGS',
+        referenceNumber: existingAP.referenceNumber || '',
+        bankName: existingAP.bankName || 'HDFC Bank',
+        status: existingAP.status || 'Received & Cleared'
+      },
+      drawingOADetails: {
+        gaDrawingNumber: autoGANo,
+        sldDrawingNumber: autoSLDNo,
+        proformaInvoiceNumber: autoPINo,
+        proformaInvoiceDate: existingDraw.proformaInvoiceDate
+          ? new Date(existingDraw.proformaInvoiceDate).toISOString().split('T')[0]
+          : new Date().toISOString().split('T')[0],
+        orderAcknowledgementNumber: autoOANo,
+        orderAcknowledgementDate: existingDraw.orderAcknowledgementDate
+          ? new Date(existingDraw.orderAcknowledgementDate).toISOString().split('T')[0]
+          : new Date().toISOString().split('T')[0],
+        customerApprovalStatus: existingDraw.customerApprovalStatus || 'Approved with Code 1 (Clean)',
+        ctRatioConfirmed: defaultCTRatio,
+        targetDispatchDate: defaultDispatchDate,
+        attachmentUrl: existingDraw.attachmentUrl || ''
+      }
     });
   };
 
@@ -145,12 +212,33 @@ export const DepartmentWorkflowView = () => {
       rejectionReason: '',
       responsibleDepartmentSequence: 1,
       submitting: false,
-      validationError: ''
+      validationError: '',
+      advancePaymentDetails: {
+        amount: 0,
+        percentage: 50,
+        paymentDate: '',
+        paymentMode: 'RTGS',
+        referenceNumber: '',
+        bankName: '',
+        status: 'Received & Cleared'
+      },
+      drawingOADetails: {
+        gaDrawingNumber: '',
+        sldDrawingNumber: '',
+        proformaInvoiceNumber: '',
+        proformaInvoiceDate: '',
+        orderAcknowledgementNumber: '',
+        orderAcknowledgementDate: '',
+        customerApprovalStatus: 'Approved with Code 1 (Clean)',
+        ctRatioConfirmed: '',
+        targetDispatchDate: '',
+        attachmentUrl: ''
+      }
     });
   };
 
   const executeAction = async () => {
-    const { type, workflow, remarks, rejectionReason, responsibleDepartmentSequence } = actionModal;
+    const { type, workflow, remarks, rejectionReason, responsibleDepartmentSequence, advancePaymentDetails, drawingOADetails } = actionModal;
     if (!workflow) return;
 
     if (type === 'REJECT') {
@@ -177,13 +265,25 @@ export const DepartmentWorkflowView = () => {
       setActionModal((prev) => ({ ...prev, submitting: true, validationError: '' }));
 
       if (type === 'ACCEPT' || type === 'REJECT' || type === 'REACCEPT') {
-        await api.post(`/project-workflows/${workflow._id}/department-action`, {
+        const payload = {
           action: type,
           departmentSequence: selectedDeptSeq,
           remarks,
           rejectionReason,
           responsibleDepartmentSequence
-        });
+        };
+
+        // When accepting Stage 3 (Advance Payment), attach advancePaymentDetails
+        if (selectedDeptSeq === 3 && (type === 'ACCEPT' || type === 'REACCEPT')) {
+          payload.advancePaymentDetails = advancePaymentDetails;
+        }
+
+        // When accepting Stage 4 (Drawing / OA), attach drawingOADetails
+        if (selectedDeptSeq === 4 && (type === 'ACCEPT' || type === 'REACCEPT')) {
+          payload.drawingOADetails = drawingOADetails;
+        }
+
+        await api.post(`/project-workflows/${workflow._id}/department-action`, payload);
       } else if (type === 'FORWARD') {
         await api.post(`/project-workflows/${workflow._id}/manager-forward`, {
           remarks
@@ -538,9 +638,14 @@ export const DepartmentWorkflowView = () => {
                             {enq.products?.[0]?.productDescription ||
                               '11kV, 630A, 25kA Outdoor Standalone VCB'}
                           </p>
-                          <span className="inline-block text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
-                            {enq.project?.segment || 'Renewable'} &bull; Qty: {enq.products?.length || 1}
-                          </span>
+                          <div className="flex items-center space-x-2">
+                            <span className="inline-block text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                              {enq.project?.segment || 'Renewable'} &bull; Qty: {enq.products?.length || 1}
+                            </span>
+                            <span className="text-[11px] font-mono font-extrabold text-slate-900 bg-blue-50/80 text-blue-900 px-2 py-0.5 rounded border border-blue-200">
+                              ₹ {Number(enq.commercialPricing?.totalAmount || enq.expectedProjectValue || 0).toLocaleString('en-IN')}
+                            </span>
+                          </div>
                         </div>
                       </td>
 
@@ -602,6 +707,34 @@ export const DepartmentWorkflowView = () => {
                           <p className="text-[10px] font-bold text-slate-700">
                             {w.overallStatus}
                           </p>
+
+                          {/* Stage 3 Advance Payment Badge */}
+                          {(selectedDeptSeq === 3 || w.advancePaymentDetails?.amount > 0) && w.advancePaymentDetails?.amount > 0 && (
+                            <div className="mt-1 p-1.5 bg-emerald-50 border border-emerald-200 rounded text-[10px] text-emerald-800 font-bold space-y-0.5">
+                              <div className="flex items-center space-x-1">
+                                <CreditCard className="w-3 h-3 text-emerald-600 shrink-0" />
+                                <span>Advance: ₹{Number(w.advancePaymentDetails.amount).toLocaleString('en-IN')}</span>
+                              </div>
+                              {w.advancePaymentDetails.paymentDate && (
+                                <span className="text-[9px] text-slate-500 font-mono block">
+                                  {new Date(w.advancePaymentDetails.paymentDate).toLocaleDateString('en-IN')} &bull; {w.advancePaymentDetails.paymentMode || 'RTGS'}
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Stage 4 Drawing & OA Badge */}
+                          {(selectedDeptSeq === 4 || w.drawingOADetails?.gaDrawingNumber) && w.drawingOADetails?.gaDrawingNumber && (
+                            <div className="mt-1 p-1.5 bg-blue-50 border border-blue-200 rounded text-[10px] text-blue-900 font-bold space-y-0.5">
+                              <div className="flex items-center space-x-1">
+                                <FileText className="w-3 h-3 text-blue-600 shrink-0" />
+                                <span>GA: {w.drawingOADetails.gaDrawingNumber}</span>
+                              </div>
+                              <span className="text-[9px] text-slate-600 font-mono block">
+                                OA: {w.drawingOADetails.orderAcknowledgementNumber || 'Issued'} &bull; {w.drawingOADetails.customerApprovalStatus || 'Code 1'}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </td>
 
@@ -626,8 +759,8 @@ export const DepartmentWorkflowView = () => {
                             </button>
                           )}
 
-                          {/* Department 2 to 10 Accept / Reject Buttons: ONLY General Manager and Admin can approve or reject */}
-                          {(isAdmin || isManager) && (
+                          {/* Department 2 to 10 Accept / Reject Buttons: General Manager, Admin, and Accountant (for Stage 3) */}
+                          {(isAdmin || isManager || (isAccountant && selectedDeptSeq === 3)) && (
                             <div className="flex items-center space-x-1.5 pt-1">
                               {/* If project was REJECTED at this department: Show Re-assign & Re-Accept */}
                               {currentApp?.status === 'Rejected' && (
@@ -646,9 +779,23 @@ export const DepartmentWorkflowView = () => {
                                 <>
                                   <button
                                     onClick={() => openActionModal('ACCEPT', w)}
-                                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-bold shadow-xs transition-colors cursor-pointer"
+                                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-bold shadow-xs transition-colors cursor-pointer flex items-center space-x-1"
                                   >
-                                    Accept
+                                    {selectedDeptSeq === 2 ? (
+                                      <span>Approve PO &amp; Forward →</span>
+                                    ) : selectedDeptSeq === 3 ? (
+                                      <>
+                                        <CreditCard className="w-3 h-3 mr-0.5" />
+                                        <span>Clear Advance Payment</span>
+                                      </>
+                                    ) : selectedDeptSeq === 4 ? (
+                                      <>
+                                        <FileText className="w-3 h-3 mr-0.5" />
+                                        <span>Approve Drawing &amp; OA →</span>
+                                      </>
+                                    ) : (
+                                      <span>Accept</span>
+                                    )}
                                   </button>
                                   <button
                                     onClick={() => openActionModal('REJECT', w)}
@@ -662,7 +809,7 @@ export const DepartmentWorkflowView = () => {
                           )}
 
                           {/* Sales & Marketing View Indicator */}
-                          {!isAdmin && !isManager && isCurrentDept && currentApp?.status !== 'Accepted' && (
+                          {!isAdmin && !isManager && !isAccountant && isCurrentDept && currentApp?.status !== 'Accepted' && (
                             <span className="text-[10px] text-slate-400 font-medium italic pt-1">
                               Tracking (Manager Action)
                             </span>
@@ -700,30 +847,592 @@ export const DepartmentWorkflowView = () => {
 
       {/* Action Dialog / Modal (Accept / Reject / Forward / Resubmit) */}
       {actionModal.isOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-base font-black text-slate-900">
-                {actionModal.type === 'ACCEPT' && `Accept Stage: ${activeDept.name}`}
-                {actionModal.type === 'REJECT' && `Reject & Return to Sales: ${activeDept.name}`}
-                {actionModal.type === 'REACCEPT' && `Re-assign & Re-Accept: ${activeDept.name}`}
-                {actionModal.type === 'FORWARD' && 'Manager Review & Forward'}
-                {actionModal.type === 'RESUBMIT' && 'Resubmit Project after Rework'}
-              </h3>
-              <button onClick={closeActionModal} className="text-slate-400 hover:text-slate-600 cursor-pointer">
-                <X className="w-5 h-5" />
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !actionModal.submitting) closeActionModal();
+          }}
+        >
+          <div className="relative bg-white rounded-2xl max-w-xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150 my-auto overflow-hidden">
+            {/* Modal Header - Sticky */}
+            <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white z-10">
+              <div className="flex items-center space-x-2.5">
+                {selectedDeptSeq === 3 && (actionModal.type === 'ACCEPT' || actionModal.type === 'REACCEPT') ? (
+                  <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold border border-emerald-100 shrink-0">
+                    <CreditCard className="w-5 h-5 text-emerald-600" />
+                  </div>
+                ) : selectedDeptSeq === 4 && (actionModal.type === 'ACCEPT' || actionModal.type === 'REACCEPT') ? (
+                  <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold border border-blue-100 shrink-0">
+                    <FileText className="w-5 h-5 text-blue-600" />
+                  </div>
+                ) : null}
+                <div>
+                  <h3 className="text-sm sm:text-base font-black text-slate-900">
+                    {actionModal.type === 'ACCEPT' &&
+                      (selectedDeptSeq === 2
+                        ? 'Stage 2: Approve PO & Forward to Stage 3'
+                        : selectedDeptSeq === 3
+                        ? 'Stage 3: Customer Advance Payment Clearance'
+                        : selectedDeptSeq === 4
+                        ? 'Stage 4: Drawing / Proforma Invoice / Order Acknowledgement Clearance'
+                        : `Accept Stage: ${activeDept.name}`)}
+                    {actionModal.type === 'REJECT' && `Reject & Return to Sales: ${activeDept.name}`}
+                    {actionModal.type === 'REACCEPT' && `Re-assign & Re-Accept: ${activeDept.name}`}
+                    {actionModal.type === 'FORWARD' && 'Manager Review & Forward'}
+                    {actionModal.type === 'RESUBMIT' && 'Resubmit Project after Rework'}
+                  </h3>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    {actionModal.workflow?.projectTrackingId} &bull; {actionModal.workflow?.enquiryId?.clientId?.companyName || 'Sky Power Client'}
+                  </p>
+                  {selectedDeptSeq === 3 && (actionModal.type === 'ACCEPT' || actionModal.type === 'REACCEPT') && (
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                      <span className="text-[11px] font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                        Total Project Value: <strong className="font-mono text-slate-900">₹ {Number(actionModal.workflow?.enquiryId?.commercialPricing?.totalAmount || actionModal.workflow?.enquiryId?.expectedProjectValue || 0).toLocaleString('en-IN')}</strong>
+                      </span>
+                      <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                        Standard 50%: <strong className="font-mono text-emerald-700">₹ {Math.round(Number(actionModal.workflow?.enquiryId?.commercialPricing?.totalAmount || actionModal.workflow?.enquiryId?.expectedProjectValue || 0) * 0.5).toLocaleString('en-IN')}</strong>
+                      </span>
+                    </div>
+                  )}
+                  {selectedDeptSeq === 4 && (actionModal.type === 'ACCEPT' || actionModal.type === 'REACCEPT') && (
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                      <span className="text-[11px] font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                        Scope: <strong className="text-slate-900">{actionModal.workflow?.enquiryId?.project?.projectName || 'Switchgear Engineering'}</strong>
+                      </span>
+                      <span className="text-[11px] font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                        Rating: <strong className="font-mono text-blue-900">{actionModal.workflow?.enquiryId?.products?.[0]?.kilovolt || '11kV'}, {actionModal.workflow?.enquiryId?.products?.[0]?.ampere || '630A'}</strong>
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={closeActionModal}
+                className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+                title="Close (Esc)"
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="mt-4 space-y-4 text-xs">
-              <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1">
-                <p>
-                  <strong>Project Tracking ID:</strong> {actionModal.workflow?.projectTrackingId}
-                </p>
-                <p>
-                  <strong>Current Department:</strong> {activeDept.name} (Stage {selectedDeptSeq})
-                </p>
+            {/* Modal Scrollable Body */}
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-4 text-xs">
+              <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] text-slate-500 font-semibold block">Project Tracking ID</span>
+                  <span className="font-mono font-bold text-slate-900 text-xs">{actionModal.workflow?.projectTrackingId}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 font-semibold block">Active Department</span>
+                  <span className="font-bold text-slate-800 text-xs">{activeDept.name} (Stage {selectedDeptSeq})</span>
+                </div>
               </div>
+
+              {/* Notice when approving Stage 2 (PO Team) */}
+              {selectedDeptSeq === 2 && actionModal.type === 'ACCEPT' && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 flex items-center space-x-2 font-medium">
+                  <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0" />
+                  <span>
+                    Approving PO Team stage will complete the PO module and automatically forward this project to <strong>Stage 3: Advance Payment</strong>.
+                  </span>
+                </div>
+              )}
+
+              {/* Advance Payment Form when at Stage 3 */}
+              {selectedDeptSeq === 3 && (actionModal.type === 'ACCEPT' || actionModal.type === 'REACCEPT') && (
+                <div className="p-4 rounded-xl bg-blue-50/60 border border-blue-200 space-y-3.5">
+                  <div className="flex items-center justify-between border-b border-blue-200/80 pb-2">
+                    <div className="flex items-center space-x-2 text-xs font-black text-[#1E5BB8]">
+                      <CreditCard className="w-4 h-4 text-[#EE6F2D]" />
+                      <span>Stage 3: Advance Payment Receipt Recording</span>
+                    </div>
+                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800">
+                      Standard Terms: 50% Advance
+                    </span>
+                  </div>
+
+                  {/* Summary of Commercial Value */}
+                  <div className="grid grid-cols-2 gap-2 text-xs bg-white p-2.5 rounded-lg border border-blue-100">
+                    <div>
+                      <span className="text-slate-400 font-medium block text-[10px]">Total Project Value:</span>
+                      <span className="font-mono font-extrabold text-slate-900">
+                        ₹ {Number(actionModal.workflow?.enquiryId?.commercialPricing?.totalAmount || actionModal.workflow?.enquiryId?.expectedProjectValue || 0).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 font-medium block text-[10px]">Client / Buyer:</span>
+                      <span className="font-bold text-slate-900 truncate block">
+                        {actionModal.workflow?.enquiryId?.clientId?.companyName || 'Valued Client'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Quick percentage selector pills */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="font-bold text-slate-700">Advance Percentage (%)</label>
+                      <div className="flex items-center space-x-1">
+                        <span className="text-[10px] text-slate-400 font-semibold mr-1">Presets:</span>
+                        {[20, 25, 30, 50, 100].map((pct) => (
+                          <button
+                            key={pct}
+                            type="button"
+                            onClick={() => {
+                              const total = Number(actionModal.workflow?.enquiryId?.commercialPricing?.totalAmount || actionModal.workflow?.enquiryId?.expectedProjectValue || 0);
+                              const amt = Math.round((total * pct) / 100);
+                              setActionModal((prev) => ({
+                                ...prev,
+                                advancePaymentDetails: {
+                                  ...prev.advancePaymentDetails,
+                                  percentage: pct,
+                                  amount: amt
+                                }
+                              }));
+                            }}
+                            className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition-colors cursor-pointer ${
+                              (actionModal.advancePaymentDetails?.percentage || 50) === pct
+                                ? 'bg-[#1E5BB8] text-white border-[#1E5BB8]'
+                                : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                            }`}
+                          >
+                            {pct}%
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      value={actionModal.advancePaymentDetails?.percentage || 50}
+                      onChange={(e) => {
+                        const pct = Number(e.target.value) || 0;
+                        const total = Number(actionModal.workflow?.enquiryId?.commercialPricing?.totalAmount || actionModal.workflow?.enquiryId?.expectedProjectValue || 0);
+                        const amt = Math.round((total * pct) / 100);
+                        setActionModal((prev) => ({
+                          ...prev,
+                          advancePaymentDetails: {
+                            ...prev.advancePaymentDetails,
+                            percentage: pct,
+                            amount: amt
+                          }
+                        }));
+                      }}
+                      className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white font-mono font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Advance Input Grid */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="font-bold text-slate-700">
+                          Advance Amount Received (₹) <span className="text-rose-600">*</span>
+                        </label>
+                        {actionModal.advancePaymentDetails?.percentage ? (
+                          <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                            {actionModal.advancePaymentDetails.percentage}% of Total
+                          </span>
+                        ) : null}
+                      </div>
+                      <input
+                        type="number"
+                        min="0"
+                        value={actionModal.advancePaymentDetails?.amount ?? ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const amt = val === '' ? '' : Number(val);
+                          const total = Number(actionModal.workflow?.enquiryId?.commercialPricing?.totalAmount || actionModal.workflow?.enquiryId?.expectedProjectValue || 0);
+                          const calcPct = total > 0 && typeof amt === 'number' ? Math.min(100, Math.round((amt / total) * 100)) : actionModal.advancePaymentDetails?.percentage;
+                          setActionModal((prev) => ({
+                            ...prev,
+                            advancePaymentDetails: {
+                              ...prev.advancePaymentDetails,
+                              amount: amt,
+                              percentage: typeof amt === 'number' && total > 0 ? calcPct : prev.advancePaymentDetails?.percentage
+                            }
+                          }));
+                        }}
+                        className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white font-mono font-bold text-emerald-700 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      />
+                      {typeof actionModal.advancePaymentDetails?.amount === 'number' && actionModal.advancePaymentDetails.amount > 0 && (
+                        <p className="text-[11px] text-emerald-800 font-bold mt-1">
+                          ₹ {Number(actionModal.advancePaymentDetails.amount).toLocaleString('en-IN')}
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">
+                        Payment Received Date <span className="text-rose-600">*</span>
+                      </label>
+                      <input
+                        type="date"
+                        value={actionModal.advancePaymentDetails?.paymentDate || ''}
+                        onChange={(e) => {
+                          const dateVal = e.target.value;
+                          setActionModal((prev) => ({
+                            ...prev,
+                            advancePaymentDetails: {
+                              ...prev.advancePaymentDetails,
+                              paymentDate: dateVal
+                            }
+                          }));
+                        }}
+                        className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">
+                        Payment Mode
+                      </label>
+                      <select
+                        value={actionModal.advancePaymentDetails?.paymentMode || 'RTGS'}
+                        onChange={(e) => {
+                          const mode = e.target.value;
+                          setActionModal((prev) => ({
+                            ...prev,
+                            advancePaymentDetails: {
+                              ...prev.advancePaymentDetails,
+                              paymentMode: mode
+                            }
+                          }));
+                        }}
+                        className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white font-medium focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      >
+                        <option value="RTGS">RTGS</option>
+                        <option value="NEFT">NEFT</option>
+                        <option value="Bank Transfer">Bank Transfer / IMPS</option>
+                        <option value="Cheque">Cheque</option>
+                        <option value="Demand Draft">Demand Draft (DD)</option>
+                        <option value="UPI">UPI</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="font-bold text-slate-700">UTR / Ref No</label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const mockRef = 'UTR' + Math.floor(1000000000 + Math.random() * 9000000000);
+                            setActionModal((prev) => ({
+                              ...prev,
+                              advancePaymentDetails: {
+                                ...prev.advancePaymentDetails,
+                                referenceNumber: mockRef
+                              }
+                            }));
+                          }}
+                          className="text-[10px] text-blue-600 hover:text-blue-800 font-bold cursor-pointer"
+                        >
+                          + Auto UTR
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="e.g. UTRN9823482749"
+                        value={actionModal.advancePaymentDetails?.referenceNumber || ''}
+                        onChange={(e) => {
+                          const ref = e.target.value;
+                          setActionModal((prev) => ({
+                            ...prev,
+                            advancePaymentDetails: {
+                              ...prev.advancePaymentDetails,
+                              referenceNumber: ref
+                            }
+                          }));
+                        }}
+                        className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="col-span-2">
+                      <label className="block font-bold text-slate-700 mb-1">
+                        Bank Name
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. HDFC Bank, SBI, ICICI"
+                        value={actionModal.advancePaymentDetails?.bankName || ''}
+                        onChange={(e) => {
+                          const bank = e.target.value;
+                          setActionModal((prev) => ({
+                            ...prev,
+                            advancePaymentDetails: {
+                              ...prev.advancePaymentDetails,
+                              bankName: bank
+                            }
+                          }));
+                        }}
+                        className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Drawing & Order Acknowledgement Form when at Stage 4 */}
+              {selectedDeptSeq === 4 && (actionModal.type === 'ACCEPT' || actionModal.type === 'REACCEPT') && (
+                <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-200 space-y-3.5">
+                  <div className="flex items-center justify-between border-b border-blue-200/80 pb-2">
+                    <div className="flex items-center space-x-2 text-xs font-black text-[#1E5BB8]">
+                      <FileText className="w-4 h-4 text-[#EE6F2D]" />
+                      <span>Stage 4: Drawing / Proforma Invoice / Order Acknowledgement</span>
+                    </div>
+                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800">
+                      Step 4 &amp; 5 Technical Clearance
+                    </span>
+                  </div>
+
+                  {/* Summary of Commercial & Scope info */}
+                  <div className="grid grid-cols-2 gap-2 text-xs bg-white p-2.5 rounded-lg border border-blue-100 shadow-2xs">
+                    <div>
+                      <span className="text-slate-400 font-medium block text-[10px]">Client / Buyer:</span>
+                      <span className="font-bold text-slate-900 truncate block">
+                        {actionModal.workflow?.enquiryId?.clientId?.companyName || 'Valued Client'}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 font-medium block text-[10px]">Project Scope:</span>
+                      <span className="font-bold text-slate-900 truncate block">
+                        {actionModal.workflow?.enquiryId?.project?.projectName || 'Switchgear Engineering'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Drawing Inputs Grid */}
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* 1. GA Drawing No */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="font-bold text-slate-700">GA Drawing No &amp; Rev <span className="text-rose-600">*</span></label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const pid = actionModal.workflow?.projectTrackingId || 'PRJ-2026-0001';
+                            setActionModal((prev) => ({
+                              ...prev,
+                              drawingOADetails: { ...prev.drawingOADetails, gaDrawingNumber: `GA-${pid}-R0` }
+                            }));
+                          }}
+                          className="text-[10px] text-blue-600 hover:text-blue-800 font-bold cursor-pointer"
+                        >
+                          + Auto GA
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="e.g. GA-DWG-2026-0042 Rev 0"
+                        value={actionModal.drawingOADetails?.gaDrawingNumber || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setActionModal((prev) => ({
+                            ...prev,
+                            drawingOADetails: { ...prev.drawingOADetails, gaDrawingNumber: val }
+                          }));
+                        }}
+                        className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white font-mono font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      />
+                    </div>
+
+                    {/* 2. SLD Drawing No */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="font-bold text-slate-700">SLD / Schematic No</label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const pid = actionModal.workflow?.projectTrackingId || 'PRJ-2026-0001';
+                            setActionModal((prev) => ({
+                              ...prev,
+                              drawingOADetails: { ...prev.drawingOADetails, sldDrawingNumber: `SLD-${pid}` }
+                            }));
+                          }}
+                          className="text-[10px] text-blue-600 hover:text-blue-800 font-bold cursor-pointer"
+                        >
+                          + Auto SLD
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="e.g. SLD-2026-0018"
+                        value={actionModal.drawingOADetails?.sldDrawingNumber || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setActionModal((prev) => ({
+                            ...prev,
+                            drawingOADetails: { ...prev.drawingOADetails, sldDrawingNumber: val }
+                          }));
+                        }}
+                        className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      />
+                    </div>
+
+                    {/* 3. Proforma Invoice (PI) Number */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="font-bold text-slate-700">Proforma Invoice No</label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const ern = actionModal.workflow?.enquiryId?.ern || 'ERN-2026-0001';
+                            setActionModal((prev) => ({
+                              ...prev,
+                              drawingOADetails: { ...prev.drawingOADetails, proformaInvoiceNumber: `PI-${ern.replace(/^ERN-/, '')}` }
+                            }));
+                          }}
+                          className="text-[10px] text-blue-600 hover:text-blue-800 font-bold cursor-pointer"
+                        >
+                          + Auto PI
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="e.g. PI-2026-0104"
+                        value={actionModal.drawingOADetails?.proformaInvoiceNumber || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setActionModal((prev) => ({
+                            ...prev,
+                            drawingOADetails: { ...prev.drawingOADetails, proformaInvoiceNumber: val }
+                          }));
+                        }}
+                        className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      />
+                    </div>
+
+                    {/* 4. Proforma Invoice Date */}
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Proforma Invoice Date</label>
+                      <input
+                        type="date"
+                        value={actionModal.drawingOADetails?.proformaInvoiceDate || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setActionModal((prev) => ({
+                            ...prev,
+                            drawingOADetails: { ...prev.drawingOADetails, proformaInvoiceDate: val }
+                          }));
+                        }}
+                        className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      />
+                    </div>
+
+                    {/* 5. Order Acknowledgement (OA) Number */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="font-bold text-slate-700">Order Acknowledgement (OA) No <span className="text-rose-600">*</span></label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const pid = actionModal.workflow?.projectTrackingId || 'PRJ-2026-0001';
+                            setActionModal((prev) => ({
+                              ...prev,
+                              drawingOADetails: { ...prev.drawingOADetails, orderAcknowledgementNumber: `OA-${pid.replace(/^PRJ-/, '')}` }
+                            }));
+                          }}
+                          className="text-[10px] text-blue-600 hover:text-blue-800 font-bold cursor-pointer"
+                        >
+                          + Auto OA
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="e.g. OA-2026-0089"
+                        value={actionModal.drawingOADetails?.orderAcknowledgementNumber || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setActionModal((prev) => ({
+                            ...prev,
+                            drawingOADetails: { ...prev.drawingOADetails, orderAcknowledgementNumber: val }
+                          }));
+                        }}
+                        className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white font-mono font-bold focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      />
+                    </div>
+
+                    {/* 6. Order Acknowledgement Date */}
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">Order Acknowledgement Date</label>
+                      <input
+                        type="date"
+                        value={actionModal.drawingOADetails?.orderAcknowledgementDate || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setActionModal((prev) => ({
+                            ...prev,
+                            drawingOADetails: { ...prev.drawingOADetails, orderAcknowledgementDate: val }
+                          }));
+                        }}
+                        className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      />
+                    </div>
+
+                    {/* 7. Customer End Drawing Approval Status (Step 5 in sheet) */}
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">
+                        Customer End Approval Status <span className="text-rose-600">*</span>
+                      </label>
+                      <select
+                        value={actionModal.drawingOADetails?.customerApprovalStatus || 'Approved with Code 1 (Clean)'}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setActionModal((prev) => ({
+                            ...prev,
+                            drawingOADetails: { ...prev.drawingOADetails, customerApprovalStatus: val }
+                          }));
+                        }}
+                        className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white font-bold text-emerald-800 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      >
+                        <option value="Approved with Code 1 (Clean)">Approved with Code 1 (Clean Approval - Proceed)</option>
+                        <option value="Approved with Code 2 (Proceed with Comments)">Approved with Code 2 (Proceed with Minor Comments)</option>
+                        <option value="Pending Customer Approval">Pending Customer End Approval</option>
+                        <option value="Revision Required">Drawing Revision Requested by Customer</option>
+                      </select>
+                    </div>
+
+                    {/* 8. Customer Confirmed CT Ratio (Step 5 in sheet) */}
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">
+                        Customer Confirmed CT Ratio (Step 5)
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 200/5A, 15VA, Class 0.5s"
+                        value={actionModal.drawingOADetails?.ctRatioConfirmed || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setActionModal((prev) => ({
+                            ...prev,
+                            drawingOADetails: { ...prev.drawingOADetails, ctRatioConfirmed: val }
+                          }));
+                        }}
+                        className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      />
+                    </div>
+
+                    {/* 9. Committed Dispatch Date */}
+                    <div className="col-span-2">
+                      <label className="block font-bold text-slate-700 mb-1">Committed Target Dispatch Date</label>
+                      <input
+                        type="date"
+                        value={actionModal.drawingOADetails?.targetDispatchDate || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setActionModal((prev) => ({
+                            ...prev,
+                            drawingOADetails: { ...prev.drawingOADetails, targetDispatchDate: val }
+                          }));
+                        }}
+                        className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Rejection Details (Mandatory for REJECT) */}
               {actionModal.type === 'REJECT' && (
@@ -935,33 +1644,66 @@ export const DepartmentWorkflowView = () => {
               )}
             </div>
 
-            <div className="mt-6 pt-3 border-t border-slate-100 flex items-center justify-end space-x-2">
-              <button
-                onClick={closeActionModal}
-                disabled={actionModal.submitting}
-                className="px-4 py-2 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={executeAction}
-                disabled={actionModal.submitting}
-                className={`px-4 py-2 rounded-lg text-xs font-bold text-white transition-all cursor-pointer ${
-                  actionModal.type === 'REJECT'
-                    ? 'bg-rose-600 hover:bg-rose-700'
-                    : actionModal.type === 'REACCEPT'
-                    ? 'bg-gradient-to-r from-amber-600 to-emerald-600 hover:from-amber-700 hover:to-emerald-700 shadow-md'
-                    : 'bg-blue-600 hover:bg-blue-700'
-                }`}
-              >
-                {actionModal.submitting
-                  ? 'Processing...'
-                  : actionModal.type === 'REJECT'
-                  ? 'Confirm Rejection'
-                  : actionModal.type === 'REACCEPT'
-                  ? 'Re-Accept & Move Forward'
-                  : 'Confirm Action'}
-              </button>
+            {/* Modal Sticky Footer - Always Visible */}
+            <div className="p-4 px-6 border-t border-slate-100 bg-slate-50/90 flex items-center justify-between shrink-0 rounded-b-2xl">
+              <div className="text-[11px] text-slate-500">
+                {selectedDeptSeq === 3 && (actionModal.type === 'ACCEPT' || actionModal.type === 'REACCEPT') && (
+                  <span>Forwards to: <strong className="text-slate-800 font-medium">Stage 4 (Drawing / Order Acknowledgement)</strong></span>
+                )}
+                {selectedDeptSeq === 4 && (actionModal.type === 'ACCEPT' || actionModal.type === 'REACCEPT') && (
+                  <span>Forwards to: <strong className="text-slate-800 font-medium">Stage 5 (CT &amp; PT Technical Status)</strong></span>
+                )}
+              </div>
+              <div className="flex items-center space-x-2.5">
+                <button
+                  type="button"
+                  onClick={closeActionModal}
+                  disabled={actionModal.submitting}
+                  className="px-4 py-2 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 hover:bg-slate-100 cursor-pointer transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={executeAction}
+                  disabled={actionModal.submitting}
+                  className={`px-5 py-2.5 rounded-lg text-xs font-bold text-white transition-all shadow-md cursor-pointer flex items-center space-x-1.5 ${
+                    actionModal.type === 'REJECT'
+                      ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-200'
+                      : actionModal.type === 'REACCEPT'
+                      ? 'bg-gradient-to-r from-amber-600 to-emerald-600 hover:from-amber-700 hover:to-emerald-700 shadow-amber-200'
+                      : selectedDeptSeq === 3
+                      ? 'bg-gradient-to-r from-emerald-600 to-[#1E5BB8] hover:from-emerald-700 hover:to-[#174894] shadow-emerald-200'
+                      : selectedDeptSeq === 4
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 shadow-blue-200'
+                      : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'
+                  }`}
+                >
+                  {actionModal.submitting ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin mr-1.5" />
+                      <span>Processing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>
+                        {actionModal.type === 'REJECT'
+                          ? 'Confirm Rejection'
+                          : actionModal.type === 'REACCEPT'
+                          ? 'Re-Accept & Move Forward'
+                          : selectedDeptSeq === 2
+                          ? 'Approve PO & Advance to Stage 3 →'
+                          : selectedDeptSeq === 3
+                          ? `Confirm Payment (₹ ${Number(actionModal.advancePaymentDetails?.amount || 0).toLocaleString('en-IN')}) & Forward to Stage 4 →`
+                          : selectedDeptSeq === 4
+                          ? 'Confirm Drawing & OA & Forward to Stage 5 (CT & PT) →'
+                          : 'Confirm Action'}
+                      </span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

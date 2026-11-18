@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Lock, Mail, AlertCircle, ArrowRight, Zap, ShieldCheck, ClipboardList, Package } from 'lucide-react';
+import { Lock, Mail, AlertCircle, ArrowRight, Zap, ShieldCheck, ClipboardList, Package, CreditCard } from 'lucide-react';
 
 export const Login = () => {
   const [email, setEmail] = useState('sales@skypower.co.in');
@@ -24,6 +24,8 @@ export const Login = () => {
         navigate('/manager/dashboard');
       } else if (loggedUser.role === 'PO_TEAM') {
         navigate('/po/tracking');
+      } else if (loggedUser.role === 'ACCOUNTANT') {
+        navigate('/departments/workflow?dept=3');
       } else {
         navigate('/workflow');
       }
@@ -55,6 +57,12 @@ export const Login = () => {
   const setPOTeamCredentials = () => {
     setEmail('po@skypower.co.in');
     setPassword('Po@123');
+    setError('');
+  };
+
+  const setAccountantCredentials = () => {
+    setEmail('accountant@skypower.co.in');
+    setPassword('Accountant@123');
     setError('');
   };
 
@@ -188,11 +196,11 @@ export const Login = () => {
             <p className="text-[11px] uppercase tracking-wider text-center mb-3 font-bold" style={{ color: '#8495AB' }}>
               Instant Demo Access
             </p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               <button
                 type="button"
                 onClick={setSalesCredentials}
-                className="flex flex-col items-center justify-center py-2.5 px-1 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shadow-2xs hover:-translate-y-0.5"
+                className="flex flex-col items-center justify-center py-2 px-1 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shadow-2xs hover:-translate-y-0.5"
                 style={{
                   background: '#EAF5FF',
                   color: '#0878C9',
@@ -205,8 +213,36 @@ export const Login = () => {
 
               <button
                 type="button"
+                onClick={setPOTeamCredentials}
+                className="flex flex-col items-center justify-center py-2 px-1 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shadow-2xs hover:-translate-y-0.5"
+                style={{
+                  background: '#ECFDF5',
+                  color: '#059669',
+                  border: '1px solid #A7F3D0'
+                }}
+              >
+                <Package className="w-4 h-4 mb-0.5" style={{ color: '#059669' }} />
+                <span>PO Team</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={setAccountantCredentials}
+                className="flex flex-col items-center justify-center py-2 px-1 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shadow-2xs hover:-translate-y-0.5 col-span-2 sm:col-span-1"
+                style={{
+                  background: '#F0FDF4',
+                  color: '#15803D',
+                  border: '2px solid #86EFAC'
+                }}
+              >
+                <CreditCard className="w-4 h-4 mb-0.5" style={{ color: '#16A34A' }} />
+                <span className="font-extrabold">Accountant</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={setManagerCredentials}
-                className="flex flex-col items-center justify-center py-2.5 px-1 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shadow-2xs hover:-translate-y-0.5"
+                className="flex flex-col items-center justify-center py-2 px-1 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shadow-2xs hover:-translate-y-0.5"
                 style={{
                   background: '#F5F3FF',
                   color: '#7C3AED',
@@ -220,7 +256,7 @@ export const Login = () => {
               <button
                 type="button"
                 onClick={setAdminCredentials}
-                className="flex flex-col items-center justify-center py-2.5 px-1 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shadow-2xs hover:-translate-y-0.5"
+                className="flex flex-col items-center justify-center py-2 px-1 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shadow-2xs hover:-translate-y-0.5"
                 style={{
                   background: '#FFF0E3',
                   color: '#EA6208',
@@ -229,20 +265,6 @@ export const Login = () => {
               >
                 <Zap className="w-4 h-4 mb-0.5" style={{ color: '#EA6208' }} />
                 <span>Admin Login</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={setPOTeamCredentials}
-                className="flex flex-col items-center justify-center py-2.5 px-1 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shadow-2xs hover:-translate-y-0.5"
-                style={{
-                  background: '#ECFDF5',
-                  color: '#059669',
-                  border: '1px solid #A7F3D0'
-                }}
-              >
-                <Package className="w-4 h-4 mb-0.5" style={{ color: '#059669' }} />
-                <span>PO Team</span>
               </button>
             </div>
           </div>

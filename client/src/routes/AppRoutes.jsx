@@ -48,6 +48,7 @@ export const AppRoutes = () => {
     if (user?.role === 'ADMIN') return '/admin/dashboard';
     if (user?.role === 'MANAGER') return '/manager/dashboard';
     if (user?.role === 'PO_TEAM') return '/po/tracking';
+    if (user?.role === 'ACCOUNTANT') return '/departments/workflow?dept=3';
     return '/sales/dashboard';
   };
 
@@ -66,7 +67,7 @@ export const AppRoutes = () => {
       />
 
       {/* Protected Routes Layout */}
-      <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'SALES', 'PO_TEAM']} />}>
+      <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'SALES', 'PO_TEAM', 'ACCOUNTANT']} />}>
         <Route element={<MainLayout />}>
           {/* Default Root Redirect */}
           <Route path="/" element={<Navigate to={getHomeRoute()} replace />} />
@@ -76,6 +77,10 @@ export const AppRoutes = () => {
 
           {/* Department Workflow & Tracking Views (Accessible to all authorized roles) */}
           <Route path="/departments/workflow" element={<DepartmentWorkflowView />} />
+          <Route path="/advance-payment" element={<Navigate to="/departments/workflow?dept=3" replace />} />
+          <Route path="/accounts" element={<Navigate to="/departments/workflow?dept=3" replace />} />
+          <Route path="/drawing" element={<Navigate to="/departments/workflow?dept=4" replace />} />
+          <Route path="/drawing-oa" element={<Navigate to="/departments/workflow?dept=4" replace />} />
           <Route path="/projects/tracking/:trackingId" element={<ProjectTrackingTimeline />} />
           <Route path="/reports" element={<ReportsAnalytics />} />
 

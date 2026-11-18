@@ -393,6 +393,38 @@ const enquirySchema = new mongoose.Schema(
       submittedAt: Date,
       submittedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
     },
+    advancePaymentDetails: {
+      amount: { type: Number, default: 0 },
+      percentage: { type: Number, default: 50 },
+      paymentDate: { type: Date, default: null },
+      paymentMode: { type: String, default: 'RTGS' },
+      referenceNumber: { type: String, default: '' },
+      bankName: { type: String, default: '' },
+      status: { type: String, default: 'Pending' },
+      clearedAt: { type: Date, default: null },
+      clearedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      clearedByName: { type: String, default: '' },
+      remarks: { type: String, default: '' }
+    },
+    drawingOADetails: {
+      gaDrawingNumber: { type: String, default: '' },
+      sldDrawingNumber: { type: String, default: '' },
+      proformaInvoiceNumber: { type: String, default: '' },
+      proformaInvoiceDate: { type: Date, default: null },
+      orderAcknowledgementNumber: { type: String, default: '' },
+      orderAcknowledgementDate: { type: Date, default: null },
+      customerApprovalStatus: {
+        type: String,
+        default: 'Approved with Code 1 (Clean)'
+      },
+      ctRatioConfirmed: { type: String, default: '' },
+      targetDispatchDate: { type: Date, default: null },
+      attachmentUrl: { type: String, default: '' },
+      approvedAt: { type: Date, default: null },
+      approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      approvedByName: { type: String, default: '' },
+      remarks: { type: String, default: '' }
+    },
     handoverDetails: {
       isHandedOver: { type: Boolean, default: false },
       handedOverAt: Date,

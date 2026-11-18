@@ -11,8 +11,8 @@ import {
 import { USER_ROLES } from '../constants/roles.js';
 
 // Departments permitted to view full client identity and contact information
-// STRICT RULE: Only Sales & Marketing, Accountant, Delivery, and Installation visualize client details.
-const CLIENT_VISIBLE_DEPARTMENTS = ['SALES', 'ACCOUNTANT', 'DELIVERY', 'INSTALLATION'];
+// STRICT RULE: Sales & Marketing, Accountant, Drawing/OA, Delivery, and Installation visualize client details.
+const CLIENT_VISIBLE_DEPARTMENTS = ['SALES', 'ACCOUNTANT', 'DRAWING', 'DELIVERY', 'INSTALLATION'];
 
 /**
  * Sanitizes client data based strictly on requesting department.
@@ -471,11 +471,25 @@ export const departmentAction = async (req, res, next) => {
       attachmentUrl
     } = req.body;
 
-    // Only General Manager and Admin can approve or reject department stages
-    if (req.user.role !== USER_ROLES.MANAGER && req.user.role !== USER_ROLES.ADMIN) {
+    const workflow = await ProjectWorkflow.findOne({
+      $or: [{ _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null }, { projectTrackingId: id }]
+    });
+
+    if (!workflow) {
+      return res.status(404).json({ success: false, message: 'Project workflow not found.' });
+    }
+
+    const currentSeq = departmentSequence ? Number(departmentSequence) : workflow.currentDepartmentSequence;
+    const isManagerOrAdmin = req.user.role === USER_ROLES.MANAGER || req.user.role === USER_ROLES.ADMIN;
+    const isAccountantForStage3 = req.user.role === USER_ROLES.ACCOUNTANT && currentSeq === 3;
+
+    // General Manager and Admin can approve any stage; Accountant can approve Stage 3: Advance Payment
+    if (!isManagerOrAdmin && !isAccountantForStage3) {
       return res.status(403).json({
         success: false,
-        message: 'Access denied: Only General Manager and Admin are authorized to approve or reject department workflow stages. Sales & Marketing can only view project tracking status.'
+        message: req.user.role === USER_ROLES.ACCOUNTANT
+          ? 'Access denied: Accounts team is strictly authorized to approve and record Stage 3: Advance Payment.'
+          : 'Access denied: Only General Manager, Admin, and Accounts (for Stage 3) are authorized to approve or reject department workflow stages.'
       });
     }
 
@@ -486,15 +500,6 @@ export const departmentAction = async (req, res, next) => {
       });
     }
 
-    const workflow = await ProjectWorkflow.findOne({
-      $or: [{ _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null }, { projectTrackingId: id }]
-    });
-
-    if (!workflow) {
-      return res.status(404).json({ success: false, message: 'Project workflow not found.' });
-    }
-
-    const currentSeq = departmentSequence ? Number(departmentSequence) : workflow.currentDepartmentSequence;
     const currentDept = await Department.findOne({ sequenceNumber: currentSeq });
 
     if (!currentDept) {
@@ -531,6 +536,37 @@ export const departmentAction = async (req, res, next) => {
         workflow.lastRejectedDepartmentCode = null;
         workflow.rejectedAt = null;
         workflow.rejectedBy = null;
+      }
+
+      // If Stage 3 (Advance Payment) or advancePaymentDetails passed
+      if (req.body.advancePaymentDetails || currentSeq === 3) {
+        const apData = req.body.advancePaymentDetails || {};
+        workflow.advancePaymentDetails = {
+          ...(workflow.advancePaymentDetails || {}),
+          ...apData,
+          clearedAt: apData.clearedAt || new Date(),
+          clearedBy: req.user._id,
+          clearedByName: req.user.name,
+          status: apData.status || 'Cleared'
+        };
+        await Enquiry.findByIdAndUpdate(workflow.enquiryId, {
+          $set: { advancePaymentDetails: workflow.advancePaymentDetails }
+        });
+      }
+
+      // If Stage 4 (Drawing / Order Acknowledgement) or drawingOADetails passed
+      if (req.body.drawingOADetails || currentSeq === 4) {
+        const drawData = req.body.drawingOADetails || {};
+        workflow.drawingOADetails = {
+          ...(workflow.drawingOADetails || {}),
+          ...drawData,
+          approvedAt: drawData.approvedAt || new Date(),
+          approvedBy: req.user._id,
+          approvedByName: req.user.name
+        };
+        await Enquiry.findByIdAndUpdate(workflow.enquiryId, {
+          $set: { drawingOADetails: workflow.drawingOADetails }
+        });
       }
 
       // If Installation (Sequence 10), complete the workflow!
@@ -795,4 +831,83 @@ export const getDashboardStats = async (req, res, next) => {
     next(err);
   }
 };
+
+/**
+ * Update Advance Payment Details
+ */
+export const updateAdvancePayment = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { advancePaymentDetails } = req.body;
+
+    const workflow = await ProjectWorkflow.findOne({
+      $or: [{ _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null }, { projectTrackingId: id }]
+    });
+
+    if (!workflow) {
+      return res.status(404).json({ success: false, message: 'Project workflow not found.' });
+    }
+
+    workflow.advancePaymentDetails = {
+      ...(workflow.advancePaymentDetails || {}),
+      ...advancePaymentDetails,
+      updatedAt: new Date(),
+      updatedBy: req.user._id,
+      updatedByName: req.user.name
+    };
+
+    await workflow.save();
+    await Enquiry.findByIdAndUpdate(workflow.enquiryId, {
+      $set: { advancePaymentDetails: workflow.advancePaymentDetails }
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Advance Payment details saved successfully.',
+      workflow
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Update Drawing & Order Acknowledgement Details
+ */
+export const updateDrawingOADetails = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { drawingOADetails } = req.body;
+
+    const workflow = await ProjectWorkflow.findOne({
+      $or: [{ _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null }, { projectTrackingId: id }]
+    });
+
+    if (!workflow) {
+      return res.status(404).json({ success: false, message: 'Project workflow not found.' });
+    }
+
+    workflow.drawingOADetails = {
+      ...(workflow.drawingOADetails || {}),
+      ...(drawingOADetails || {}),
+      approvedAt: drawingOADetails?.approvedAt || new Date(),
+      approvedBy: req.user._id,
+      approvedByName: req.user.name
+    };
+
+    await workflow.save();
+    await Enquiry.findByIdAndUpdate(workflow.enquiryId, {
+      $set: { drawingOADetails: workflow.drawingOADetails }
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Drawing & Order Acknowledgement details saved successfully.',
+      workflow
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 

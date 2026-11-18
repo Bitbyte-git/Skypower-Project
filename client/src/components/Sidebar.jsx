@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   Truck,
   CreditCard,
+  FileText,
   BarChart3,
   Settings,
   X
@@ -17,18 +18,29 @@ import {
 import factoryBuildingImg from '../assets/sky-power-building.png';
 
 export const Sidebar = ({ isOpen = false, onClose = () => {} }) => {
-  const { user, isAdmin, isManager, isPOTeam } = useAuth();
+  const { user, isAdmin, isManager, isPOTeam, isAccountant } = useAuth();
   const location = useLocation();
 
   const getDashboardPath = () => {
     if (isAdmin) return '/admin/dashboard';
     if (isManager) return '/manager/dashboard';
     if (isPOTeam) return '/po/tracking';
+    if (isAccountant || user?.role === 'ACCOUNTANT') return '/departments/workflow?dept=3';
     return '/sales/dashboard';
   };
 
   const navItems = [
-    { name: isManager ? 'Manager Console' : isPOTeam ? 'PO Tracking Portal' : 'Dashboard', path: getDashboardPath(), icon: LayoutDashboard },
+    {
+      name: isManager
+        ? 'Manager Console'
+        : isPOTeam
+        ? 'PO Tracking Portal'
+        : isAccountant || user?.role === 'ACCOUNTANT'
+        ? 'Advance Payment Queue'
+        : 'Dashboard',
+      path: getDashboardPath(),
+      icon: isAccountant || user?.role === 'ACCOUNTANT' ? CreditCard : LayoutDashboard
+    },
     {
       name: '10-Dept Workflow',
       path: '/departments/workflow',
@@ -46,14 +58,21 @@ export const Sidebar = ({ isOpen = false, onClose = () => {} }) => {
     { name: 'Production', path: '/po/tracking', icon: Factory },
     { name: 'Quality Control', path: '/po/tracking', icon: ShieldCheck },
     { name: 'Dispatch & Delivery', path: '/po/tracking', icon: Truck },
-    { name: 'Accounts & Finance', path: '/quotations', icon: CreditCard },
+    { name: 'Advance Payment', path: '/departments/workflow?dept=3', icon: CreditCard, badge: 'Stage 3' },
+    { name: 'Drawing & OA', path: '/departments/workflow?dept=4', icon: FileText, badge: 'Stage 4' },
     { name: 'Reports & Analytics', path: '/reports', icon: BarChart3 },
     { name: 'System Setup', path: isAdmin ? '/admin/settings' : '/profile', icon: Settings }
   ];
 
   const checkIsActive = (itemPath) => {
+    if (itemPath === '/departments/workflow?dept=3') {
+      return location.pathname.startsWith('/departments/workflow') && location.search.includes('dept=3');
+    }
+    if (itemPath === '/departments/workflow?dept=4') {
+      return location.pathname.startsWith('/departments/workflow') && location.search.includes('dept=4');
+    }
     if (itemPath === '/departments/workflow') {
-      return location.pathname.startsWith('/departments/workflow');
+      return location.pathname.startsWith('/departments/workflow') && !location.search.includes('dept=3') && !location.search.includes('dept=4');
     }
     if (itemPath === '/workflow') {
       return (
