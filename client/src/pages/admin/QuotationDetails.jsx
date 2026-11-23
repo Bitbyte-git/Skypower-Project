@@ -15,8 +15,10 @@ import {
   RotateCcw,
   AlertCircle,
   CheckCircle2,
-  Printer
+  Printer,
+  ShoppingCart
 } from 'lucide-react';
+import { ConvertOrderModal } from '../orders/ConvertOrderModal';
 
 export const QuotationDetails = () => {
   const { id } = useParams();
@@ -29,6 +31,7 @@ export const QuotationDetails = () => {
 
   // Revision Modal State
   const [showReviseModal, setShowReviseModal] = useState(false);
+  const [showConvertModal, setShowConvertModal] = useState(false);
   const [revisionRemarks, setRevisionRemarks] = useState('');
   const [discountTotal, setDiscountTotal] = useState(0);
   const [revising, setRevising] = useState(false);
@@ -146,6 +149,16 @@ export const QuotationDetails = () => {
             >
               <Download className="w-4 h-4 mr-1.5" /> Download Generated PDF
             </a>
+          )}
+
+          {quotation.status !== 'Superseded' && (
+            <button
+              type="button"
+              onClick={() => setShowConvertModal(true)}
+              className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white rounded text-xs font-bold shadow-xs transition-colors"
+            >
+              <ShoppingCart className="w-3.5 h-3.5 mr-1.5" /> Convert to Order
+            </button>
           )}
 
           {isAdmin && quotation.status === 'Issued' && (
@@ -434,6 +447,14 @@ export const QuotationDetails = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Convert to Customer Order Modal */}
+      {showConvertModal && (
+        <ConvertOrderModal
+          quotation={quotation}
+          onClose={() => setShowConvertModal(false)}
+        />
       )}
     </div>
   );

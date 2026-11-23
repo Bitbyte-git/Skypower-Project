@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <rect width="100" height="100" rx="14" fill="#F8FAFC" />
+  <!-- Copper Busbar Bars Stacked -->
+  <rect x="15" y="24" width="70" height="12" rx="2" fill="#B45309" stroke="#78350F" stroke-width="1.5"/>
+  <rect x="15" y="44" width="70" height="12" rx="2" fill="#D97706" stroke="#92400E" stroke-width="1.5"/>
+  <rect x="15" y="64" width="70" height="12" rx="2" fill="#F59E0B" stroke="#B45309" stroke-width="1.5"/>
+  <!-- Bolt Holes -->
+  <circle cx="25" cy="30" r="3" fill="#F8FAFC" stroke="#78350F" stroke-width="1"/>
+  <circle cx="75" cy="30" r="3" fill="#F8FAFC" stroke="#78350F" stroke-width="1"/>
+  <circle cx="25" cy="50" r="3" fill="#F8FAFC" stroke="#92400E" stroke-width="1"/>
+  <circle cx="75" cy="50" r="3" fill="#F8FAFC" stroke="#92400E" stroke-width="1"/>
+  <circle cx="25" cy="70" r="3" fill="#F8FAFC" stroke="#B45309" stroke-width="1"/>
+  <circle cx="75" cy="70" r="3" fill="#F8FAFC" stroke="#B45309" stroke-width="1"/>
+  <!-- Copper Shine Highlight -->
+  <line x1="32" y1="27" x2="68" y2="27" stroke="#FDE68A" stroke-width="1.5"/>
+</svg>

@@ -109,16 +109,13 @@ export const generateQuotationPDF = async (quotation, client, companyProfile = {
          .text(refNumber, 45, 95);
       doc.text(`Date: ${offerDate}`, 430, 95, { align: 'right', width: 120 });
 
-      // Client Address
+      // Recipient (Client ID Only - Client company identity shielded)
       let y = 125;
-      doc.fillColor('#000000').fontSize(9).font('Times-Bold')
-         .text(`M/s. ${resolvedClient.companyName || 'Sivili Engineering Construction'},`, 45, y);
-      y += 13;
-
-      const clientAddr = resolvedClient.siteAddress || resolvedClient.clientLocation || resolvedClient.billingAddress?.city || 'Kancheepuram, Tamil Nadu.';
-      doc.font('Times-Roman')
-         .text(clientAddr, 45, y, { width: 350 });
-      y += 24;
+      doc.fillColor('#000000').fontSize(8.5).font('Times-Roman').text('To,', 45, y);
+      y += 12;
+      const cId = resolvedClient.clientId || quotation.clientCode || 'SP-CL-CLIENT';
+      doc.fillColor('#062B59').fontSize(9).font('Times-Bold').text(`Client ID: ${cId}`, 45, y);
+      y += 18;
 
       // Salutation & Subject
       doc.font('Times-Roman').text('Dear Sir,', 45, y);

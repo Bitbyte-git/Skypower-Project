@@ -4,6 +4,8 @@ import { DepartmentApproval } from '../models/DepartmentApproval.js';
 import { WorkflowHistory } from '../models/WorkflowHistory.js';
 import { Enquiry } from '../models/Enquiry.js';
 import { Client } from '../models/Client.js';
+import { PurchaseOrder } from '../models/PurchaseOrder.js';
+import { SalesOrder } from '../models/SalesOrder.js';
 import {
   PROJECT_WORKFLOW_STATUSES,
   DEPARTMENT_APPROVAL_STATUSES
@@ -244,7 +246,13 @@ export const getProjectWorkflowById = async (req, res, next) => {
         .populate('currentDepartmentId')
         .populate('lastRejectedDepartmentId');
     } else {
-      workflow = await ProjectWorkflow.findOne({ projectTrackingId: id.trim() })
+      const trimmedId = id.trim();
+      const enq = await Enquiry.findOne({ ern: trimmedId }).select('_id');
+      const orConditions = [{ projectTrackingId: trimmedId }];
+      if (enq) {
+        orConditions.push({ enquiryId: enq._id });
+      }
+      workflow = await ProjectWorkflow.findOne({ $or: orConditions })
         .populate({
           path: 'enquiryId',
           populate: { path: 'clientId' }
@@ -482,14 +490,17 @@ export const departmentAction = async (req, res, next) => {
     const currentSeq = departmentSequence ? Number(departmentSequence) : workflow.currentDepartmentSequence;
     const isManagerOrAdmin = req.user.role === USER_ROLES.MANAGER || req.user.role === USER_ROLES.ADMIN;
     const isAccountantForStage3 = req.user.role === USER_ROLES.ACCOUNTANT && currentSeq === 3;
+    const isPOTeamForStage2 = req.user.role === USER_ROLES.PO_TEAM && currentSeq === 2;
 
-    // General Manager and Admin can approve any stage; Accountant can approve Stage 3: Advance Payment
-    if (!isManagerOrAdmin && !isAccountantForStage3) {
+    // General Manager and Admin can approve any stage; Accountant for Stage 3; PO Team for Stage 2
+    if (!isManagerOrAdmin && !isAccountantForStage3 && !isPOTeamForStage2) {
       return res.status(403).json({
         success: false,
         message: req.user.role === USER_ROLES.ACCOUNTANT
           ? 'Access denied: Accounts team is strictly authorized to approve and record Stage 3: Advance Payment.'
-          : 'Access denied: Only General Manager, Admin, and Accounts (for Stage 3) are authorized to approve or reject department workflow stages.'
+          : req.user.role === USER_ROLES.PO_TEAM
+          ? 'Access denied: PO Team is authorized to verify and approve Stage 2: Purchase Order review.'
+          : 'Access denied: Only General Manager, Admin, and authorized department roles can approve or reject workflow stages.'
       });
     }
 
@@ -528,6 +539,36 @@ export const departmentAction = async (req, res, next) => {
         }
       );
 
+      // If Stage 2 (PO Team): sync PurchaseOrder record to Completed and update SalesOrder
+      if (currentSeq === 2) {
+        await PurchaseOrder.findOneAndUpdate(
+          { enquiryId: workflow.enquiryId },
+          {
+            $set: { status: 'Completed', updatedAt: new Date() },
+            $push: {
+              timeline: {
+                status: 'Completed',
+                notes: remarks || 'Purchase Order verified and cleared for Stage 3 Advance Payment.',
+                updatedBy: req.user._id,
+                updatedAt: new Date()
+              }
+            }
+          }
+        );
+
+        await SalesOrder.findOneAndUpdate(
+          { enquiryId: workflow.enquiryId },
+          {
+            $set: {
+              status: 'Verified',
+              'verification.isVerified': true,
+              'verification.status': 'Verified',
+              updatedAt: new Date()
+            }
+          }
+        );
+      }
+
       // If re-accepting, clear earlier rejection state
       if (action === 'REACCEPT') {
         workflow.rejectionReason = null;
@@ -557,9 +598,33 @@ export const departmentAction = async (req, res, next) => {
       // If Stage 4 (Drawing / Order Acknowledgement) or drawingOADetails passed
       if (req.body.drawingOADetails || currentSeq === 4) {
         const drawData = req.body.drawingOADetails || {};
+        const currentDrawingPdf = drawData.drawingPdfUrl || workflow.drawingOADetails?.drawingPdfUrl;
+
+        // Strict: Drawing PDF must be uploaded before Admin can verify or advance to Stage 5
+        if (!currentDrawingPdf) {
+          return res.status(400).json({
+            success: false,
+            message: 'Drawing PDF is required: The user must upload the official Drawing PDF before Admin verification and approval.'
+          });
+        }
+
+        // Strict: Only Admin or General Manager can perform the final verification to move to Stage 5
+        if (req.user.role !== 'ADMIN' && req.user.role !== 'MANAGER') {
+          return res.status(403).json({
+            success: false,
+            message: 'Drawing PDF has been uploaded and is pending Admin verification. Only an Administrator or Operations Manager can verify drawings and advance the project to Stage 5.'
+          });
+        }
+
         workflow.drawingOADetails = {
           ...(workflow.drawingOADetails || {}),
           ...drawData,
+          drawingPdfUrl: currentDrawingPdf,
+          adminVerificationStatus: 'Verified & Approved',
+          adminVerifiedAt: new Date(),
+          adminVerifiedBy: req.user._id,
+          adminVerifiedByName: req.user.name,
+          adminVerificationRemarks: remarks || 'Drawing PDF verified and approved by Admin.',
           approvedAt: drawData.approvedAt || new Date(),
           approvedBy: req.user._id,
           approvedByName: req.user.name
@@ -903,6 +968,80 @@ export const updateDrawingOADetails = async (req, res, next) => {
     return res.status(200).json({
       success: true,
       message: 'Drawing & Order Acknowledgement details saved successfully.',
+      workflow
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Upload Drawing PDF for Stage 4 (Drawing / OA)
+ */
+export const uploadWorkflowDrawingPdf = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'Please select a Drawing PDF file to upload.' });
+    }
+
+    const workflow = await ProjectWorkflow.findOne({
+      $or: [{ _id: id.match(/^[0-9a-fA-F]{24}$/) ? id : null }, { projectTrackingId: id }]
+    });
+
+    if (!workflow) {
+      return res.status(404).json({ success: false, message: 'Project workflow not found.' });
+    }
+
+    const drawingPdfUrl = `/uploads/${req.file.filename}`;
+    const drawingPdfName = req.file.originalname;
+
+    let meta = {};
+    if (req.body.drawingOADetails) {
+      try {
+        meta = typeof req.body.drawingOADetails === 'string' ? JSON.parse(req.body.drawingOADetails) : req.body.drawingOADetails;
+      } catch (e) {
+        meta = {};
+      }
+    }
+
+    workflow.drawingOADetails = {
+      ...(workflow.drawingOADetails || {}),
+      ...meta,
+      drawingPdfUrl,
+      drawingPdfName,
+      drawingPdfUploadedAt: new Date(),
+      drawingPdfUploadedBy: req.user._id,
+      drawingPdfUploadedByName: req.user.name,
+      adminVerificationStatus: 'Pending Admin Verification'
+    };
+
+    await workflow.save();
+    await Enquiry.findByIdAndUpdate(workflow.enquiryId, {
+      $set: { drawingOADetails: workflow.drawingOADetails }
+    });
+
+    // Record in WorkflowHistory
+    await WorkflowHistory.create({
+      workflowId: workflow._id,
+      enquiryId: workflow.enquiryId,
+      projectTrackingId: workflow.projectTrackingId,
+      departmentCode: 'DRAWING',
+      departmentName: 'Drawing / Order Acknowledgement',
+      action: 'Drawing Uploaded',
+      actionBy: req.user._id,
+      actionByName: req.user.name,
+      actionByRole: req.user.role,
+      previousStatus: workflow.overallStatus,
+      newStatus: workflow.overallStatus,
+      remarks: `Drawing PDF (${drawingPdfName}) uploaded by ${req.user.name}. Status: Pending Admin Verification.`
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Drawing PDF uploaded successfully. Awaiting Admin verification.',
+      drawingOADetails: workflow.drawingOADetails,
       workflow
     });
   } catch (err) {

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <rect width="100" height="100" rx="14" fill="#F8FAFC" />
+  <!-- Main Contactor Housing -->
+  <rect x="20" y="16" width="60" height="68" rx="6" fill="#1E293B" stroke="#0F172A" stroke-width="2"/>
+  <!-- Top Terminals -->
+  <rect x="25" y="10" width="12" height="10" rx="2" fill="#94A3B8"/>
+  <rect x="44" y="10" width="12" height="10" rx="2" fill="#94A3B8"/>
+  <rect x="63" y="10" width="12" height="10" rx="2" fill="#94A3B8"/>
+  <!-- Bottom Terminals -->
+  <rect x="25" y="80" width="12" height="10" rx="2" fill="#94A3B8"/>
+  <rect x="44" y="80" width="12" height="10" rx="2" fill="#94A3B8"/>
+  <rect x="63" y="80" width="12" height="10" rx="2" fill="#94A3B8"/>
+  <!-- Center Faceplate (Blue/Slate) -->
+  <rect x="26" y="28" width="48" height="44" rx="4" fill="#0284C7"/>
+  <!-- Plunger Core (Orange / Blue) -->
+  <rect x="36" y="38" width="28" height="24" rx="3" fill="#EA580C" stroke="#C2410C" stroke-width="1.5"/>
+  <text x="50" y="53" font-family="sans-serif" font-size="8" font-weight="900" fill="#FFFFFF" text-anchor="middle">40A</text>
+  <!-- Screws -->
+  <circle cx="31" cy="15" r="2" fill="#475569"/>
+  <circle cx="50" cy="15" r="2" fill="#475569"/>
+  <circle cx="69" cy="15" r="2" fill="#475569"/>
+</svg>

@@ -23,30 +23,42 @@ import {
   ShieldCheck,
   ShieldAlert,
   Download,
-  CreditCard
+  CreditCard,
+  Boxes,
+  Upload,
+  FileCheck2,
+  FileDown
 } from 'lucide-react';
 import { downloadEnquiryPDF } from '../../utils/pdfMakerService';
+import { LiveStockDrawer } from '../../components/inventory/LiveStockDrawer';
 
 const DEPARTMENTS = [
-  { sequence: 1, code: 'SALES', name: 'Sales & Marketing', canViewClient: true },
-  { sequence: 2, code: 'PO_TEAM', name: 'PO Team', canViewClient: false },
-  { sequence: 3, code: 'ACCOUNTANT', name: 'Advance Payment', canViewClient: true },
-  { sequence: 4, code: 'DRAWING', name: 'Drawing / Order Acknowledgement', canViewClient: true },
-  { sequence: 5, code: 'CT_PT', name: 'CT & PT', canViewClient: false },
-  { sequence: 6, code: 'FABRICATION', name: 'Fabrication', canViewClient: false },
-  { sequence: 7, code: 'METERING_DOOR', name: 'Metering Door', canViewClient: false },
-  { sequence: 8, code: 'TESTING', name: 'Testing', canViewClient: false },
-  { sequence: 9, code: 'DELIVERY', name: 'Delivery', canViewClient: true },
-  { sequence: 10, code: 'INSTALLATION', name: 'Installation', canViewClient: true }
+  { sequence: 1, code: 'SALES', name: 'Sales & Marketing', canViewClient: true, canViewCommercial: true },
+  { sequence: 2, code: 'PO_TEAM', name: 'PO Team', canViewClient: false, canViewCommercial: false },
+  { sequence: 3, code: 'ACCOUNTANT', name: 'Advance Payment', canViewClient: true, canViewCommercial: true },
+  { sequence: 4, code: 'DRAWING', name: 'Drawing / Order Acknowledgement', canViewClient: false, canViewCommercial: false },
+  { sequence: 5, code: 'CT_PT', name: 'CT & PT', canViewClient: false, canViewCommercial: false },
+  { sequence: 6, code: 'FABRICATION', name: 'Fabrication', canViewClient: false, canViewCommercial: false },
+  { sequence: 7, code: 'METERING_DOOR', name: 'Metering Door', canViewClient: false, canViewCommercial: false },
+  { sequence: 8, code: 'TESTING', name: 'Testing', canViewClient: false, canViewCommercial: false },
+  { sequence: 9, code: 'DELIVERY', name: 'Delivery', canViewClient: false, canViewCommercial: false },
+  { sequence: 10, code: 'INSTALLATION', name: 'Installation', canViewClient: false, canViewCommercial: false }
 ];
 
 export const DepartmentWorkflowView = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { user, isAdmin, isManager, isSales, isAccountant } = useAuth();
+  const { user, isAdmin, isManager, isSales, isAccountant, isPOTeam, isDesignEngineer } = useAuth();
+  const [uploadingPdf, setUploadingPdf] = useState(false);
+  const [drawingChecklist, setDrawingChecklist] = useState({
+    dimensions: true,
+    sld: true,
+    ratings: true,
+    ctpt: true
+  });
 
-  // Selected Department (default from URL or sequence 3 for Accountant, otherwise 2)
-  const initialDeptSeq = Number(searchParams.get('dept')) || (user?.role === 'ACCOUNTANT' ? 3 : 2);
+  // Selected Department (default from URL or sequence 3 for Accountant, sequence 4 for Design Engineer, otherwise 2)
+  const initialDeptSeq = Number(searchParams.get('dept')) || (user?.role === 'ACCOUNTANT' ? 3 : (user?.role === 'DESIGN_ENGINEER' ? 4 : 2));
   const [selectedDeptSeq, setSelectedDeptSeq] = useState(initialDeptSeq);
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || 'ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -66,6 +78,8 @@ export const DepartmentWorkflowView = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [stats, setStats] = useState(null);
+  const [stockDrawerOpen, setStockDrawerOpen] = useState(false);
+  const [selectedProjectForStock, setSelectedProjectForStock] = useState(null);
 
   // Modals
   const [actionModal, setActionModal] = useState({
@@ -198,7 +212,14 @@ export const DepartmentWorkflowView = () => {
         customerApprovalStatus: existingDraw.customerApprovalStatus || 'Approved with Code 1 (Clean)',
         ctRatioConfirmed: defaultCTRatio,
         targetDispatchDate: defaultDispatchDate,
-        attachmentUrl: existingDraw.attachmentUrl || ''
+        attachmentUrl: existingDraw.attachmentUrl || '',
+        drawingPdfUrl: existingDraw.drawingPdfUrl || '',
+        drawingPdfName: existingDraw.drawingPdfName || '',
+        drawingPdfUploadedAt: existingDraw.drawingPdfUploadedAt || null,
+        drawingPdfUploadedByName: existingDraw.drawingPdfUploadedByName || '',
+        adminVerificationStatus: existingDraw.adminVerificationStatus || 'Pending Upload',
+        adminVerifiedByName: existingDraw.adminVerifiedByName || '',
+        adminVerificationRemarks: existingDraw.adminVerificationRemarks || ''
       }
     });
   };
@@ -232,9 +253,56 @@ export const DepartmentWorkflowView = () => {
         customerApprovalStatus: 'Approved with Code 1 (Clean)',
         ctRatioConfirmed: '',
         targetDispatchDate: '',
-        attachmentUrl: ''
+        attachmentUrl: '',
+        drawingPdfUrl: '',
+        drawingPdfName: '',
+        drawingPdfUploadedAt: null,
+        drawingPdfUploadedByName: '',
+        adminVerificationStatus: 'Pending Upload',
+        adminVerifiedByName: '',
+        adminVerificationRemarks: ''
       }
     });
+  };
+
+  const handleDrawingPdfUpload = async (file) => {
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      setActionModal((prev) => ({
+        ...prev,
+        validationError: 'Please select a valid PDF drawing file (.pdf)'
+      }));
+      return;
+    }
+    try {
+      setUploadingPdf(true);
+      setActionModal((prev) => ({ ...prev, validationError: '' }));
+      const formData = new FormData();
+      formData.append('drawingPdf', file);
+      formData.append('drawingOADetails', JSON.stringify(actionModal.drawingOADetails));
+
+      const res = await api.post(`/project-workflows/${actionModal.workflow._id}/upload-drawing`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      if (res.success && res.drawingOADetails) {
+        setActionModal((prev) => ({
+          ...prev,
+          drawingOADetails: {
+            ...prev.drawingOADetails,
+            ...res.drawingOADetails
+          }
+        }));
+        fetchWorkflows();
+      }
+    } catch (err) {
+      setActionModal((prev) => ({
+        ...prev,
+        validationError: err.response?.data?.message || err.message || 'Failed to upload Drawing PDF.'
+      }));
+    } finally {
+      setUploadingPdf(false);
+    }
   };
 
   const executeAction = async () => {
@@ -256,6 +324,24 @@ export const DepartmentWorkflowView = () => {
         setActionModal((prev) => ({
           ...prev,
           validationError: 'Re-assignment and resolution remarks are strictly mandatory.'
+        }));
+        return;
+      }
+    }
+
+    // Strict Stage 4 Drawing PDF & Admin Verification Guard
+    if (selectedDeptSeq === 4 && (type === 'ACCEPT' || type === 'REACCEPT')) {
+      if (!drawingOADetails.drawingPdfUrl) {
+        setActionModal((prev) => ({
+          ...prev,
+          validationError: 'Drawing PDF is required: Please upload the official Drawing PDF before Admin verification.'
+        }));
+        return;
+      }
+      if (!isAdmin && !isManager) {
+        setActionModal((prev) => ({
+          ...prev,
+          validationError: 'Drawing PDF has been uploaded and is pending Admin verification. Only Executive Admin or Operations Manager can verify the drawing and advance the project to Stage 5.'
         }));
         return;
       }
@@ -472,25 +558,25 @@ export const DepartmentWorkflowView = () => {
       {/* Department Notice Banner: Strict Client Data Visibility & Quotation Download Rule */}
       <div
         className={`rounded-xl p-3.5 border flex items-center justify-between text-xs font-medium ${
-          activeDept.canViewClient
+          activeDept.canViewCommercial && !isDesignEngineer && !isPOTeam
             ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900'
-            : 'bg-amber-50/80 border-amber-200 text-amber-900'
+            : 'bg-blue-50/80 border-blue-200 text-blue-900'
         }`}
       >
         <div className="flex items-center space-x-2.5">
-          {activeDept.canViewClient ? (
+          {activeDept.canViewCommercial && !isDesignEngineer && !isPOTeam ? (
             <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
           ) : (
-            <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0" />
+            <ShieldCheck className="w-5 h-5 text-blue-600 shrink-0" />
           )}
           <span>
-            {activeDept.canViewClient ? (
+            {activeDept.canViewCommercial && !isDesignEngineer && !isPOTeam ? (
               <>
-                <strong>Client & Commercial Quotation Access Authorized:</strong> Stage {activeDept.sequence} ({activeDept.name}) has full permission to view customer details and download official quotation PDFs.
+                <strong>Commercial Finance &amp; Payment Stage:</strong> Stage {activeDept.sequence} ({activeDept.name}) is authorized to view commercial pricing, quotation totals, and advance payments.
               </>
             ) : (
               <>
-                <strong>Technical Stage (No Client / Commercial Access):</strong> Client contact details and commercial quotation downloads are restricted for {activeDept.name}. Only engineering specifications are visualized.
+                <strong>Technical Stage (Commercial &amp; Amount Data Shield Active):</strong> All pricing, project monetary amounts, and payment values are hidden to maintain commercial confidentiality. Only technical engineering ratings and switchgear specifications are displayed.
               </>
             )}
           </span>
@@ -522,24 +608,39 @@ export const DepartmentWorkflowView = () => {
           ))}
         </div>
 
-        <div className="relative w-full md:w-72">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-          <input
-            type="text"
-            placeholder="Search Tracking ID, ERN, Project..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-8 py-1.5 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
-              title="Clear search filter"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          )}
+        <div className="flex items-center space-x-2">
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedProjectForStock(null);
+              setStockDrawerOpen(true);
+            }}
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-teal-50 text-teal-800 border border-teal-200 hover:bg-teal-100 transition-all cursor-pointer shadow-2xs"
+            title="Check Live Material Stock Levels in Stores"
+          >
+            <Boxes className="w-3.5 h-3.5 text-teal-600" />
+            <span>Stores Stock Check</span>
+          </button>
+
+          <div className="relative w-full md:w-64">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+            <input
+              type="text"
+              placeholder="Search Tracking ID, ERN..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-8 py-1.5 text-xs rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                title="Clear search filter"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -642,16 +743,22 @@ export const DepartmentWorkflowView = () => {
                             <span className="inline-block text-[10px] font-semibold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
                               {enq.project?.segment || 'Renewable'} &bull; Qty: {enq.products?.length || 1}
                             </span>
-                            <span className="text-[11px] font-mono font-extrabold text-slate-900 bg-blue-50/80 text-blue-900 px-2 py-0.5 rounded border border-blue-200">
-                              ₹ {Number(enq.commercialPricing?.totalAmount || enq.expectedProjectValue || 0).toLocaleString('en-IN')}
-                            </span>
+                            {activeDept.canViewCommercial && !isDesignEngineer && !isPOTeam && (isAdmin || isManager || isAccountant || isSales) ? (
+                              <span className="text-[11px] font-mono font-extrabold text-slate-900 bg-blue-50/80 text-blue-900 px-2 py-0.5 rounded border border-blue-200">
+                                ₹ {Number(enq.commercialPricing?.totalAmount || enq.expectedProjectValue || 0).toLocaleString('en-IN')}
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold text-indigo-900 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+                                {enq.products?.[0]?.kilovolt || '11kV'} &bull; {enq.products?.[0]?.ampere || '630A'}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </td>
 
                       {/* Client Info or Technical Scope based on activeDept.canViewClient */}
                       <td className="py-3.5 px-4 align-top max-w-xs">
-                        {activeDept.canViewClient ? (
+                        {activeDept.canViewClient && !isDesignEngineer && !isPOTeam ? (
                           <div className="space-y-0.5">
                             <p className="font-bold text-slate-900">{client.companyName || 'N/A'}</p>
                             <p className="text-[11px] text-slate-600">
@@ -679,7 +786,7 @@ export const DepartmentWorkflowView = () => {
                             </p>
                             <div className="inline-flex items-center px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 text-[10px] font-medium border border-slate-200">
                               <Lock className="w-2.5 h-2.5 mr-1 text-slate-400" />
-                              <span>Client Details Hidden</span>
+                              <span>{client.clientCode ? `Client ID: ${client.clientCode}` : 'Client Commercial Protected'}</span>
                             </div>
                           </div>
                         )}
@@ -708,8 +815,8 @@ export const DepartmentWorkflowView = () => {
                             {w.overallStatus}
                           </p>
 
-                          {/* Stage 3 Advance Payment Badge */}
-                          {(selectedDeptSeq === 3 || w.advancePaymentDetails?.amount > 0) && w.advancePaymentDetails?.amount > 0 && (
+                          {/* Stage 3 Advance Payment Badge - Strictly visible only in Stage 3 for Accountant/Admin */}
+                          {selectedDeptSeq === 3 && (isAdmin || isManager || isAccountant) && w.advancePaymentDetails?.amount > 0 ? (
                             <div className="mt-1 p-1.5 bg-emerald-50 border border-emerald-200 rounded text-[10px] text-emerald-800 font-bold space-y-0.5">
                               <div className="flex items-center space-x-1">
                                 <CreditCard className="w-3 h-3 text-emerald-600 shrink-0" />
@@ -721,17 +828,66 @@ export const DepartmentWorkflowView = () => {
                                 </span>
                               )}
                             </div>
+                          ) : (
+                            /* In Stage 4 or other technical stages: show simple badge indicating commercial clearance without any money figures */
+                            (w.advancePaymentDetails?.status === 'Received & Cleared' || w.advancePaymentDetails?.amount > 0) && (
+                              <div className="mt-1 p-1 bg-emerald-50 border border-emerald-200 rounded text-[10px] text-emerald-800 font-bold flex items-center space-x-1">
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
+                                <span>Advance Cleared</span>
+                              </div>
+                            )
                           )}
 
                           {/* Stage 4 Drawing & OA Badge */}
-                          {(selectedDeptSeq === 4 || w.drawingOADetails?.gaDrawingNumber) && w.drawingOADetails?.gaDrawingNumber && (
-                            <div className="mt-1 p-1.5 bg-blue-50 border border-blue-200 rounded text-[10px] text-blue-900 font-bold space-y-0.5">
-                              <div className="flex items-center space-x-1">
-                                <FileText className="w-3 h-3 text-blue-600 shrink-0" />
-                                <span>GA: {w.drawingOADetails.gaDrawingNumber}</span>
+                          {(selectedDeptSeq === 4 || w.drawingOADetails?.gaDrawingNumber || w.drawingOADetails?.drawingPdfUrl) && (
+                            <div className="mt-1 p-2 bg-blue-50/80 border border-blue-200 rounded-lg text-[10px] space-y-1">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-1 font-bold text-blue-900">
+                                  <FileText className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                                  <span>GA: {w.drawingOADetails?.gaDrawingNumber || 'Drawing Pending'}</span>
+                                </div>
+                                {w.drawingOADetails?.drawingPdfUrl ? (
+                                  <a
+                                    href={`http://localhost:5000${w.drawingOADetails.drawingPdfUrl}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center text-[10px] font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 px-1.5 py-0.5 rounded transition-colors"
+                                    title="View Uploaded Drawing PDF"
+                                  >
+                                    <FileDown className="w-3 h-3 mr-0.5 text-red-600" />
+                                    <span>PDF</span>
+                                  </a>
+                                ) : (
+                                  <span className="text-[9px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.2 rounded">
+                                    No PDF
+                                  </span>
+                                )}
                               </div>
-                              <span className="text-[9px] text-slate-600 font-mono block">
-                                OA: {w.drawingOADetails.orderAcknowledgementNumber || 'Issued'} &bull; {w.drawingOADetails.customerApprovalStatus || 'Code 1'}
+
+                              {/* Admin Verification Status Pill */}
+                              {w.drawingOADetails?.drawingPdfUrl && (
+                                <div className="pt-0.5">
+                                  {w.drawingOADetails?.adminVerificationStatus === 'Verified & Approved' ? (
+                                    <span className="inline-flex items-center text-[9px] font-bold text-emerald-800 bg-emerald-100/80 border border-emerald-300 px-1.5 py-0.5 rounded">
+                                      <ShieldCheck className="w-2.5 h-2.5 mr-1 text-emerald-700" />
+                                      Verified by {w.drawingOADetails.adminVerifiedByName || 'Admin'}
+                                    </span>
+                                  ) : w.drawingOADetails?.adminVerificationStatus === 'Revision Required' ? (
+                                    <span className="inline-flex items-center text-[9px] font-bold text-rose-800 bg-rose-100/80 border border-rose-300 px-1.5 py-0.5 rounded">
+                                      <AlertTriangle className="w-2.5 h-2.5 mr-1 text-rose-700" />
+                                      Revision Requested
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center text-[9px] font-bold text-amber-800 bg-amber-100/80 border border-amber-300 px-1.5 py-0.5 rounded">
+                                      <Clock className="w-2.5 h-2.5 mr-1 text-amber-700" />
+                                      Pending Admin Verification
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                              
+                              <span className="text-[9px] text-slate-500 font-mono block">
+                                OA: {w.drawingOADetails?.orderAcknowledgementNumber || 'Pending'} &bull; {w.drawingOADetails?.customerApprovalStatus || 'Code 1'}
                               </span>
                             </div>
                           )}
@@ -741,16 +897,29 @@ export const DepartmentWorkflowView = () => {
                       {/* Actions */}
                       <td className="py-3.5 px-4 align-top text-right">
                         <div className="flex flex-col items-end space-y-1.5">
-                          {/* Timeline Link */}
-                          <button
-                            onClick={() => navigate(`/projects/tracking/${w.projectTrackingId}`)}
-                            className="inline-flex items-center text-xs font-bold text-blue-600 hover:text-blue-800"
-                          >
-                            <Eye className="w-3.5 h-3.5 mr-1" /> View Timeline
-                          </button>
+                          {/* Timeline Link & Stock Check */}
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => {
+                                setSelectedProjectForStock(w);
+                                setStockDrawerOpen(true);
+                              }}
+                              className="inline-flex items-center text-[11px] font-bold text-teal-700 hover:text-teal-900 bg-teal-50 px-2 py-0.5 rounded border border-teal-200 cursor-pointer"
+                              title="Check Material Stock Availability"
+                            >
+                              <Boxes className="w-3 h-3 mr-1 text-teal-600" /> Stock
+                            </button>
 
-                          {/* Quotation PDF Download: Strictly available only for the 4 departments permitted to view client details */}
-                          {activeDept.canViewClient && (
+                            <button
+                              onClick={() => navigate(`/projects/tracking/${w.projectTrackingId}`)}
+                              className="inline-flex items-center text-xs font-bold text-blue-600 hover:text-blue-800"
+                            >
+                              <Eye className="w-3.5 h-3.5 mr-1" /> View Timeline
+                            </button>
+                          </div>
+
+                          {/* Quotation PDF Download: Strictly available only for commercial authorized departments */}
+                          {activeDept.canViewCommercial && !isDesignEngineer && !isPOTeam && (isAdmin || isManager || isAccountant || isSales) && (
                             <button
                               onClick={() => downloadEnquiryPDF(enq)}
                               className="inline-flex items-center text-[11px] font-semibold text-slate-600 hover:text-slate-900"
@@ -759,8 +928,8 @@ export const DepartmentWorkflowView = () => {
                             </button>
                           )}
 
-                          {/* Department 2 to 10 Accept / Reject Buttons: General Manager, Admin, and Accountant (for Stage 3) */}
-                          {(isAdmin || isManager || (isAccountant && selectedDeptSeq === 3)) && (
+                          {/* Department 2 to 10 Accept / Reject Buttons: General Manager, Admin, Accountant (for Stage 3), PO Team (for Stage 2), and Design Engineer (for Stage 4) */}
+                          {(isAdmin || isManager || (isAccountant && selectedDeptSeq === 3) || (isPOTeam && selectedDeptSeq === 2) || (isDesignEngineer && selectedDeptSeq === 4)) && (
                             <div className="flex items-center space-x-1.5 pt-1">
                               {/* If project was REJECTED at this department: Show Re-assign & Re-Accept */}
                               {currentApp?.status === 'Rejected' && (
@@ -779,7 +948,17 @@ export const DepartmentWorkflowView = () => {
                                 <>
                                   <button
                                     onClick={() => openActionModal('ACCEPT', w)}
-                                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-bold shadow-xs transition-colors cursor-pointer flex items-center space-x-1"
+                                    className={`px-2.5 py-1 text-white rounded text-[11px] font-bold shadow-xs transition-colors cursor-pointer flex items-center space-x-1 ${
+                                      selectedDeptSeq === 4
+                                        ? isAdmin || isManager
+                                          ? w.drawingOADetails?.drawingPdfUrl
+                                            ? 'bg-emerald-600 hover:bg-emerald-700'
+                                            : 'bg-amber-600 hover:bg-amber-700'
+                                          : w.drawingOADetails?.drawingPdfUrl
+                                          ? 'bg-indigo-600 hover:bg-indigo-700'
+                                          : 'bg-blue-600 hover:bg-blue-700'
+                                        : 'bg-emerald-600 hover:bg-emerald-700'
+                                    }`}
                                   >
                                     {selectedDeptSeq === 2 ? (
                                       <span>Approve PO &amp; Forward →</span>
@@ -789,29 +968,52 @@ export const DepartmentWorkflowView = () => {
                                         <span>Clear Advance Payment</span>
                                       </>
                                     ) : selectedDeptSeq === 4 ? (
-                                      <>
-                                        <FileText className="w-3 h-3 mr-0.5" />
-                                        <span>Approve Drawing &amp; OA →</span>
-                                      </>
+                                      isAdmin || isManager ? (
+                                        w.drawingOADetails?.drawingPdfUrl ? (
+                                          <>
+                                            <ShieldCheck className="w-3.5 h-3.5 mr-1" />
+                                            <span>Verify &amp; Approve Drawing →</span>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <Upload className="w-3.5 h-3.5 mr-1" />
+                                            <span>Review &amp; Upload PDF</span>
+                                          </>
+                                        )
+                                      ) : (
+                                        w.drawingOADetails?.drawingPdfUrl ? (
+                                          <>
+                                            <Clock className="w-3.5 h-3.5 mr-1" />
+                                            <span>Drawing Uploaded (Awaiting Admin)</span>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <Upload className="w-3.5 h-3.5 mr-1" />
+                                            <span>Upload Drawing (PDF)</span>
+                                          </>
+                                        )
+                                      )
                                     ) : (
                                       <span>Accept</span>
                                     )}
                                   </button>
-                                  <button
-                                    onClick={() => openActionModal('REJECT', w)}
-                                    className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded text-[11px] font-bold shadow-xs transition-colors cursor-pointer"
-                                  >
-                                    Reject
-                                  </button>
+                                  {(isAdmin || isManager) && (
+                                    <button
+                                      onClick={() => openActionModal('REJECT', w)}
+                                      className="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded text-[11px] font-bold shadow-xs transition-colors cursor-pointer"
+                                    >
+                                      Reject
+                                    </button>
+                                  )}
                                 </>
                               )}
                             </div>
                           )}
 
-                          {/* Sales & Marketing View Indicator */}
-                          {!isAdmin && !isManager && !isAccountant && isCurrentDept && currentApp?.status !== 'Accepted' && (
+                          {/* Action indicator when user is view-only */}
+                          {!isAdmin && !isManager && !(isAccountant && selectedDeptSeq === 3) && !(isPOTeam && selectedDeptSeq === 2) && !(isDesignEngineer && selectedDeptSeq === 4) && isCurrentDept && currentApp?.status !== 'Accepted' && (
                             <span className="text-[10px] text-slate-400 font-medium italic pt-1">
-                              Tracking (Manager Action)
+                              Tracking ({activeDept.name} Action)
                             </span>
                           )}
 
@@ -1201,6 +1403,194 @@ export const DepartmentWorkflowView = () => {
                         {actionModal.workflow?.enquiryId?.project?.projectName || 'Switchgear Engineering'}
                       </span>
                     </div>
+                  </div>
+
+                  {/* MANDATORY: Drawing PDF Upload & Admin Verification Box */}
+                  <div className="p-3.5 rounded-xl bg-white border-2 border-dashed border-blue-300 shadow-2xs space-y-3">
+                    <div className="flex items-center justify-between border-b border-blue-100 pb-2">
+                      <div className="flex items-center space-x-2">
+                        <FileText className="w-4 h-4 text-red-600" />
+                        <span className="font-extrabold text-slate-800 text-xs">
+                          Official Drawing PDF <span className="text-rose-600">*</span>
+                        </span>
+                      </div>
+                      {actionModal.drawingOADetails?.drawingPdfUrl ? (
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 flex items-center space-x-1">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          <span>PDF Attached</span>
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200 flex items-center space-x-1">
+                          <AlertCircle className="w-3 h-3 text-rose-600" />
+                          <span>PDF Required for Verification</span>
+                        </span>
+                      )}
+                    </div>
+
+                    {/* If PDF already uploaded */}
+                    {actionModal.drawingOADetails?.drawingPdfUrl ? (
+                      <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                        <div className="flex items-center space-x-2.5">
+                          <div className="w-9 h-9 rounded-lg bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+                            <FileText className="w-5 h-5 text-red-600" />
+                          </div>
+                          <div>
+                            <span className="font-bold text-slate-900 text-xs block">
+                              {actionModal.drawingOADetails.drawingPdfName || 'Engineering_Drawing.pdf'}
+                            </span>
+                            <span className="text-[10px] text-slate-500 block">
+                              Uploaded by: {actionModal.drawingOADetails.drawingPdfUploadedByName || 'Design Engineer'}
+                              {actionModal.drawingOADetails.drawingPdfUploadedAt && (
+                                <> &bull; {new Date(actionModal.drawingOADetails.drawingPdfUploadedAt).toLocaleDateString('en-IN')}</>
+                              )}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-2 shrink-0">
+                          <a
+                            href={`http://localhost:5000${actionModal.drawingOADetails.drawingPdfUrl}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded transition-colors"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5 mr-1" /> View PDF
+                          </a>
+                          <label className="inline-flex items-center text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-300 px-2.5 py-1 rounded cursor-pointer transition-colors">
+                            <Upload className="w-3.5 h-3.5 mr-1 text-slate-500" /> Replace PDF
+                            <input
+                              type="file"
+                              accept=".pdf,application/pdf"
+                              className="hidden"
+                              onChange={(e) => {
+                                if (e.target.files?.[0]) handleDrawingPdfUpload(e.target.files[0]);
+                              }}
+                            />
+                          </label>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Upload input when not uploaded */
+                      <div className="p-4 bg-blue-50/50 rounded-lg border border-blue-100 text-center space-y-2">
+                        <input
+                          type="file"
+                          id="workflow-drawing-pdf-input"
+                          accept=".pdf,application/pdf"
+                          className="hidden"
+                          onChange={(e) => {
+                            if (e.target.files?.[0]) handleDrawingPdfUpload(e.target.files[0]);
+                          }}
+                        />
+                        <label
+                          htmlFor="workflow-drawing-pdf-input"
+                          className="inline-flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold rounded-lg shadow-sm cursor-pointer transition-all hover:scale-[1.02]"
+                        >
+                          {uploadingPdf ? (
+                            <>
+                              <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              <span>Uploading Drawing PDF...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="w-4 h-4" />
+                              <span>Select &amp; Upload Drawing PDF</span>
+                            </>
+                          )}
+                        </label>
+                        <p className="text-[10px] text-slate-500">
+                          Supports high-resolution switchgear CAD / GA drawing exports in PDF format (Max 15MB)
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Admin Verification Status Banner */}
+                    <div className="pt-1">
+                      {actionModal.drawingOADetails?.adminVerificationStatus === 'Verified & Approved' ? (
+                        <div className="p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs flex items-start space-x-2">
+                          <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-extrabold text-emerald-950 block">Admin Drawing Verification Completed ✓</span>
+                            <span className="text-[11px] text-emerald-800">
+                              Verified by: {actionModal.drawingOADetails.adminVerifiedByName || 'Executive Admin'}
+                              {actionModal.drawingOADetails.adminVerificationRemarks && ` — "${actionModal.drawingOADetails.adminVerificationRemarks}"`}
+                            </span>
+                          </div>
+                        </div>
+                      ) : actionModal.drawingOADetails?.adminVerificationStatus === 'Revision Required' ? (
+                        <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-900 text-xs flex items-start space-x-2">
+                          <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-extrabold text-rose-950 block">Drawing Revision Requested by Admin ⚠</span>
+                            <span className="text-[11px] text-rose-800">
+                              Please upload the corrected drawing PDF above to submit for fresh review.
+                            </span>
+                          </div>
+                        </div>
+                      ) : actionModal.drawingOADetails?.drawingPdfUrl ? (
+                        <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start space-x-2">
+                          <Clock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-extrabold text-amber-950 block">Pending Admin Verification</span>
+                            <span className="text-[11px] text-amber-800">
+                              Drawing PDF is uploaded. Executive Admin or General Manager must verify the drawing to clear Stage 4 and forward to Stage 5.
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-2 rounded-lg bg-slate-100 text-slate-600 text-[11px] flex items-center space-x-1.5">
+                          <AlertCircle className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                          <span>Drawing user must upload PDF before Admin can verify and advance to next process.</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Admin Verification Checklist (Visible to Admin/Manager when reviewing) */}
+                    {(isAdmin || isManager) && actionModal.drawingOADetails?.drawingPdfUrl && (
+                      <div className="p-3 bg-indigo-50/60 rounded-lg border border-indigo-200 space-y-2">
+                        <div className="flex items-center space-x-1.5 text-indigo-900 font-bold text-xs">
+                          <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                          <span>Admin Technical Verification Checklist (Mandatory Sign-off)</span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-slate-800">
+                          <label className="flex items-center space-x-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={drawingChecklist.dimensions}
+                              onChange={(e) => setDrawingChecklist(prev => ({ ...prev, dimensions: e.target.checked }))}
+                              className="rounded text-blue-600"
+                            />
+                            <span>Panel Dimensions &amp; Clearances Verified</span>
+                          </label>
+                          <label className="flex items-center space-x-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={drawingChecklist.sld}
+                              onChange={(e) => setDrawingChecklist(prev => ({ ...prev, sld: e.target.checked }))}
+                              className="rounded text-blue-600"
+                            />
+                            <span>Single Line Diagram (SLD) &amp; Schematics Verified</span>
+                          </label>
+                          <label className="flex items-center space-x-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={drawingChecklist.ratings}
+                              onChange={(e) => setDrawingChecklist(prev => ({ ...prev, ratings: e.target.checked }))}
+                              className="rounded text-blue-600"
+                            />
+                            <span>Voltage, Current &amp; Busbar Ratings Confirmed</span>
+                          </label>
+                          <label className="flex items-center space-x-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={drawingChecklist.ctpt}
+                              onChange={(e) => setDrawingChecklist(prev => ({ ...prev, ctpt: e.target.checked }))}
+                              className="rounded text-blue-600"
+                            />
+                            <span>CT/PT &amp; Protection Relay Specifications Verified</span>
+                          </label>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Drawing Inputs Grid */}
@@ -1666,17 +2056,29 @@ export const DepartmentWorkflowView = () => {
                 <button
                   type="button"
                   onClick={executeAction}
-                  disabled={actionModal.submitting}
-                  className={`px-5 py-2.5 rounded-lg text-xs font-bold text-white transition-all shadow-md cursor-pointer flex items-center space-x-1.5 ${
-                    actionModal.type === 'REJECT'
-                      ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-200'
+                  disabled={
+                    actionModal.submitting ||
+                    (selectedDeptSeq === 4 && (actionModal.type === 'ACCEPT' || actionModal.type === 'REACCEPT') && (
+                      !actionModal.drawingOADetails?.drawingPdfUrl ||
+                      (!isAdmin && !isManager)
+                    ))
+                  }
+                  className={`px-5 py-2.5 rounded-lg text-xs font-bold text-white transition-all shadow-md flex items-center space-x-1.5 ${
+                    actionModal.submitting ||
+                    (selectedDeptSeq === 4 && (actionModal.type === 'ACCEPT' || actionModal.type === 'REACCEPT') && (
+                      !actionModal.drawingOADetails?.drawingPdfUrl ||
+                      (!isAdmin && !isManager)
+                    ))
+                      ? 'bg-slate-400 cursor-not-allowed opacity-80'
+                      : actionModal.type === 'REJECT'
+                      ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-200 cursor-pointer'
                       : actionModal.type === 'REACCEPT'
-                      ? 'bg-gradient-to-r from-amber-600 to-emerald-600 hover:from-amber-700 hover:to-emerald-700 shadow-amber-200'
+                      ? 'bg-gradient-to-r from-amber-600 to-emerald-600 hover:from-amber-700 hover:to-emerald-700 shadow-amber-200 cursor-pointer'
                       : selectedDeptSeq === 3
-                      ? 'bg-gradient-to-r from-emerald-600 to-[#1E5BB8] hover:from-emerald-700 hover:to-[#174894] shadow-emerald-200'
+                      ? 'bg-gradient-to-r from-emerald-600 to-[#1E5BB8] hover:from-emerald-700 hover:to-[#174894] shadow-emerald-200 cursor-pointer'
                       : selectedDeptSeq === 4
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 shadow-blue-200'
-                      : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 shadow-blue-200 cursor-pointer'
+                      : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200 cursor-pointer'
                   }`}
                 >
                   {actionModal.submitting ? (
@@ -1697,7 +2099,15 @@ export const DepartmentWorkflowView = () => {
                           : selectedDeptSeq === 3
                           ? `Confirm Payment (₹ ${Number(actionModal.advancePaymentDetails?.amount || 0).toLocaleString('en-IN')}) & Forward to Stage 4 →`
                           : selectedDeptSeq === 4
-                          ? 'Confirm Drawing & OA & Forward to Stage 5 (CT & PT) →'
+                          ? (
+                            isAdmin || isManager
+                              ? actionModal.drawingOADetails?.drawingPdfUrl
+                                ? 'Verify Drawing PDF & Advance to Stage 5 (CT & PT) →'
+                                : 'PDF Upload Required to Verify'
+                              : actionModal.drawingOADetails?.drawingPdfUrl
+                              ? 'Drawing Uploaded (Awaiting Admin Verification)'
+                              : 'Please Upload Drawing PDF First'
+                          )
                           : 'Confirm Action'}
                       </span>
                     </>
@@ -1708,6 +2118,12 @@ export const DepartmentWorkflowView = () => {
           </div>
         </div>
       )}
+      {/* Live Warehouse Stock Slide-over Drawer */}
+      <LiveStockDrawer
+        isOpen={stockDrawerOpen}
+        onClose={() => setStockDrawerOpen(false)}
+        activeProjectTrackingId={selectedProjectForStock?.projectTrackingId}
+      />
     </div>
   );
 };

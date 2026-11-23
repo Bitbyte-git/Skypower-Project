@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { requireAuth, requireRoles } from '../middleware/auth.js';
 import { USER_ROLES } from '../constants/roles.js';
+import { upload } from '../middleware/upload.js';
 import {
   getDepartments,
   getProjectWorkflows,
@@ -11,7 +12,8 @@ import {
   salesResubmit,
   getDashboardStats,
   updateAdvancePayment,
-  updateDrawingOADetails
+  updateDrawingOADetails,
+  uploadWorkflowDrawingPdf
 } from '../controllers/projectWorkflowController.js';
 
 const router = Router();
@@ -44,11 +46,11 @@ router.post(
   managerForward
 );
 
-// 3. Department Action: Accept or Reject (General Manager, Admin, and Accountant for Stage 3)
+// 3. Department Action: Accept or Reject (General Manager, Admin, Accountant for Stage 3, Design Engineer for Stage 4 submission)
 router.post(
   '/:id/department-action',
   requireAuth,
-  requireRoles([USER_ROLES.MANAGER, USER_ROLES.ADMIN, USER_ROLES.ACCOUNTANT]),
+  requireRoles([USER_ROLES.MANAGER, USER_ROLES.ADMIN, USER_ROLES.ACCOUNTANT, USER_ROLES.DESIGN_ENGINEER]),
   departmentAction
 );
 
@@ -72,8 +74,16 @@ router.put(
 router.put(
   '/:id/drawing-oa',
   requireAuth,
-  requireRoles([USER_ROLES.MANAGER, USER_ROLES.ADMIN, USER_ROLES.SALES, USER_ROLES.PO_TEAM]),
+  requireRoles([USER_ROLES.MANAGER, USER_ROLES.ADMIN, USER_ROLES.SALES, USER_ROLES.PO_TEAM, USER_ROLES.DESIGN_ENGINEER]),
   updateDrawingOADetails
+);
+
+// 7. Upload Drawing PDF for Stage 4 (Drawing / OA)
+router.post(
+  '/:id/upload-drawing',
+  requireAuth,
+  upload.single('drawingPdf'),
+  uploadWorkflowDrawingPdf
 );
 
 export default router;

@@ -797,6 +797,23 @@ export const updatePOStatus = async (req, res, next) => {
           advancedWorkflow = workflow;
         }
       }
+    } else if (po.status === 'Rejected') {
+      const workflow = await ProjectWorkflow.findOne({ enquiryId: po.enquiryId });
+      if (workflow) {
+        await DepartmentApproval.findOneAndUpdate(
+          { workflowId: workflow._id, departmentSequence: 2 },
+          {
+            status: DEPARTMENT_APPROVAL_STATUSES.REJECTED,
+            reviewedBy: req.user._id,
+            reviewedAt: new Date(),
+            remarks: notes || 'Purchase Order rejected during technical review.'
+          }
+        );
+        workflow.overallStatus = PROJECT_WORKFLOW_STATUSES.RETURNED_FOR_CORRECTION;
+        workflow.rejectionRemarks = notes || 'PO technical review rejected';
+        await workflow.save();
+        advancedWorkflow = workflow;
+      }
     }
 
     await logActivity({

@@ -420,6 +420,23 @@ const enquirySchema = new mongoose.Schema(
       ctRatioConfirmed: { type: String, default: '' },
       targetDispatchDate: { type: Date, default: null },
       attachmentUrl: { type: String, default: '' },
+      
+      // Uploaded Drawing PDF & Admin Verification
+      drawingPdfUrl: { type: String, default: '' },
+      drawingPdfName: { type: String, default: '' },
+      drawingPdfUploadedAt: { type: Date, default: null },
+      drawingPdfUploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      drawingPdfUploadedByName: { type: String, default: '' },
+      adminVerificationStatus: {
+        type: String,
+        enum: ['Pending Upload', 'Pending Admin Verification', 'Verified & Approved', 'Revision Required'],
+        default: 'Pending Upload'
+      },
+      adminVerifiedAt: { type: Date, default: null },
+      adminVerifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      adminVerifiedByName: { type: String, default: '' },
+      adminVerificationRemarks: { type: String, default: '' },
+
       approvedAt: { type: Date, default: null },
       approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
       approvedByName: { type: String, default: '' },

@@ -17,6 +17,7 @@ import {
 export const getSalesDashboard = async (req, res, next) => {
   try {
     const userId = req.user._id;
+    const baseFilter = req.user.role === 'ADMIN' ? {} : { assignedSalesEngineer: userId };
 
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
@@ -35,16 +36,21 @@ export const getSalesDashboard = async (req, res, next) => {
       quotations,
       todayFollowups,
       upcomingFollowups,
-      recentEnquiries
+      enquiries
     ] = await Promise.all([
-      Enquiry.countDocuments({ assignedSalesEngineer: userId }),
-      Enquiry.countDocuments({ assignedSalesEngineer: userId, approvalStatus: APPROVAL_STATUSES.DRAFT }),
-      Enquiry.countDocuments({ assignedSalesEngineer: userId, approvalStatus: APPROVAL_STATUSES.PENDING_APPROVAL }),
-      Enquiry.countDocuments({ assignedSalesEngineer: userId, approvalStatus: APPROVAL_STATUSES.APPROVED }),
-      Enquiry.countDocuments({ assignedSalesEngineer: userId, approvalStatus: APPROVAL_STATUSES.RETURNED_FOR_CORRECTION }),
-      Enquiry.countDocuments({ assignedSalesEngineer: userId, approvalStatus: APPROVAL_STATUSES.REJECTED }),
-      Enquiry.countDocuments({ assignedSalesEngineer: userId, commercialStatus: COMMERCIAL_STATUSES.WON }),
-      Enquiry.countDocuments({ assignedSalesEngineer: userId, commercialStatus: COMMERCIAL_STATUSES.LOST }),
+      Enquiry.countDocuments(baseFilter),
+      Enquiry.countDocuments({ ...baseFilter, approvalStatus: APPROVAL_STATUSES.DRAFT }),
+      Enquiry.countDocuments({
+        ...baseFilter,
+        approvalStatus: {
+          $in: [APPROVAL_STATUSES.PENDING_APPROVAL, APPROVAL_STATUSES.SUBMITTED, 'Submitted to Admin']
+        }
+      }),
+      Enquiry.countDocuments({ ...baseFilter, approvalStatus: APPROVAL_STATUSES.APPROVED }),
+      Enquiry.countDocuments({ ...baseFilter, approvalStatus: APPROVAL_STATUSES.RETURNED_FOR_CORRECTION }),
+      Enquiry.countDocuments({ ...baseFilter, approvalStatus: APPROVAL_STATUSES.REJECTED }),
+      Enquiry.countDocuments({ ...baseFilter, commercialStatus: COMMERCIAL_STATUSES.WON }),
+      Enquiry.countDocuments({ ...baseFilter, commercialStatus: COMMERCIAL_STATUSES.LOST }),
       Quotation.countDocuments(),
       Followup.countDocuments({
         ownerId: userId,
@@ -55,10 +61,11 @@ export const getSalesDashboard = async (req, res, next) => {
         followupDate: { $gt: endOfToday },
         status: FOLLOWUP_STATUSES.PENDING
       }),
-      Enquiry.find({ assignedSalesEngineer: userId })
-        .populate('clientId', 'companyName clientLocation customerType')
-        .sort({ updatedAt: -1 })
-        .limit(6)
+      Enquiry.find(baseFilter)
+        .populate('clientId', 'companyName clientLocation contactPerson mobile customerType')
+        .populate('assignedSalesEngineer', 'name email')
+        .sort({ updatedAt: -1, createdAt: -1 })
+        .limit(100)
     ]);
 
     return res.status(200).json({
@@ -76,7 +83,8 @@ export const getSalesDashboard = async (req, res, next) => {
         todayFollowups,
         upcomingFollowups
       },
-      recentEnquiries
+      enquiries,
+      recentEnquiries: enquiries.slice(0, 10)
     });
   } catch (err) {
     next(err);
@@ -496,6 +504,19 @@ export const getNotifications = async (req, res, next) => {
 
     const notifications = [];
 
+    const deptNames = {
+      1: 'Sales & Marketing Gate',
+      2: 'Purchase Order (PO) Team',
+      3: 'Advance Payment Clearance',
+      4: 'Drawing / OA Clearance',
+      5: 'CT & PT Verification',
+      6: 'Fabrication Engineering',
+      7: 'Metering Door Execution',
+      8: 'Testing & Quality Check',
+      9: 'Delivery & Logistics',
+      10: 'Installation & Commissioning'
+    };
+
     // Synthesize real notifications from recent enquiries
     recentEnquiries.forEach((enq, idx) => {
       const clientName = enq.clientId?.name || enq.clientName || 'Salem Works Client';
@@ -513,25 +534,31 @@ export const getNotifications = async (req, res, next) => {
         clientName,
         value: enq.expectedProjectValue,
         status: enq.approvalStatus || 'Draft',
-        link: '/workflow'
+        link: `/enquiries/${enq._id}`
       });
     });
 
     // Synthesize real notifications from recent project workflows
     recentWorkflows.forEach((wf, idx) => {
       const ern = wf.enquiryId?.ern || `SP-2026-${String(idx + 5).padStart(4, '0')}`;
+      const seq = wf.currentDepartmentSequence || 1;
+      const deptName = deptNames[seq] || 'Department Review';
+      const isPendingPO = seq === 2 && (wf.overallStatus === 'Pending PO Approval' || wf.overallStatus === 'Under Department Review');
+
       notifications.push({
         id: `wf_${wf._id}`,
-        title: `Stage ${wf.currentDepartmentSequence || 1} Approval Gate`,
-        description: `Project ${ern} is undergoing 10-Department execution gate review.`,
-        detail: `Tracking ID: ${wf.trackingId || ern}. Overall status: "${wf.overallStatus || 'Under Department Review'}". Current active sequence: Stage ${wf.currentDepartmentSequence || 1}.`,
+        title: `Stage ${seq}: ${deptName}`,
+        description: `Project ${ern} is undergoing Stage ${seq} (${deptName}) review.`,
+        detail: `Tracking ID: ${wf.trackingId || ern}. Overall status: "${wf.overallStatus || 'Under Department Review'}". Current active sequence: Stage ${seq} (${deptName}). ${isPendingPO ? 'Admin has approved the enquiry gate. Purchase Order Team clearance is required to advance to Stage 3 (Advance Payment).' : ''}`,
         time: getTimeAgo(wf.updatedAt),
         rawTime: wf.updatedAt,
         unread: idx === 0,
         type: 'approval',
         ern,
+        deptSeq: seq,
+        deptCode: wf.currentDepartmentCode,
         status: wf.overallStatus || 'Under Review',
-        link: '/workflow'
+        link: `/departments/workflow?dept=${seq}`
       });
     });
 

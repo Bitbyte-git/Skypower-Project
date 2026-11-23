@@ -89,12 +89,29 @@ export const getEnquiries = async (req, res, next) => {
       query.assignedSalesEngineer = req.user._id;
     }
 
-    if (search) {
+    if (search && search.trim()) {
+      const trimmed = search.trim();
+      const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const searchRegex = new RegExp(escaped, 'i');
+
+      const matchingClients = await Client.find({
+        $or: [
+          { companyName: searchRegex },
+          { clientCode: searchRegex },
+          { contactPerson: searchRegex },
+          { email: searchRegex },
+          { clientLocation: searchRegex }
+        ]
+      }).select('_id');
+      const clientIds = matchingClients.map((c) => c._id);
+
       query.$or = [
-        { ern: { $regex: search, $options: 'i' } },
-        { 'project.projectName': { $regex: search, $options: 'i' } },
-        { 'project.projectLocation': { $regex: search, $options: 'i' } },
-        { commands: { $regex: search, $options: 'i' } }
+        { ern: searchRegex },
+        { 'project.projectName': searchRegex },
+        { 'project.projectLocation': searchRegex },
+        { 'project.projectScope': searchRegex },
+        { 'products.productName': searchRegex },
+        ...(clientIds.length > 0 ? [{ clientId: { $in: clientIds } }] : [])
       ];
     }
 

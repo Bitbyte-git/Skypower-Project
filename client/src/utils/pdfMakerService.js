@@ -298,13 +298,13 @@ export async function downloadEnquiryPDF(enquiryData) {
         margin: [0, 5, 0, 16]
       },
 
-      // Client Address
+      // Recipient (Client ID Only - Client company identity shielded)
       {
         stack: [
-          { text: `M/s. ${companyName},`, fontSize: 9, bold: true, color: '#000000' },
-          { text: siteAddress, fontSize: 8.5, color: '#1F2937', margin: [0, 2, 0, 0] }
+          { text: 'To,', fontSize: 8.5, color: '#000000' },
+          { text: `Client ID: ${clientIdTag}`, fontSize: 9, bold: true, color: '#062B59', margin: [0, 2, 0, 0] }
         ],
-        margin: [0, 0, 0, 16]
+        margin: [0, 0, 0, 14]
       },
 
       // Salutation & Subject

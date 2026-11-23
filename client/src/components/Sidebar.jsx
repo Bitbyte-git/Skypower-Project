@@ -11,14 +11,23 @@ import {
   Truck,
   CreditCard,
   FileText,
+  Boxes,
   BarChart3,
   Settings,
-  X
+  X,
+  ShoppingCart,
+  FileCheck2,
+  Compass,
+  Receipt,
+  Clock,
+  Send,
+  MessageSquare,
+  Layers
 } from 'lucide-react';
 import factoryBuildingImg from '../assets/sky-power-building.png';
 
 export const Sidebar = ({ isOpen = false, onClose = () => {} }) => {
-  const { user, isAdmin, isManager, isPOTeam, isAccountant } = useAuth();
+  const { user, isAdmin, isManager, isPOTeam, isAccountant, isStockAdmin, isDesignEngineer } = useAuth();
   const location = useLocation();
 
   const getDashboardPath = () => {
@@ -26,6 +35,8 @@ export const Sidebar = ({ isOpen = false, onClose = () => {} }) => {
     if (isManager) return '/manager/dashboard';
     if (isPOTeam) return '/po/tracking';
     if (isAccountant || user?.role === 'ACCOUNTANT') return '/departments/workflow?dept=3';
+    if (isStockAdmin || user?.role === 'STOCK_ADMIN') return '/inventory';
+    if (isDesignEngineer || user?.role === 'DESIGN_ENGINEER' || user?.role === 'ENGINEERING_MANAGER' || user?.role === 'ENGINEERING_REVIEWER') return '/engineering/dashboard';
     return '/sales/dashboard';
   };
 
@@ -37,9 +48,13 @@ export const Sidebar = ({ isOpen = false, onClose = () => {} }) => {
         ? 'PO Tracking Portal'
         : isAccountant || user?.role === 'ACCOUNTANT'
         ? 'Advance Payment Queue'
+        : isStockAdmin || user?.role === 'STOCK_ADMIN'
+        ? 'Inventory & Stores'
+        : isDesignEngineer || user?.role === 'DESIGN_ENGINEER' || user?.role === 'ENGINEERING_MANAGER'
+        ? 'Engineering Console'
         : 'Dashboard',
       path: getDashboardPath(),
-      icon: isAccountant || user?.role === 'ACCOUNTANT' ? CreditCard : LayoutDashboard
+      icon: isAccountant || user?.role === 'ACCOUNTANT' ? CreditCard : (isStockAdmin || user?.role === 'STOCK_ADMIN' ? Boxes : (isDesignEngineer || user?.role === 'DESIGN_ENGINEER' || user?.role === 'ENGINEERING_MANAGER' ? Cpu : LayoutDashboard))
     },
     {
       name: '10-Dept Workflow',
@@ -53,8 +68,88 @@ export const Sidebar = ({ isOpen = false, onClose = () => {} }) => {
       icon: FileSpreadsheet,
       badge: 'New'
     },
+    {
+      name: 'Order Dashboard',
+      path: '/orders/dashboard',
+      icon: ShoppingCart,
+      badge: 'Mod 2'
+    },
+    {
+      name: 'Sales Orders',
+      path: '/orders',
+      icon: FileSpreadsheet
+    },
+    {
+      name: 'Customer POs',
+      path: '/orders/purchase-orders',
+      icon: FileCheck2
+    },
+    {
+      name: 'Order Tracking',
+      path: '/orders/tracking',
+      icon: Compass
+    },
+    {
+      name: 'Payment Dashboard',
+      path: '/payments/dashboard',
+      icon: CreditCard,
+      badge: 'Mod 3'
+    },
+    {
+      name: 'Order Payments',
+      path: '/payments/orders',
+      icon: FileSpreadsheet
+    },
+    {
+      name: 'Payment Receipts',
+      path: '/payments/receipts',
+      icon: Receipt
+    },
+    {
+      name: 'Pending Payments',
+      path: '/payments/pending',
+      icon: Clock
+    },
+    {
+      name: 'Payment Reports',
+      path: '/payments/reports',
+      icon: BarChart3
+    },
+    // Module 4: Engineering & Drawing Approval Management
+    {
+      name: 'Engineering Dashboard',
+      path: '/engineering/dashboard',
+      icon: Cpu,
+      badge: 'Mod 4'
+    },
+    {
+      name: 'Engineering Projects',
+      path: '/engineering/projects',
+      icon: FolderGit2
+    },
+    {
+      name: 'Drawing Register',
+      path: '/engineering/drawings',
+      icon: Layers
+    },
+    {
+      name: 'Drawing Submission',
+      path: '/engineering/submissions',
+      icon: Send
+    },
+    {
+      name: 'Customer Approvals',
+      path: '/engineering/approvals',
+      icon: FileCheck2
+    },
+    {
+      name: 'Technical Clarifications',
+      path: '/engineering/clarifications',
+      icon: MessageSquare
+    },
     { name: 'Projects', path: '/enquiries', icon: FolderGit2 },
-    { name: 'Product Master', path: isAdmin ? '/admin/settings' : '/enquiries', icon: Cpu },
+    { name: 'Inventory & Stock', path: '/inventory', icon: Boxes, badge: 'Stock' },
+    { name: 'Product Master', path: '/inventory', icon: Cpu },
     { name: 'Production', path: '/po/tracking', icon: Factory },
     { name: 'Quality Control', path: '/po/tracking', icon: ShieldCheck },
     { name: 'Dispatch & Delivery', path: '/po/tracking', icon: Truck },
@@ -71,6 +166,9 @@ export const Sidebar = ({ isOpen = false, onClose = () => {} }) => {
     if (itemPath === '/departments/workflow?dept=4') {
       return location.pathname.startsWith('/departments/workflow') && location.search.includes('dept=4');
     }
+    if (itemPath === '/inventory') {
+      return location.pathname.startsWith('/inventory') || location.pathname.startsWith('/stock-admin');
+    }
     if (itemPath === '/departments/workflow') {
       return location.pathname.startsWith('/departments/workflow') && !location.search.includes('dept=3') && !location.search.includes('dept=4');
     }
@@ -79,6 +177,57 @@ export const Sidebar = ({ isOpen = false, onClose = () => {} }) => {
         location.pathname.startsWith('/workflow') ||
         location.pathname.startsWith('/enquiries/new')
       );
+    }
+    if (itemPath === '/orders/dashboard') {
+      return location.pathname === '/orders/dashboard';
+    }
+    if (itemPath === '/orders') {
+      return (
+        location.pathname === '/orders' ||
+        (location.pathname.startsWith('/orders/') &&
+          !location.pathname.startsWith('/orders/dashboard') &&
+          !location.pathname.startsWith('/orders/purchase-orders') &&
+          !location.pathname.startsWith('/orders/tracking'))
+      );
+    }
+    if (itemPath === '/orders/purchase-orders') {
+      return location.pathname.startsWith('/orders/purchase-orders');
+    }
+    if (itemPath === '/orders/tracking') {
+      return location.pathname.startsWith('/orders/tracking');
+    }
+    if (itemPath === '/payments/dashboard') {
+      return location.pathname === '/payments/dashboard';
+    }
+    if (itemPath === '/payments/orders') {
+      return location.pathname.startsWith('/payments/orders');
+    }
+    if (itemPath === '/payments/receipts') {
+      return location.pathname.startsWith('/payments/receipts');
+    }
+    if (itemPath === '/payments/pending') {
+      return location.pathname.startsWith('/payments/pending');
+    }
+    if (itemPath === '/payments/reports') {
+      return location.pathname.startsWith('/payments/reports');
+    }
+    if (itemPath === '/engineering/dashboard') {
+      return location.pathname === '/engineering/dashboard';
+    }
+    if (itemPath === '/engineering/projects') {
+      return location.pathname.startsWith('/engineering/projects');
+    }
+    if (itemPath === '/engineering/drawings') {
+      return location.pathname.startsWith('/engineering/drawings');
+    }
+    if (itemPath === '/engineering/submissions') {
+      return location.pathname.startsWith('/engineering/submissions');
+    }
+    if (itemPath === '/engineering/approvals') {
+      return location.pathname.startsWith('/engineering/approvals');
+    }
+    if (itemPath === '/engineering/clarifications') {
+      return location.pathname.startsWith('/engineering/clarifications');
     }
     if (itemPath === '/reports') {
       return location.pathname.startsWith('/reports') || location.pathname.startsWith('/admin/reports');
@@ -143,7 +292,18 @@ export const Sidebar = ({ isOpen = false, onClose = () => {} }) => {
           Enterprise ERP Modules
         </div>
 
-        {navItems.map((item) => {
+        {navItems
+          .filter((item) => {
+            // STRICT: PO Team cannot see anything related to payments or financial operations
+            if (isPOTeam) {
+              const isPayment =
+                item.path.startsWith('/payments') ||
+                item.name.toLowerCase().includes('payment');
+              if (isPayment) return false;
+            }
+            return true;
+          })
+          .map((item) => {
           const Icon = item.icon;
           const isActive = checkIsActive(item.path);
 

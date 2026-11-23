@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <rect width="100" height="100" rx="14" fill="#F8FAFC" />
+  <!-- Cast Resin CT Toroid / Ring -->
+  <circle cx="50" cy="46" r="32" fill="#78350F" stroke="#451A03" stroke-width="2.5"/>
+  <circle cx="50" cy="46" r="18" fill="#F8FAFC" stroke="#451A03" stroke-width="2"/>
+  <!-- Secondary Terminal Box -->
+  <rect x="36" y="10" width="28" height="16" rx="3" fill="#B45309" stroke="#78350F" stroke-width="1.5"/>
+  <circle cx="43" cy="18" r="2.5" fill="#FDE68A"/>
+  <circle cx="57" cy="18" r="2.5" fill="#FDE68A"/>
+  <!-- Mounting Feet -->
+  <rect x="22" y="76" width="56" height="12" rx="3" fill="#64748B"/>
+  <circle cx="28" cy="82" r="3" fill="#F8FAFC"/>
+  <circle cx="72" cy="82" r="3" fill="#F8FAFC"/>
+  <!-- Polarity Mark -->
+  <text x="50" y="50" font-family="sans-serif" font-size="8" font-weight="900" fill="#B45309" text-anchor="middle">P1</text>
+</svg>

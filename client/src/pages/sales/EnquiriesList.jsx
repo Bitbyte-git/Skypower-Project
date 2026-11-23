@@ -70,6 +70,25 @@ export const EnquiriesList = ({ presetStatus = '' }) => {
     pageSubtitle = 'Requisitions awaiting administrative clearance decision';
     isDedicatedQueue = true;
     badgeTheme = 'bg-amber-50 text-amber-800 border-amber-300';
+  } else if (
+    searchParams.get('status') === 'draft' ||
+    presetStatus === 'Draft'
+  ) {
+    resolvedStatus = 'Draft';
+    pageTitle = 'Draft Enquiries';
+    pageSubtitle = 'Incomplete switchgear requisitions currently in preparation';
+    isDedicatedQueue = true;
+    badgeTheme = 'bg-slate-50 text-slate-800 border-slate-300';
+  } else if (
+    searchParams.get('status') === 'won' ||
+    searchParams.get('commercial') === 'won' ||
+    searchParams.get('commercial') === 'Won'
+  ) {
+    resolvedStatus = '';
+    pageTitle = 'Orders Won & Converted';
+    pageSubtitle = 'Successfully closed contracts and orders transitioned to engineering';
+    isDedicatedQueue = false;
+    badgeTheme = 'bg-emerald-50 text-emerald-800 border-emerald-300';
   } else if (isGlobalView || isAdmin) {
     pageTitle = 'All Project Enquiries';
     pageSubtitle = 'Global switchgear requisitions repository across all plant divisions';
@@ -79,11 +98,16 @@ export const EnquiriesList = ({ presetStatus = '' }) => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState(resolvedStatus);
-  const [commercialFilter, setCommercialFilter] = useState('');
+  const [commercialFilter, setCommercialFilter] = useState(
+    searchParams.get('commercial') || (searchParams.get('status') === 'won' ? 'Won' : '')
+  );
 
   // Re-synchronize filter whenever route changes
   useEffect(() => {
     setStatusFilter(resolvedStatus);
+    if (searchParams.get('commercial') || searchParams.get('status') === 'won') {
+      setCommercialFilter(searchParams.get('commercial') || 'Won');
+    }
   }, [location.pathname, location.search, presetStatus]);
 
   const fetchEnquiries = async () => {

@@ -32,6 +32,31 @@ import { POTrackingView } from '../pages/po/POTrackingView';
 import { DepartmentWorkflowView } from '../pages/workflow/DepartmentWorkflowView';
 import { ProjectTrackingTimeline } from '../pages/workflow/ProjectTrackingTimeline';
 import { ManagerDashboard } from '../pages/manager/ManagerDashboard';
+import { InventoryManagement } from '../pages/inventory/InventoryManagement';
+
+// Module 2: Order Management & Customer Purchase Orders
+import { OrderDashboard } from '../pages/orders/OrderDashboard';
+import { SalesOrdersList } from '../pages/orders/SalesOrdersList';
+import { CustomerPurchaseOrdersList } from '../pages/orders/CustomerPurchaseOrdersList';
+import { SalesOrderDetails } from '../pages/orders/SalesOrderDetails';
+import { OrderTrackingView } from '../pages/orders/OrderTrackingView';
+
+// Module 3: Advance Payment & Payment Management
+import { PaymentDashboard } from '../pages/payments/PaymentDashboard';
+import { OrderPaymentsList } from '../pages/payments/OrderPaymentsList';
+import { OrderPaymentDetails } from '../pages/payments/OrderPaymentDetails';
+import { PaymentReceiptsList } from '../pages/payments/PaymentReceiptsList';
+import { PendingPaymentsList } from '../pages/payments/PendingPaymentsList';
+import { PaymentReports } from '../pages/payments/PaymentReports';
+
+// Module 4: Engineering & Drawing Approval Management
+import { EngineeringDashboard } from '../pages/engineering/EngineeringDashboard';
+import { EngineeringProjectsList } from '../pages/engineering/EngineeringProjectsList';
+import { EngineeringProjectDetails } from '../pages/engineering/EngineeringProjectDetails';
+import { DrawingRegisterList } from '../pages/engineering/DrawingRegisterList';
+import { DrawingSubmissionsList } from '../pages/engineering/DrawingSubmissionsList';
+import { CustomerApprovalsList } from '../pages/engineering/CustomerApprovalsList';
+import { TechnicalClarificationsList } from '../pages/engineering/TechnicalClarificationsList';
 
 export const AppRoutes = () => {
   const { user, isAuthenticated, loading } = useAuth();
@@ -49,6 +74,8 @@ export const AppRoutes = () => {
     if (user?.role === 'MANAGER') return '/manager/dashboard';
     if (user?.role === 'PO_TEAM') return '/po/tracking';
     if (user?.role === 'ACCOUNTANT') return '/departments/workflow?dept=3';
+    if (user?.role === 'STOCK_ADMIN') return '/inventory';
+    if (user?.role === 'DESIGN_ENGINEER' || user?.role === 'ENGINEERING_MANAGER' || user?.role === 'ENGINEERING_REVIEWER') return '/engineering/dashboard';
     return '/sales/dashboard';
   };
 
@@ -67,13 +94,19 @@ export const AppRoutes = () => {
       />
 
       {/* Protected Routes Layout */}
-      <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'SALES', 'PO_TEAM', 'ACCOUNTANT']} />}>
+      <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'SALES', 'PO_TEAM', 'ACCOUNTANT', 'STOCK_ADMIN', 'DESIGN_ENGINEER', 'ENGINEERING_MANAGER', 'ENGINEERING_REVIEWER']} />}>
         <Route element={<MainLayout />}>
           {/* Default Root Redirect */}
           <Route path="/" element={<Navigate to={getHomeRoute()} replace />} />
 
           {/* Shared Profile */}
           <Route path="/profile" element={<Profile />} />
+
+          {/* Central Stores & Inventory Management */}
+          <Route path="/inventory" element={<InventoryManagement />} />
+          <Route path="/product-master" element={<Navigate to="/inventory" replace />} />
+          <Route path="/stock-admin" element={<Navigate to="/inventory" replace />} />
+          <Route path="/stores" element={<Navigate to="/inventory" replace />} />
 
           {/* Department Workflow & Tracking Views (Accessible to all authorized roles) */}
           <Route path="/departments/workflow" element={<DepartmentWorkflowView />} />
@@ -87,14 +120,55 @@ export const AppRoutes = () => {
           {/* PO Team & Execution Tracking Portal */}
           <Route path="/po/tracking" element={<POTrackingView />} />
 
+          {/* Module 2: Customer Order Management & PO Verification */}
+          <Route path="/orders" element={<SalesOrdersList />} />
+          <Route path="/orders/dashboard" element={<OrderDashboard />} />
+          <Route path="/orders/purchase-orders" element={<CustomerPurchaseOrdersList />} />
+          <Route path="/orders/tracking" element={<OrderTrackingView />} />
+          <Route path="/orders/:id" element={<SalesOrderDetails />} />
+
+          {/* Module 4: Engineering & Drawing Approval Management */}
+          <Route path="/engineering/dashboard" element={<EngineeringDashboard />} />
+          <Route path="/engineering/projects" element={<EngineeringProjectsList />} />
+          <Route path="/engineering/projects/:id" element={<EngineeringProjectDetails />} />
+          <Route path="/engineering/drawings" element={<DrawingRegisterList />} />
+          <Route path="/engineering/submissions" element={<DrawingSubmissionsList />} />
+          <Route path="/engineering/approvals" element={<CustomerApprovalsList />} />
+          <Route path="/engineering/clarifications" element={<TechnicalClarificationsList />} />
+
+          {/* Module 3: Advance Payment & Financial Operations (Restricted from PO Team & Technical Stores) */}
+          <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'ACCOUNTANT', 'SALES']} />}>
+            <Route path="/payments/dashboard" element={<PaymentDashboard />} />
+            <Route path="/payments/orders" element={<OrderPaymentsList />} />
+            <Route path="/payments/orders/:orderId" element={<OrderPaymentDetails />} />
+            <Route path="/payments/receipts" element={<PaymentReceiptsList />} />
+            <Route path="/payments/pending" element={<PendingPaymentsList />} />
+            <Route path="/payments/reports" element={<PaymentReports />} />
+          </Route>
+
           {/* Manager Operations */}
           <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER']} />}>
             <Route path="/manager/dashboard" element={<ManagerDashboard />} />
           </Route>
 
+          {/* Universal Workflow Access & Auto-Routing based on User Role */}
+          <Route
+            path="/workflow"
+            element={
+              user?.role === 'PO_TEAM' ? (
+                <Navigate to="/departments/workflow?dept=2" replace />
+              ) : user?.role === 'ACCOUNTANT' ? (
+                <Navigate to="/departments/workflow?dept=3" replace />
+              ) : user?.role === 'STOCK_ADMIN' ? (
+                <Navigate to="/inventory" replace />
+              ) : (
+                <WorkflowWizard />
+              )
+            }
+          />
+
           {/* 6-Step Multi-Page Client Enquiry -> Offering -> PO Team Workflow */}
           <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'SALES']} />}>
-            <Route path="/workflow" element={<WorkflowWizard />} />
             <Route path="/enquiries/new" element={<WorkflowWizard />} />
             <Route path="/enquiries/:id/workflow" element={<WorkflowWizard />} />
 

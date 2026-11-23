@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Lock, Mail, AlertCircle, ArrowRight, Zap, ShieldCheck, ClipboardList, Package, CreditCard } from 'lucide-react';
+import { Lock, Mail, AlertCircle, ArrowRight, Zap, ShieldCheck, ClipboardList, Package, CreditCard, Boxes, Cpu } from 'lucide-react';
 
 export const Login = () => {
   const [email, setEmail] = useState('sales@skypower.co.in');
@@ -26,6 +26,10 @@ export const Login = () => {
         navigate('/po/tracking');
       } else if (loggedUser.role === 'ACCOUNTANT') {
         navigate('/departments/workflow?dept=3');
+      } else if (loggedUser.role === 'STOCK_ADMIN') {
+        navigate('/inventory');
+      } else if (loggedUser.role === 'DESIGN_ENGINEER' || loggedUser.role === 'ENGINEERING_MANAGER' || loggedUser.role === 'ENGINEERING_REVIEWER') {
+        navigate('/engineering/dashboard');
       } else {
         navigate('/workflow');
       }
@@ -63,6 +67,18 @@ export const Login = () => {
   const setAccountantCredentials = () => {
     setEmail('accountant@skypower.co.in');
     setPassword('Accountant@123');
+    setError('');
+  };
+
+  const setStockAdminCredentials = () => {
+    setEmail('stockadmin@skypower.co.in');
+    setPassword('Stock@123');
+    setError('');
+  };
+
+  const setEngineerCredentials = () => {
+    setEmail('engineer@skypower.co.in');
+    setPassword('Engineer@123');
     setError('');
   };
 
@@ -228,15 +244,43 @@ export const Login = () => {
               <button
                 type="button"
                 onClick={setAccountantCredentials}
-                className="flex flex-col items-center justify-center py-2 px-1 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shadow-2xs hover:-translate-y-0.5 col-span-2 sm:col-span-1"
+                className="flex flex-col items-center justify-center py-2 px-1 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shadow-2xs hover:-translate-y-0.5"
                 style={{
                   background: '#F0FDF4',
                   color: '#15803D',
-                  border: '2px solid #86EFAC'
+                  border: '1px solid #86EFAC'
                 }}
               >
                 <CreditCard className="w-4 h-4 mb-0.5" style={{ color: '#16A34A' }} />
-                <span className="font-extrabold">Accountant</span>
+                <span>Accountant</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={setStockAdminCredentials}
+                className="flex flex-col items-center justify-center py-2 px-1 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shadow-2xs hover:-translate-y-0.5"
+                style={{
+                  background: '#F0FDFA',
+                  color: '#0D9488',
+                  border: '2px solid #99F6E4'
+                }}
+              >
+                <Boxes className="w-4 h-4 mb-0.5" style={{ color: '#0D9488' }} />
+                <span className="font-extrabold">Stock Admin</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={setEngineerCredentials}
+                className="flex flex-col items-center justify-center py-2 px-1 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shadow-2xs hover:-translate-y-0.5"
+                style={{
+                  background: '#F0F9FF',
+                  color: '#0284C7',
+                  border: '2px solid #BAE6FD'
+                }}
+              >
+                <Cpu className="w-4 h-4 mb-0.5" style={{ color: '#0284C7' }} />
+                <span className="font-extrabold">Design Engineer</span>
               </button>
 
               <button
@@ -256,15 +300,15 @@ export const Login = () => {
               <button
                 type="button"
                 onClick={setAdminCredentials}
-                className="flex flex-col items-center justify-center py-2 px-1 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shadow-2xs hover:-translate-y-0.5"
+                className="col-span-2 sm:col-span-3 flex items-center justify-center space-x-1.5 py-2 px-3 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shadow-2xs hover:-translate-y-0.5"
                 style={{
                   background: '#FFF0E3',
                   color: '#EA6208',
                   border: '1px solid #FFD4A8'
                 }}
               >
-                <Zap className="w-4 h-4 mb-0.5" style={{ color: '#EA6208' }} />
-                <span>Admin Login</span>
+                <Zap className="w-4 h-4" style={{ color: '#EA6208' }} />
+                <span>Executive Admin Login</span>
               </button>
             </div>
           </div>

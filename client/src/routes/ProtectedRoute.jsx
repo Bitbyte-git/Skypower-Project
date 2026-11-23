@@ -27,6 +27,10 @@ export const ProtectedRoute = ({ allowedRoles }) => {
         ? '/admin/dashboard'
         : user.role === 'PO_TEAM'
         ? '/po/tracking'
+        : user.role === 'ACCOUNTANT'
+        ? '/departments/workflow?dept=3'
+        : user.role === 'STOCK_ADMIN'
+        ? '/inventory'
         : '/sales/dashboard';
 
     return (

@@ -3,12 +3,14 @@ import { Link } from 'react-router-dom';
 import api from '../../api/client';
 import { StatusBadge } from '../../components/StatusBadge';
 import { useAuth } from '../../context/AuthContext';
-import { FileText, Search, Download, ArrowRight } from 'lucide-react';
+import { FileText, Search, Download, ArrowRight, ShoppingCart } from 'lucide-react';
+import { ConvertOrderModal } from '../orders/ConvertOrderModal';
 
 export const QuotationsList = () => {
   const [quotations, setQuotations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [selectedQuotationForOrder, setSelectedQuotationForOrder] = useState(null);
   const { isAdmin } = useAuth();
 
   const fetchQuotations = async () => {
@@ -122,7 +124,16 @@ export const QuotationsList = () => {
                     <td className="py-3 px-4">
                       <StatusBadge status={q.status} />
                     </td>
-                    <td className="py-3 px-4 text-right space-x-2">
+                    <td className="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedQuotationForOrder(q)}
+                        className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-colors"
+                        title="Convert Accepted Quotation to Customer Sales Order"
+                      >
+                        <ShoppingCart className="w-3 h-3 mr-1" />
+                        Order
+                      </button>
                       <Link
                         to={`/quotations/${q._id}`}
                         className="inline-flex items-center px-2 py-1 rounded text-xs font-semibold text-[#1E5BB8] hover:bg-[#F0F5FD] transition-colors"
@@ -149,6 +160,14 @@ export const QuotationsList = () => {
           </table>
         </div>
       </div>
+
+      {/* Convert to Customer Order Modal */}
+      {selectedQuotationForOrder && (
+        <ConvertOrderModal
+          quotation={selectedQuotationForOrder}
+          onClose={() => setSelectedQuotationForOrder(null)}
+        />
+      )}
     </div>
   );
 };

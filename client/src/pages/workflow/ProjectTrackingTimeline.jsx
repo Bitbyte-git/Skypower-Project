@@ -16,7 +16,8 @@ import {
   ChevronRight,
   ExternalLink,
   Download,
-  CreditCard
+  CreditCard,
+  Boxes
 } from 'lucide-react';
 import { downloadEnquiryPDF } from '../../utils/pdfMakerService';
 
@@ -26,12 +27,25 @@ export const ProjectTrackingTimeline = () => {
   const { user, isAdmin, isManager, isSales } = useAuth();
 
   const [workflow, setWorkflow] = useState(null);
+  const [projectStock, setProjectStock] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchWorkflow();
+    fetchProjectStock();
   }, [trackingId]);
+
+  const fetchProjectStock = async () => {
+    try {
+      const res = await api.get(`/inventory/project/${trackingId}`);
+      if (res.success) {
+        setProjectStock(res);
+      }
+    } catch (e) {
+      // ignore
+    }
+  };
 
   const fetchWorkflow = async () => {
     try {
@@ -296,6 +310,59 @@ export const ProjectTrackingTimeline = () => {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Project Materials & Stores Readiness Card */}
+          <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center space-x-1.5">
+                <Boxes className="w-3.5 h-3.5 text-teal-600" />
+                <span>Stores Material Readiness</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => navigate(`/inventory?project=${trackingId}`)}
+                className="text-[10px] font-bold text-[#0878C9] hover:underline flex items-center space-x-0.5 cursor-pointer"
+              >
+                <span>Stock Admin</span>
+                <ExternalLink className="w-2.5 h-2.5" />
+              </button>
+            </div>
+
+            {projectStock?.issuedMaterials && projectStock.issuedMaterials.length > 0 ? (
+              <div className="space-y-2">
+                <p className="text-[11px] font-bold text-emerald-800 bg-emerald-50 p-2 rounded border border-emerald-200">
+                  ✓ {projectStock.issuedMaterials.length} Component batches issued to this project
+                </p>
+                <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                  {projectStock.issuedMaterials.map((m) => (
+                    <div key={m._id} className="p-2 rounded bg-slate-50 border border-slate-100 text-[11px] flex items-center justify-between">
+                      <div>
+                        <span className="font-bold text-slate-900">{m.itemCode}</span>
+                        <p className="text-slate-500 text-[10px]">{m.departmentStage}</p>
+                      </div>
+                      <span className="font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded text-[10px]">
+                        Qty: {m.quantity}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-100 text-xs text-slate-500 space-y-2">
+                <p className="text-[11px] leading-relaxed">
+                  No materials issued from stores yet for {trackingId}.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/inventory?project=${trackingId}`)}
+                  className="w-full py-1.5 px-2 bg-teal-50 hover:bg-teal-100 text-teal-700 font-bold rounded text-[11px] border border-teal-200 flex items-center justify-center space-x-1 cursor-pointer"
+                >
+                  <Boxes className="w-3 h-3 text-teal-600" />
+                  <span>Allocate / Issue Stock from Stores →</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
 

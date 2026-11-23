@@ -30,7 +30,7 @@ const workflowHistorySchema = new mongoose.Schema(
     },
     action: {
       type: String,
-      enum: ['Submitted', 'Forwarded', 'Accepted', 'Rejected', 'Resubmitted', 'Completed'],
+      enum: ['Submitted', 'Forwarded', 'Accepted', 'Rejected', 'Resubmitted', 'Completed', 'Drawing Uploaded', 'Verified'],
       required: true
     },
     actionBy: {

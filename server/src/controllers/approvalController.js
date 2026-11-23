@@ -106,14 +106,37 @@ export const approveEnquiry = async (req, res, next) => {
             remarks: remarks || 'Approved by Executive Admin'
           }
         );
-        await DepartmentApproval.findOneAndUpdate(
-          { workflowId: wf._id, departmentSequence: 2 },
-          { status: DEPARTMENT_APPROVAL_STATUSES.PENDING }
-        );
-        wf.currentDepartmentSequence = 2;
-        wf.currentDepartmentCode = 'PO_TEAM';
-        wf.overallStatus = PROJECT_WORKFLOW_STATUSES.PENDING_PO_APPROVAL;
-        await wf.save();
+        if (req.body.approvePO || req.body.clearPO) {
+          await DepartmentApproval.findOneAndUpdate(
+            { workflowId: wf._id, departmentSequence: 2 },
+            {
+              status: DEPARTMENT_APPROVAL_STATUSES.ACCEPTED,
+              actionAt: new Date(),
+              actionBy: req.user._id,
+              actionByName: req.user.name,
+              actionByRole: req.user.role,
+              remarks: 'PO verified and cleared by Executive Admin.'
+            }
+          );
+          await DepartmentApproval.findOneAndUpdate(
+            { workflowId: wf._id, departmentSequence: 3 },
+            { status: DEPARTMENT_APPROVAL_STATUSES.PENDING }
+          );
+          wf.currentDepartmentSequence = 3;
+          wf.currentDepartmentCode = 'ACCOUNTANT';
+          wf.overallStatus = PROJECT_WORKFLOW_STATUSES.UNDER_DEPARTMENT_REVIEW;
+          wf.completionPercentage = 30;
+          await wf.save();
+        } else {
+          await DepartmentApproval.findOneAndUpdate(
+            { workflowId: wf._id, departmentSequence: 2 },
+            { status: DEPARTMENT_APPROVAL_STATUSES.PENDING }
+          );
+          wf.currentDepartmentSequence = 2;
+          wf.currentDepartmentCode = 'PO_TEAM';
+          wf.overallStatus = PROJECT_WORKFLOW_STATUSES.PENDING_PO_APPROVAL;
+          await wf.save();
+        }
       }
 
       // Generate or sync PurchaseOrder record for PO Team

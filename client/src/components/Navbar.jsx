@@ -739,7 +739,19 @@ export const Navbar = ({ onToggleSidebar = () => {} }) => {
               <button
                 type="button"
                 onClick={() => {
-                  const targetLink = selectedNotification.link || '/workflow';
+                  let targetLink = selectedNotification.link;
+                  if (!targetLink || targetLink === '/workflow') {
+                    if (selectedNotification.type === 'approval' || selectedNotification.id?.startsWith('wf_') || selectedNotification.deptSeq) {
+                      const seq = selectedNotification.deptSeq || (user?.role === 'PO_TEAM' ? 2 : 1);
+                      targetLink = `/departments/workflow?dept=${seq}`;
+                    } else if (user?.role === 'PO_TEAM') {
+                      targetLink = '/po/tracking';
+                    } else if (user?.role === 'ACCOUNTANT') {
+                      targetLink = '/departments/workflow?dept=3';
+                    } else {
+                      targetLink = '/enquiries';
+                    }
+                  }
                   setSelectedNotification(null);
                   setActiveDropdown(null);
                   navigate(targetLink);
@@ -749,7 +761,13 @@ export const Navbar = ({ onToggleSidebar = () => {} }) => {
                   background: 'linear-gradient(90deg, #FF8A20 0%, #FF6A0A 100%)'
                 }}
               >
-                <span>Open in Workflow</span>
+                <span>
+                  {selectedNotification.type === 'approval' || selectedNotification.id?.startsWith('wf_')
+                    ? 'Open Department Workflow'
+                    : user?.role === 'PO_TEAM'
+                    ? 'Open PO Tracking'
+                    : 'Open Details'}
+                </span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
