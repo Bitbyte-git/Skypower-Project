@@ -11,6 +11,7 @@ import {
   DEPARTMENT_APPROVAL_STATUSES
 } from '../constants/statuses.js';
 import { USER_ROLES } from '../constants/roles.js';
+import { syncEngineeringProjectForOrder } from './engineeringController.js';
 
 // Departments permitted to view full client identity and contact information
 // STRICT RULE: Sales & Marketing, Accountant, Drawing/OA, Delivery, and Installation visualize client details.
@@ -97,10 +98,10 @@ export const getProjectWorkflows = async (req, res, next) => {
     }
 
     // 1. Department-level filtering based on DepartmentApproval records
-    if (departmentSequence || departmentCode) {
-      let targetSeq = departmentSequence ? Number(departmentSequence) : null;
+    if ((departmentSequence && departmentSequence !== 'ALL') || (departmentCode && departmentCode !== 'ALL')) {
+      let targetSeq = (departmentSequence && departmentSequence !== 'ALL') ? Number(departmentSequence) : null;
 
-      if (!targetSeq && departmentCode) {
+      if (!targetSeq && departmentCode && departmentCode !== 'ALL') {
         const foundDept = await Department.findOne({ departmentCode: departmentCode.toUpperCase() });
         if (foundDept) targetSeq = foundDept.sequenceNumber;
       }
@@ -681,6 +682,20 @@ export const departmentAction = async (req, res, next) => {
             status: DEPARTMENT_APPROVAL_STATUSES.PENDING
           }
         );
+
+        // Auto-sync into Module 04 (Engineering & Drawing Approval) if moving to Stage 4 (DRAWING)
+        if (nextSeq === 4) {
+          try {
+            const order = await SalesOrder.findOne({
+              $or: [{ enquiryId: workflow.enquiryId }, { _id: workflow.salesOrderId }]
+            }).populate('clientId enquiryId');
+            if (order) {
+              await syncEngineeringProjectForOrder(order, req.user);
+            }
+          } catch (syncErr) {
+            console.error('Error auto-syncing engineering project at Stage 4:', syncErr);
+          }
+        }
       }
 
       await workflow.save();

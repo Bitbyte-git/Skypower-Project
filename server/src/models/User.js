@@ -39,6 +39,39 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: 'Marketing & Sales'
     },
+    // Customer Portal Mapping
+    clientId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Client',
+      default: null,
+      index: true
+    },
+    companyName: {
+      type: String,
+      trim: true,
+      default: ''
+    },
+    portalStatus: {
+      type: String,
+      enum: ['PENDING_ACTIVATION', 'ACTIVE', 'SUSPENDED'],
+      default: 'ACTIVE'
+    },
+    activationToken: {
+      type: String,
+      select: false
+    },
+    activationTokenExpires: {
+      type: Date,
+      select: false
+    },
+    resetPasswordToken: {
+      type: String,
+      select: false
+    },
+    resetPasswordExpires: {
+      type: Date,
+      select: false
+    },
     isActive: {
       type: Boolean,
       default: true

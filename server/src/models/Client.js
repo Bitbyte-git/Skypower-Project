@@ -91,6 +91,17 @@ const clientSchema = new mongoose.Schema(
         email: { type: String, trim: true }
       }
     ],
+    portalAccess: {
+      enabled: { type: Boolean, default: false },
+      portalUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+      portalEmail: { type: String, lowercase: true, trim: true, default: '' },
+      activatedAt: { type: Date, default: null },
+      status: {
+        type: String,
+        enum: ['DISABLED', 'INVITED', 'ACTIVE'],
+        default: 'DISABLED'
+      }
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

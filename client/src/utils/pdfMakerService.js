@@ -162,9 +162,17 @@ export async function downloadEnquiryPDF(enquiryData) {
   const paymentTermsLine = comm.paymentTerms ||
     '50% as advance along with your valued purchase order and balance 50% against proforma Invoice after inspection and before dispatch.';
 
-  // Point 7 – Delivery weeks
-  const deliveryWeeks = comm.deliveryWeeks || 4;
-  const deliveryLine  = 'Within ' + deliveryWeeks + ' weeks from the date of receipt of approved drawing, our drawing will be submitted within three working days from the date of receipt of purchase order.';
+  // Point 7 – Delivery weeks & target date
+  const deliveryWeeks = comm.deliveryWeeks || 6;
+  const targetDeliveryDate = comm.expectedDeliveryDate || enquiryData.project?.expectedDeliveryDate;
+  const targetDateFormatted = targetDeliveryDate
+    ? new Date(targetDeliveryDate).toLocaleDateString('en-GB')
+    : null;
+  
+  let deliveryLine = comm.deliveryTerms || ('Within ' + deliveryWeeks + ' weeks from the date of receipt of approved drawing, our drawing will be submitted within three working days from the date of receipt of purchase order.');
+  if (targetDateFormatted && !deliveryLine.includes(targetDateFormatted)) {
+    deliveryLine = deliveryLine + ' (Committed Target Delivery Date: ' + targetDateFormatted + ')';
+  }
 
   // Point 8 – Warranty months
   const warrantyMonthsDispatch   = comm.warrantyMonthsDispatch   || 18;

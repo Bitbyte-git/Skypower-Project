@@ -253,7 +253,7 @@ export const EngineeringProjectsList = () => {
                 <th className="py-3 px-4">Drawing Progress</th>
                 <th className="py-3 px-4">Target Date</th>
                 <th className="py-3 px-4">Priority</th>
-                <th className="py-3 px-4">Status</th>
+                <th className="py-3 px-4 text-center whitespace-nowrap min-w-[140px]">Status</th>
                 <th className="py-3 px-4 text-center">Action</th>
               </tr>
             </thead>
@@ -340,8 +340,8 @@ export const EngineeringProjectsList = () => {
                           {p.priority}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4">
-                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${getStatusBadge(p.status)}`}>
+                      <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                        <span className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-[11px] font-bold whitespace-nowrap border shadow-2xs ${getStatusBadge(p.status)}`}>
                           {p.status}
                         </span>
                       </td>

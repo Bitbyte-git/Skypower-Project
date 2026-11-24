@@ -15,6 +15,7 @@ import inventoryRoutes from './inventoryRoutes.js';
 import salesOrderRoutes from './salesOrderRoutes.js';
 import paymentRoutes from './paymentRoutes.js';
 import engineeringRoutes from './engineeringRoutes.js';
+import portalRoutes from './portalRoutes.js';
 
 const router = Router();
 
@@ -34,5 +35,6 @@ router.use('/inventory', inventoryRoutes);
 router.use('/orders', salesOrderRoutes);
 router.use('/payments', paymentRoutes);
 router.use('/engineering', engineeringRoutes);
+router.use('/portal', portalRoutes);
 
 export default router;

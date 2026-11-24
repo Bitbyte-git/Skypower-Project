@@ -22,7 +22,8 @@ import {
   Clock,
   Send,
   MessageSquare,
-  Layers
+  Layers,
+  Building2
 } from 'lucide-react';
 import factoryBuildingImg from '../assets/sky-power-building.png';
 
@@ -67,6 +68,12 @@ export const Sidebar = ({ isOpen = false, onClose = () => {} }) => {
       path: '/workflow',
       icon: FileSpreadsheet,
       badge: 'New'
+    },
+    {
+      name: 'Clients & Customers',
+      path: '/clients',
+      icon: Building2,
+      badge: 'Portal'
     },
     {
       name: 'Order Dashboard',
@@ -171,6 +178,9 @@ export const Sidebar = ({ isOpen = false, onClose = () => {} }) => {
     }
     if (itemPath === '/departments/workflow') {
       return location.pathname.startsWith('/departments/workflow') && !location.search.includes('dept=3') && !location.search.includes('dept=4');
+    }
+    if (itemPath === '/clients') {
+      return location.pathname.startsWith('/clients');
     }
     if (itemPath === '/workflow') {
       return (

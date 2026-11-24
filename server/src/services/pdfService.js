@@ -300,8 +300,15 @@ export const generateQuotationPDF = async (quotation, client, companyProfile = {
       y += 26;
 
       // 7. Delivery
+      const deliveryWeeks = quotation.deliveryWeeks || quotation.commercialPricing?.deliveryWeeks || 6;
+      const targetDate = quotation.expectedDeliveryDate || quotation.commercialPricing?.expectedDeliveryDate || quotation.project?.expectedDeliveryDate;
+      const targetDateFormatted = targetDate ? new Date(targetDate).toLocaleDateString('en-GB') : null;
+      let deliveryText = quotation.deliveryTerms || quotation.commercialPricing?.deliveryTerms || `Within ${deliveryWeeks} weeks from the date of receipt of approved drawing, our drawing will be submitted within three working days from the date of receipt of purchase order.`;
+      if (targetDateFormatted && !deliveryText.includes(targetDateFormatted)) {
+        deliveryText = `${deliveryText} (Committed Target Delivery Date: ${targetDateFormatted})`;
+      }
       doc.font('Times-Bold').text('7.  Delivery: ', 45, y, { continued: true })
-         .font('Times-Roman').text(quotation.deliveryTerms || 'Within 4 weeks from the date of receipt of approved drawing, our drawing will be submitted within three working days from the date of receipt of purchase order.', { width: 495 });
+         .font('Times-Roman').text(deliveryText, { width: 495 });
       y += 26;
 
       // 8. Warranty

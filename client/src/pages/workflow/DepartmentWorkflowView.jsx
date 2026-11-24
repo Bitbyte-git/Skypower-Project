@@ -27,7 +27,9 @@ import {
   Boxes,
   Upload,
   FileCheck2,
-  FileDown
+  FileDown,
+  Layers,
+  Info
 } from 'lucide-react';
 import { downloadEnquiryPDF } from '../../utils/pdfMakerService';
 import { LiveStockDrawer } from '../../components/inventory/LiveStockDrawer';
@@ -58,7 +60,10 @@ export const DepartmentWorkflowView = () => {
   });
 
   // Selected Department (default from URL or sequence 3 for Accountant, sequence 4 for Design Engineer, otherwise 2)
-  const initialDeptSeq = Number(searchParams.get('dept')) || (user?.role === 'ACCOUNTANT' ? 3 : (user?.role === 'DESIGN_ENGINEER' ? 4 : 2));
+  const urlDept = searchParams.get('dept');
+  const initialDeptSeq = urlDept === 'ALL'
+    ? 'ALL'
+    : (urlDept ? Number(urlDept) : (user?.role === 'ACCOUNTANT' ? 3 : (user?.role === 'DESIGN_ENGINEER' ? 4 : 2)));
   const [selectedDeptSeq, setSelectedDeptSeq] = useState(initialDeptSeq);
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || 'ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -93,7 +98,10 @@ export const DepartmentWorkflowView = () => {
     validationError: ''
   });
 
-  const activeDept = DEPARTMENTS.find((d) => d.sequence === selectedDeptSeq) || DEPARTMENTS[0];
+  const isAllStages = selectedDeptSeq === 'ALL';
+  const activeDept = isAllStages
+    ? { sequence: 'ALL', code: 'ALL', name: 'All Departments / Projects', canViewClient: true, canViewCommercial: true }
+    : (DEPARTMENTS.find((d) => d.sequence === Number(selectedDeptSeq)) || DEPARTMENTS[0]);
 
   useEffect(() => {
     fetchWorkflows();
@@ -115,10 +123,11 @@ export const DepartmentWorkflowView = () => {
     try {
       setLoading(true);
       setError(null);
-      const params = {
-        departmentSequence: selectedDeptSeq,
-        departmentCode: activeDept.code
-      };
+      const params = {};
+      if (selectedDeptSeq !== 'ALL') {
+        params.departmentSequence = selectedDeptSeq;
+        params.departmentCode = activeDept.code;
+      }
       if (statusFilter !== 'ALL') {
         params.status = statusFilter;
       }
@@ -495,6 +504,28 @@ export const DepartmentWorkflowView = () => {
           className="flex items-center space-x-1.5 overflow-x-auto scroll-smooth py-1 px-1 flex-1 no-scrollbar"
           style={{ scrollbarWidth: 'thin' }}
         >
+          {/* All Stages Tab */}
+          <button
+            onClick={() => handleDepartmentChange('ALL')}
+            className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
+              selectedDeptSeq === 'ALL'
+                ? 'bg-[#EE6F2D] text-white shadow-md shadow-orange-500/20 ring-2 ring-orange-600/30'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
+          >
+            <Layers className="w-3.5 h-3.5" />
+            <span className="whitespace-nowrap">All Stages</span>
+            {stats?.totalProjects > 0 && (
+              <span
+                className={`px-1.5 py-0.2 rounded-full text-[9px] font-black ${
+                  selectedDeptSeq === 'ALL' ? 'bg-white text-[#EE6F2D]' : 'bg-slate-200 text-slate-800'
+                }`}
+              >
+                {stats.totalProjects}
+              </span>
+            )}
+          </button>
+
           {DEPARTMENTS.map((dept) => {
             const isSelected = dept.sequence === selectedDeptSeq;
             const pendingCount = stats?.departmentPending?.[dept.code]?.count || 0;
@@ -554,6 +585,32 @@ export const DepartmentWorkflowView = () => {
           <ChevronRight className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Advance Payment Queue Clarification Notice */}
+      {selectedDeptSeq === 3 && (
+        <div className="rounded-xl p-3 bg-amber-50/80 border border-amber-200 text-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-amber-900 shadow-2xs">
+          <div className="flex items-center space-x-2">
+            <Info className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>
+              <strong>Advance Payment Queue (Stage 3):</strong> Only projects that completed PO Team verification appear here. Newly registered projects begin at <strong>Stage 1 (Sales &amp; Enquiry)</strong>.
+            </span>
+          </div>
+          <div className="flex items-center space-x-2 shrink-0">
+            <button
+              onClick={() => handleDepartmentChange(1)}
+              className="px-2.5 py-1 rounded bg-amber-200 hover:bg-amber-300 text-amber-950 font-bold transition-colors cursor-pointer text-[11px]"
+            >
+              Go to Stage 1 (Sales) &rarr;
+            </button>
+            <button
+              onClick={() => handleDepartmentChange('ALL')}
+              className="px-2.5 py-1 rounded bg-white hover:bg-slate-50 text-slate-800 border border-amber-300 font-bold transition-colors cursor-pointer text-[11px]"
+            >
+              View All Stages &rarr;
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Department Notice Banner: Strict Client Data Visibility & Quotation Download Rule */}
       <div
@@ -706,9 +763,9 @@ export const DepartmentWorkflowView = () => {
                 {filteredWorkflows.map((w) => {
                   const enq = w.enquiryId || {};
                   const client = enq.clientId || {};
-                  const isCurrentDept = w.currentDepartmentSequence === selectedDeptSeq;
+                  const isCurrentDept = isAllStages || w.currentDepartmentSequence === selectedDeptSeq;
                   const currentApp = (w.approvals || []).find(
-                    (a) => a.departmentSequence === selectedDeptSeq
+                    (a) => a.departmentSequence === (isAllStages ? w.currentDepartmentSequence : selectedDeptSeq)
                   );
                   const isPending = currentApp?.status === 'Pending' || (isCurrentDept && w.overallStatus.includes('Review'));
 
@@ -808,32 +865,36 @@ export const DepartmentWorkflowView = () => {
                           >
                             {currentApp?.status || 'Waiting'}
                           </span>
-                          <p className="text-[10px] text-slate-500 font-medium">
-                            Stage: {w.currentDepartmentSequence}/10
+                          <p className="text-[10px] text-slate-800 font-bold">
+                            Stage {w.currentDepartmentSequence}/10 &bull; {w.currentDepartmentCode}
                           </p>
-                          <p className="text-[10px] font-bold text-slate-700">
+                          <p className="text-[10px] text-slate-500 font-medium">
                             {w.overallStatus}
                           </p>
 
                           {/* Stage 3 Advance Payment Badge - Strictly visible only in Stage 3 for Accountant/Admin */}
-                          {selectedDeptSeq === 3 && (isAdmin || isManager || isAccountant) && w.advancePaymentDetails?.amount > 0 ? (
-                            <div className="mt-1 p-1.5 bg-emerald-50 border border-emerald-200 rounded text-[10px] text-emerald-800 font-bold space-y-0.5">
-                              <div className="flex items-center space-x-1">
-                                <CreditCard className="w-3 h-3 text-emerald-600 shrink-0" />
-                                <span>Advance: ₹{Number(w.advancePaymentDetails.amount).toLocaleString('en-IN')}</span>
+                          {selectedDeptSeq === 3 && (isAdmin || isManager || isAccountant) && (
+                            w.advancePaymentDetails?.amount > 0 ? (
+                              <div className="mt-1 p-1.5 bg-emerald-50 border border-emerald-200 rounded text-[10px] text-emerald-800 font-bold space-y-0.5">
+                                <div className="flex items-center space-x-1">
+                                  <CreditCard className="w-3 h-3 text-emerald-600 shrink-0" />
+                                  <span>Advance Cleared: ₹{Number(w.advancePaymentDetails.amount).toLocaleString('en-IN')}</span>
+                                </div>
+                                {w.advancePaymentDetails.paymentDate && (
+                                  <span className="text-[9px] text-slate-500 font-mono block">
+                                    {new Date(w.advancePaymentDetails.paymentDate).toLocaleDateString('en-IN')} &bull; {w.advancePaymentDetails.paymentMode || 'RTGS'}
+                                  </span>
+                                )}
                               </div>
-                              {w.advancePaymentDetails.paymentDate && (
-                                <span className="text-[9px] text-slate-500 font-mono block">
-                                  {new Date(w.advancePaymentDetails.paymentDate).toLocaleDateString('en-IN')} &bull; {w.advancePaymentDetails.paymentMode || 'RTGS'}
+                            ) : (
+                              <div className="mt-1 p-1.5 bg-slate-100 border border-slate-200 rounded text-[10px] text-slate-600 space-y-0.5">
+                                <div className="flex items-center space-x-1 font-semibold text-slate-700">
+                                  <Clock className="w-3 h-3 text-amber-600 shrink-0" />
+                                  <span>Awaiting Client Advance Payment</span>
+                                </div>
+                                <span className="text-[9px] text-slate-500 block">
+                                  Record actual credited amount via bank UTR
                                 </span>
-                              )}
-                            </div>
-                          ) : (
-                            /* In Stage 4 or other technical stages: show simple badge indicating commercial clearance without any money figures */
-                            (w.advancePaymentDetails?.status === 'Received & Cleared' || w.advancePaymentDetails?.amount > 0) && (
-                              <div className="mt-1 p-1 bg-emerald-50 border border-emerald-200 rounded text-[10px] text-emerald-800 font-bold flex items-center space-x-1">
-                                <CheckCircle2 className="w-3 h-3 text-emerald-600 shrink-0" />
-                                <span>Advance Cleared</span>
                               </div>
                             )
                           )}
@@ -1150,55 +1211,118 @@ export const DepartmentWorkflowView = () => {
                       <span>Stage 3: Advance Payment Receipt Recording</span>
                     </div>
                     <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800">
-                      Standard Terms: 50% Advance
+                      Payment Terms: {actionModal.workflow?.enquiryId?.commercialPricing?.paymentTerms ? 'Contract PO Terms' : 'Standard 50% Advance'}
                     </span>
                   </div>
 
-                  {/* Summary of Commercial Value */}
+                  {/* Accountant Verification Guide */}
+                  {(() => {
+                    const totalVal = Number(actionModal.workflow?.enquiryId?.commercialPricing?.totalAmount || actionModal.workflow?.enquiryId?.expectedProjectValue || 0);
+                    return (
+                      <div className="p-3 bg-amber-50/90 border border-amber-200 rounded-lg text-xs space-y-1.5 text-amber-950">
+                        <div className="font-bold flex items-center space-x-1.5 text-amber-900">
+                          <Info className="w-4 h-4 text-amber-600 shrink-0" />
+                          <span>How to Know Amount &amp; Approve:</span>
+                        </div>
+                        <ul className="text-[11px] text-amber-900 space-y-1 list-disc list-inside">
+                          <li>
+                            Check your company bank statement (RTGS/NEFT) for credit from <strong>{actionModal.workflow?.enquiryId?.clientId?.companyName || 'the client'}</strong>.
+                          </li>
+                          <li>
+                            Compare credited amount with agreed terms: <strong>50% (₹{Math.round(totalVal * 0.5).toLocaleString('en-IN')})</strong> or <strong>30% (₹{Math.round(totalVal * 0.3).toLocaleString('en-IN')})</strong> or <strong>100% Full Payment</strong>.
+                          </li>
+                          <li>
+                            Select the matching preset below (or enter the exact credited amount &amp; UTR), then click <strong>Confirm Payment</strong> to release the project to Engineering.
+                          </li>
+                        </ul>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Summary of Commercial Value & Contract Terms */}
                   <div className="grid grid-cols-2 gap-2 text-xs bg-white p-2.5 rounded-lg border border-blue-100">
                     <div>
                       <span className="text-slate-400 font-medium block text-[10px]">Total Project Value:</span>
-                      <span className="font-mono font-extrabold text-slate-900">
+                      <span className="font-mono font-extrabold text-slate-900 text-sm">
                         ₹ {Number(actionModal.workflow?.enquiryId?.commercialPricing?.totalAmount || actionModal.workflow?.enquiryId?.expectedProjectValue || 0).toLocaleString('en-IN')}
                       </span>
                     </div>
                     <div>
                       <span className="text-slate-400 font-medium block text-[10px]">Client / Buyer:</span>
-                      <span className="font-bold text-slate-900 truncate block">
+                      <span className="font-bold text-slate-900 truncate block text-sm">
                         {actionModal.workflow?.enquiryId?.clientId?.companyName || 'Valued Client'}
+                      </span>
+                    </div>
+                    <div className="col-span-2 pt-1 border-t border-slate-100 text-[11px] text-slate-600">
+                      <strong>Quotation Payment Clause: </strong>
+                      <span>
+                        {actionModal.workflow?.enquiryId?.commercialPricing?.paymentTerms ||
+                          '50% as advance along with valued purchase order and balance 50% against proforma Invoice after inspection and before dispatch.'}
                       </span>
                     </div>
                   </div>
 
+                  {/* Live Advance vs Balance Split Breakdown */}
+                  {(() => {
+                    const totalVal = Number(actionModal.workflow?.enquiryId?.commercialPricing?.totalAmount || actionModal.workflow?.enquiryId?.expectedProjectValue || 0);
+                    const curAmt = Number(actionModal.advancePaymentDetails?.amount) || 0;
+                    const balanceDue = Math.max(0, totalVal - curAmt);
+                    const curPct = actionModal.advancePaymentDetails?.percentage || (totalVal > 0 ? Math.round((curAmt / totalVal) * 100) : 50);
+                    return totalVal > 0 ? (
+                      <div className="grid grid-cols-2 gap-2 text-xs p-2.5 rounded-lg bg-white border border-blue-200">
+                        <div className="space-y-0.5">
+                          <span className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider block">Advance Cleared Now</span>
+                          <span className="font-mono font-extrabold text-emerald-700 text-sm block">
+                            ₹ {curAmt.toLocaleString('en-IN')}
+                          </span>
+                          <span className="text-[10px] text-slate-500 font-medium">{curPct}% of total order</span>
+                        </div>
+                        <div className="space-y-0.5 text-right">
+                          <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Balance (At PI / Dispatch)</span>
+                          <span className="font-mono font-extrabold text-slate-800 text-sm block">
+                            ₹ {balanceDue.toLocaleString('en-IN')}
+                          </span>
+                          <span className="text-[10px] text-slate-500 font-medium">{Math.max(0, 100 - curPct)}% due before delivery</span>
+                        </div>
+                      </div>
+                    ) : null;
+                  })()}
+
                   {/* Quick percentage selector pills */}
                   <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className="font-bold text-slate-700">Advance Percentage (%)</label>
-                      <div className="flex items-center space-x-1">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mb-1.5">
+                      <label className="font-bold text-slate-700 text-xs">Advance Percentage (%)</label>
+                      <div className="flex flex-wrap items-center gap-1">
                         <span className="text-[10px] text-slate-400 font-semibold mr-1">Presets:</span>
-                        {[20, 25, 30, 50, 100].map((pct) => (
+                        {[
+                          { label: '30% (Customer PO)', pct: 30 },
+                          { label: '50% (Standard Quote)', pct: 50 },
+                          { label: '100% (Complete Amount)', pct: 100 },
+                          { label: '20%', pct: 20 },
+                          { label: '25%', pct: 25 }
+                        ].map((item) => (
                           <button
-                            key={pct}
+                            key={item.pct}
                             type="button"
                             onClick={() => {
                               const total = Number(actionModal.workflow?.enquiryId?.commercialPricing?.totalAmount || actionModal.workflow?.enquiryId?.expectedProjectValue || 0);
-                              const amt = Math.round((total * pct) / 100);
+                              const amt = Math.round((total * item.pct) / 100);
                               setActionModal((prev) => ({
                                 ...prev,
                                 advancePaymentDetails: {
                                   ...prev.advancePaymentDetails,
-                                  percentage: pct,
+                                  percentage: item.pct,
                                   amount: amt
                                 }
                               }));
                             }}
-                            className={`px-1.5 py-0.5 rounded text-[10px] font-bold border transition-colors cursor-pointer ${
-                              (actionModal.advancePaymentDetails?.percentage || 50) === pct
-                                ? 'bg-[#1E5BB8] text-white border-[#1E5BB8]'
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-colors cursor-pointer ${
+                              (actionModal.advancePaymentDetails?.percentage || 50) === item.pct
+                                ? 'bg-[#1E5BB8] text-white border-[#1E5BB8] shadow-xs'
                                 : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
                             }`}
                           >
-                            {pct}%
+                            {item.label}
                           </button>
                         ))}
                       </div>

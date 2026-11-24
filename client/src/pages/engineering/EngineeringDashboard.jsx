@@ -30,6 +30,7 @@ export const EngineeringDashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [seeding, setSeeding] = useState(false);
+  const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState('');
   const [activePendingTab, setActivePendingTab] = useState('internalReviews');
 
@@ -47,6 +48,22 @@ export const EngineeringDashboard = () => {
       setError(err.message || 'Error fetching engineering statistics.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSyncOrders = async () => {
+    try {
+      setSyncing(true);
+      const res = await api.post('/engineering/sync-orders');
+      if (res.success) {
+        await fetchStats();
+      } else {
+        alert(res.message || 'Could not sync orders.');
+      }
+    } catch (err) {
+      alert('Error syncing orders: ' + err.message);
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -142,6 +159,17 @@ export const EngineeringDashboard = () => {
             title="Refresh statistics"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-blue-600' : ''}`} />
+          </button>
+
+          <button
+            type="button"
+            disabled={syncing || loading}
+            onClick={handleSyncOrders}
+            className="inline-flex items-center px-3.5 py-2 rounded-xl text-xs font-bold bg-sky-600 hover:bg-sky-700 text-white shadow-xs transition-colors"
+            title="Import active confirmed sales orders into engineering projects"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${syncing ? 'animate-spin' : ''}`} />
+            <span>{syncing ? 'Syncing...' : 'Sync From Sales Orders'}</span>
           </button>
 
           {kpis.totalProjects === 0 && (
@@ -381,14 +409,14 @@ export const EngineeringDashboard = () => {
                   <th className="py-2.5 px-3">Assigned Engineer</th>
                   <th className="py-2.5 px-3">Drawing Progress</th>
                   <th className="py-2.5 px-3">Approval Progress</th>
-                  <th className="py-2.5 px-3">Status</th>
+                  <th className="py-2.5 px-3 text-center whitespace-nowrap min-w-[130px]">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
                 {projectOverview.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="py-12 text-center text-slate-400">
-                      No engineering projects found. Click "Create Engineering Project" to get started.
+                      No engineering projects found. Click "Sync From Sales Orders" above to import confirmed orders into engineering.
                     </td>
                   </tr>
                 ) : (
@@ -440,8 +468,8 @@ export const EngineeringDashboard = () => {
                           />
                         </div>
                       </td>
-                      <td className="py-3 px-3">
-                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${getStatusColor(p.status)}`}>
+                      <td className="py-3 px-3 text-center whitespace-nowrap">
+                        <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap border shadow-2xs ${getStatusColor(p.status)}`}>
                           {p.status}
                         </span>
                       </td>

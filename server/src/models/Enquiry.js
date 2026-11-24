@@ -210,6 +210,14 @@ const enquirySchema = new mongoose.Schema(
       expectedDeliveryDate: {
         type: Date
       },
+      deliveryTerms: {
+        type: String,
+        trim: true
+      },
+      deliveryWeeks: {
+        type: Number,
+        default: 8
+      },
       projectDescription: {
         type: String,
         trim: true
@@ -288,6 +296,21 @@ const enquirySchema = new mongoose.Schema(
       amountInWords: {
         type: String,
         default: ''
+      },
+      deliverySchedule: {
+        type: String,
+        default: '6 to 8 Weeks'
+      },
+      deliveryWeeks: {
+        type: Number,
+        default: 8
+      },
+      expectedDeliveryDate: {
+        type: Date
+      },
+      deliveryTerms: {
+        type: String,
+        default: 'Within 6 to 8 weeks from the date of technically & commercially clear Purchase Order and approved drawing.'
       }
     },
     products: {

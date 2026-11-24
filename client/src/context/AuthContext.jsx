@@ -70,6 +70,7 @@ export const AuthProvider = ({ children }) => {
     isAccountant: user?.role === 'ACCOUNTANT',
     isStockAdmin: user?.role === 'STOCK_ADMIN' || user?.role === 'ADMIN',
     isDesignEngineer: user?.role === 'DESIGN_ENGINEER' || user?.role === 'ENGINEERING_MANAGER' || user?.role === 'ENGINEERING_REVIEWER',
+    isCustomer: user?.role === 'CUSTOMER',
     canManageWorkflows: user?.role === 'ADMIN' || user?.role === 'MANAGER' || user?.role === 'ACCOUNTANT'
   };
 

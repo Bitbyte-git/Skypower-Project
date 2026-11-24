@@ -88,3 +88,30 @@ export const requireRoles = (roles = []) => {
     next();
   };
 };
+
+/**
+ * Strict Customer Portal Guard:
+ * Only users with role === 'CUSTOMER' and linked clientId can proceed.
+ */
+export const requireCustomer = (req, res, next) => {
+  if (!req.user || req.user.role !== USER_ROLES.CUSTOMER || !req.user.clientId) {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied: Customer portal authentication required.'
+    });
+  }
+  next();
+};
+
+/**
+ * Guard that blocks customers from internal administrative endpoints.
+ */
+export const requireInternalEmployee = (req, res, next) => {
+  if (!req.user || req.user.role === USER_ROLES.CUSTOMER) {
+    return res.status(403).json({
+      success: false,
+      message: 'Access denied: Internal ERP authorization required.'
+    });
+  }
+  next();
+};

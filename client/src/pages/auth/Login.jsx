@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Lock, Mail, AlertCircle, ArrowRight, Zap, ShieldCheck, ClipboardList, Package, CreditCard, Boxes, Cpu } from 'lucide-react';
+import { Lock, Mail, AlertCircle, ArrowRight, Zap, ShieldCheck, ClipboardList, Package, CreditCard, Boxes, Cpu, UserCheck } from 'lucide-react';
 
 export const Login = () => {
   const [email, setEmail] = useState('sales@skypower.co.in');
@@ -18,7 +18,9 @@ export const Login = () => {
 
     try {
       const loggedUser = await login(email, password);
-      if (loggedUser.role === 'ADMIN') {
+      if (loggedUser.role === 'CUSTOMER') {
+        navigate('/portal/dashboard');
+      } else if (loggedUser.role === 'ADMIN') {
         navigate('/admin/dashboard');
       } else if (loggedUser.role === 'MANAGER') {
         navigate('/manager/dashboard');
@@ -312,6 +314,20 @@ export const Login = () => {
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Customer Portal Entry Link */}
+        <div className="mt-4 bg-white/90 backdrop-blur-xs rounded-2xl border border-blue-200/80 p-4 text-center shadow-xs">
+          <p className="text-xs font-semibold text-slate-700">
+            Are you a Sky Power Switchgears Customer?
+          </p>
+          <Link
+            to="/customer/login"
+            className="mt-1.5 inline-flex items-center text-xs font-extrabold text-blue-700 hover:text-blue-900 hover:underline"
+          >
+            <ShieldCheck className="w-4 h-4 mr-1 text-sky-600" />
+            <span>Open Dedicated Customer Portal →</span>
+          </Link>
         </div>
 
         <p className="mt-4 text-center text-[11px]" style={{ color: '#8495AB' }}>

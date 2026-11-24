@@ -23,7 +23,9 @@ export const ProtectedRoute = ({ allowedRoles }) => {
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
     const returnUrl =
-      user.role === 'ADMIN'
+      user.role === 'CUSTOMER'
+        ? '/portal/dashboard'
+        : user.role === 'ADMIN'
         ? '/admin/dashboard'
         : user.role === 'PO_TEAM'
         ? '/po/tracking'
@@ -31,6 +33,8 @@ export const ProtectedRoute = ({ allowedRoles }) => {
         ? '/departments/workflow?dept=3'
         : user.role === 'STOCK_ADMIN'
         ? '/inventory'
+        : user.role === 'DESIGN_ENGINEER' || user.role === 'ENGINEERING_MANAGER' || user.role === 'ENGINEERING_REVIEWER'
+        ? '/engineering/dashboard'
         : '/sales/dashboard';
 
     return (

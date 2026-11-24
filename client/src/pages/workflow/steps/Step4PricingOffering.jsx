@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useWorkflow } from '../../../context/WorkflowContext';
-import { Calculator, ArrowRight, ArrowLeft, Truck, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { Calculator, ArrowRight, ArrowLeft, Truck, ShieldCheck, CheckCircle2, Calendar, Clock } from 'lucide-react';
 import { formatIndianCommas, parseIndianCommas } from '../../../utils/pricingRules';
 
 export const Step4PricingOffering = () => {
@@ -218,6 +218,137 @@ export const Step4PricingOffering = () => {
             />
             <span className="font-semibold text-slate-700">Inter-State (IGST 18%)</span>
           </label>
+        </div>
+
+        {/* ============================================================
+            DELIVERY COMMITMENT & SCHEDULE (FOR CUSTOMER & PRODUCTION)
+            ============================================================ */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2 text-xs font-black uppercase tracking-wider text-[#EE6F2D]">
+              <span className="w-1.5 h-3.5 bg-[#EE6F2D] rounded-full" />
+              <span>Delivery Commitment &amp; Schedule</span>
+            </div>
+            <span className="text-[11px] font-semibold text-slate-500 hidden sm:inline">
+              Reflected on Quotation Clause 7 &amp; Production Due Date
+            </span>
+          </div>
+
+          <div className="p-5 bg-gradient-to-br from-slate-50 via-orange-50/20 to-slate-50/70 rounded-xl border border-slate-200 space-y-4">
+            {/* Quick Lead Time Presets */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-2">
+                Standard Lead Time Presets
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                {[
+                  { label: '3 to 4 Weeks', weeks: 4, desc: 'Quick Dispatch' },
+                  { label: '6 to 8 Weeks', weeks: 8, desc: 'Standard HT (Default)' },
+                  { label: '8 to 10 Weeks', weeks: 10, desc: 'Switchboard' },
+                  { label: '10 to 12 Weeks', weeks: 12, desc: 'Custom Turnkey' },
+                  { label: 'Ex-Stock', weeks: 1, desc: 'Immediate (1 Wk)' }
+                ].map((preset) => {
+                  const isSelected = pricing.deliverySchedule === preset.label;
+                  return (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => {
+                        const targetDate = new Date(Date.now() + preset.weeks * 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                        setPricing((prev) => ({
+                          ...prev,
+                          deliverySchedule: preset.label,
+                          deliveryWeeks: preset.weeks,
+                          expectedDeliveryDate: targetDate,
+                          deliveryTerms: `Within ${preset.label} from the date of technically & commercially clear Purchase Order and approved drawing.`
+                        }));
+                      }}
+                      className={`p-2.5 rounded-lg border text-left transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-[#EE6F2D] text-white border-[#EE6F2D] shadow-xs'
+                          : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className={`text-xs font-bold ${isSelected ? 'text-white' : 'text-slate-800'}`}>
+                        {preset.label}
+                      </div>
+                      <div className={`text-[10px] mt-0.5 ${isSelected ? 'text-orange-100' : 'text-slate-500'}`}>
+                        {preset.desc}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Target Delivery Date & Schedule Details */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+              {/* Expected Delivery Date Picker */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700 flex items-center justify-between">
+                  <span>Committed Delivery Date <span className="text-rose-500">*</span></span>
+                  {pricing.expectedDeliveryDate && (
+                    <span className="text-[10px] font-mono font-bold text-[#1E5BB8] bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                      {Math.max(0, Math.ceil((new Date(pricing.expectedDeliveryDate).getTime() - Date.now()) / (1000 * 3600 * 24)))} Days Remaining
+                    </span>
+                  )}
+                </label>
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={pricing.expectedDeliveryDate || ''}
+                    onChange={(e) => {
+                      const newDate = e.target.value;
+                      let weeksDiff = 8;
+                      if (newDate) {
+                        const diffMs = new Date(newDate).getTime() - Date.now();
+                        weeksDiff = Math.max(1, Math.round(diffMs / (7 * 24 * 3600 * 1000)));
+                      }
+                      setPricing((prev) => ({
+                        ...prev,
+                        expectedDeliveryDate: newDate,
+                        deliveryWeeks: weeksDiff,
+                        deliverySchedule: `${weeksDiff} Weeks`,
+                        deliveryTerms: `Within ${weeksDiff} weeks from the date of technically & commercially clear Purchase Order and approved drawing.`
+                      }));
+                    }}
+                    className="w-full px-3.5 py-2.5 text-xs font-bold font-mono rounded-lg border border-slate-300 bg-white focus:outline-hidden focus:ring-2 focus:ring-[#EE6F2D]/20 focus:border-[#EE6F2D]"
+                  />
+                </div>
+                <p className="text-[11px] text-slate-500 font-medium">
+                  Committed target delivery date recorded on customer quotation &amp; factory production schedule.
+                </p>
+              </div>
+
+              {/* Delivery Terms / Quotation Clause */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-700">
+                  Quotation Delivery Terms Clause (Editable)
+                </label>
+                <textarea
+                  rows="2"
+                  value={pricing.deliveryTerms || ''}
+                  onChange={(e) => setPricing((prev) => ({ ...prev, deliveryTerms: e.target.value }))}
+                  placeholder="e.g. Within 6 to 8 weeks from the date of receipt of approved drawing..."
+                  className="w-full px-3 py-2 text-xs font-medium rounded-lg border border-slate-300 bg-white focus:outline-hidden focus:ring-2 focus:ring-[#EE6F2D]/20 focus:border-[#EE6F2D]"
+                />
+                <p className="text-[11px] text-slate-500 font-medium">
+                  This text will print directly under Clause 7 ("Delivery") on the official Quotation PDF.
+                </p>
+              </div>
+            </div>
+
+            {/* Committed Schedule Summary Badge */}
+            <div className="flex items-center space-x-2.5 px-3.5 py-2.5 rounded-lg bg-emerald-50/80 border border-emerald-200 text-xs text-emerald-800">
+              <Calendar className="w-4 h-4 text-emerald-600 shrink-0" />
+              <div>
+                <span className="font-bold">Customer Commitment: </span>
+                <span>
+                  Supply in <strong>{pricing.deliverySchedule || '6 to 8 Weeks'}</strong> • Target Delivery Date: <strong>{pricing.expectedDeliveryDate ? new Date(pricing.expectedDeliveryDate).toLocaleDateString('en-GB') : 'To be set'}</strong>
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* ============================================================

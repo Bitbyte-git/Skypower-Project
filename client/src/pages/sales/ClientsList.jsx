@@ -101,6 +101,7 @@ export const ClientsList = () => {
                 <th className="py-3.5 px-4">Mobile</th>
                 <th className="py-3.5 px-4">Location</th>
                 <th className="py-3.5 px-4">GSTIN</th>
+                <th className="py-3.5 px-4">Portal Status</th>
                 <th className="py-3.5 px-4 text-right">Actions</th>
               </tr>
             </thead>
@@ -148,6 +149,20 @@ export const ClientsList = () => {
                     </td>
                     <td className="py-3 px-4 font-mono text-[11px] text-slate-500">
                       {client.gstNumber || '-'}
+                    </td>
+                    <td className="py-3 px-4">
+                      {client.portalAccess?.enabled && client.portalAccess?.status === 'ACTIVE' ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                          ● Portal Active
+                        </span>
+                      ) : (
+                        <Link
+                          to={`/clients/${client._id}`}
+                          className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-300 transition-colors"
+                        >
+                          + Enable Portal
+                        </Link>
+                      )}
                     </td>
                     <td className="py-3 px-4 text-right space-x-2">
                       <Link

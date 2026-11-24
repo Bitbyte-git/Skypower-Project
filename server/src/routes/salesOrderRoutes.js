@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireInternalEmployee } from '../middleware/auth.js';
 import {
   getOrderDashboardStats,
   getAllOrders,
@@ -22,8 +22,8 @@ const router = Router();
 // Order acknowledgement PDF view / download - can be accessed with auth or token
 router.get('/:id/acknowledgement-pdf', getAcknowledgementPDF);
 
-// Authenticated order management endpoints
-router.use(requireAuth);
+// Authenticated internal order management endpoints
+router.use(requireAuth, requireInternalEmployee);
 
 // Order Dashboard Statistics
 router.get('/dashboard-stats', getOrderDashboardStats);

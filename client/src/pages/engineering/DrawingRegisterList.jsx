@@ -168,7 +168,7 @@ export const DrawingRegisterList = () => {
                 <th className="py-3 px-4">Panel</th>
                 <th className="py-3 px-4 text-center">Rev</th>
                 <th className="py-3 px-4">Engineer</th>
-                <th className="py-3 px-4">Status</th>
+                <th className="py-3 px-4 text-center whitespace-nowrap min-w-[140px]">Status</th>
                 <th className="py-3 px-4 text-center">CAD / PDF</th>
                 <th className="py-3 px-4 text-right">Action</th>
               </tr>
@@ -205,8 +205,8 @@ export const DrawingRegisterList = () => {
                       </span>
                     </td>
                     <td className="py-3.5 px-4 text-slate-600">{d.assignedEngineerName}</td>
-                    <td className="py-3.5 px-4">
-                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${getStatusBadge(d.status)}`}>
+                    <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                      <span className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-[11px] font-bold whitespace-nowrap border shadow-2xs ${getStatusBadge(d.status)}`}>
                         {d.status}
                       </span>
                     </td>

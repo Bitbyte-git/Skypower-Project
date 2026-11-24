@@ -66,13 +66,257 @@ const recalculateProjectStats = async (projectId) => {
 };
 
 /**
+ * Auto-sync or create an Engineering Project from a Sales Order
+ */
+export const syncEngineeringProjectForOrder = async (orderOrId, user = null) => {
+  try {
+    const order = (typeof orderOrId === 'string' || orderOrId instanceof mongoose.Types.ObjectId)
+      ? await SalesOrder.findById(orderOrId).populate('clientId enquiryId')
+      : orderOrId;
+    if (!order) return null;
+
+    // Check if project already exists
+    let existing = await EngineeringProject.findOne({ salesOrderId: order._id });
+    if (existing) return existing;
+
+    // Resolve assigned engineer
+    let engineerUser = user?.role === 'DESIGN_ENGINEER' ? user : await User.findOne({ role: 'DESIGN_ENGINEER' });
+    if (!engineerUser) engineerUser = user || await User.findOne();
+    const engineerName = engineerUser?.name || 'Praveen Kumar (Lead Design Engineer)';
+    const engineerId = engineerUser?._id;
+
+    const projectNumber = await generateNextEngineeringProjectNumber();
+    const primaryProduct = order.products?.[0] || {};
+    const enquiry = order.enquiryId || {};
+
+    const technicalSpecs = {
+      equipmentType: primaryProduct.productName || '11kV Indoor HT Switchboard',
+      switchgearType: `${primaryProduct.voltageRating || '11 kV'} Metal-Clad Vacuum Circuit Breaker Switchgear`,
+      voltageRating: primaryProduct.voltageRating || '11 kV',
+      currentRating: primaryProduct.currentRating || '630 A',
+      shortCircuitRating: primaryProduct.breakingCapacity || '26.3 kA',
+      shortCircuitDuration: '3 Seconds',
+      indoorOutdoor: 'Indoor',
+      panelType: 'Floor-Mounted Drawout Switchboard',
+      panelCount: order.products?.length || 1,
+
+      busbarMaterial: 'High Conductivity Electrolytic Copper (EC Grade)',
+      busbarRating: parseInt(primaryProduct.currentRating, 10) > 630 ? '1250 A' : '800 A',
+      busbarConfiguration: '3-Phase 3-Wire Sleeved Busbar Assembly',
+      insulationRequirements: 'Heat-Shrinkable High-Dielectric Sleeving with Flame Retardant Shrouds',
+      cableEntry: 'Bottom Cable Entry with Detachable Gland Plates',
+
+      ctType: 'Resin Cast Dual Ratio Block Type CT',
+      ctRatio: enquiry.drawingOADetails?.ctRatioConfirmed || `${primaryProduct.currentRating?.replace(/[^0-9]/g, '') || '200'}-100/5-5A`,
+      primaryCurrent: primaryProduct.currentRating || '200 A',
+      secondaryCurrent: '5 A',
+      coreCount: 2,
+      coreClass: 'Core 1: 0.5s (Metering), Core 2: 5P10 (Protection)',
+      burden: '15 VA per core',
+      accuracy: 'Class 0.5s',
+      meteringCoreDetails: 'Class 0.5s, 15VA, ISF <= 5',
+      protectionCoreDetails: '5P10, 15VA, ALF >= 10',
+      ctMake: 'Kappa / Pragati / Kalpa',
+      ctModel: 'Indoor Block Type',
+      ctApprovalStatus: 'Draft',
+
+      ptType: '3-Phase 3-Limb Cast Resin Voltage Transformer',
+      ptRatio: '11000/sqrt(3) V : 110/sqrt(3) V',
+      primaryVoltage: '11000 V',
+      secondaryVoltage: '110 V',
+      ptAccuracy: 'Class 0.5',
+      ptBurden: '50 VA per phase',
+      ptMake: 'Kappa / Pragati',
+      ptModel: 'Drawout Carriage with Primary HRC Fuses',
+      ptApprovalStatus: 'Draft',
+
+      relayType: 'Numerical Multi-Function Feeder Protection Relay',
+      relayMake: 'Schneider Electric / ABB / Siemens',
+      relayModel: 'MiCOM P122 / REF615',
+      protectionFunctions: 'ANSI 50/51 Non-Directional Overcurrent, 50N/51N Earth Fault, 50BF Breaker Failure',
+      communicationProtocol: 'IEC 61850 / Modbus RS-485 RTU',
+      relayApprovalStatus: 'Draft',
+
+      meterMake: 'Schneider / Secure / Rishabh',
+      meterModel: 'Digital Multi-Function Energy Meter Class 0.5s',
+      meteringRequirements: 'V, I, PF, Freq, kW, kVA, kWh, kVARh with RS485 Modbus Port',
+
+      vcbSpecification: `11kV, ${primaryProduct.currentRating || '630A'}, 26.3kA, 3-Pole Vacuum Circuit Breaker with 230V AC Motorized Spring Mechanism, Shunt Trip, and Anti-Pumping Relay`,
+      controlVoltage: '110V DC / 230V AC Auxiliary Supply',
+      spaceHeaterAndThermostat: '230V AC 80W Space Heater with Rotary Control Switch and Dial Thermostat',
+
+      installationLocation: order.siteAddress || 'Works / Delivery Site, Tamil Nadu',
+      customerStandard: 'TANGEDCO / CPWD / OEM Standard Specifications',
+      applicableStandards: 'IEC 62271-200 / IEC 62271-100 / IS 13118 / IS 3427',
+      environmentalRequirements: 'Max Ambient: 45°C, Design Ambient: 40°C, Relative Humidity: 95%, Altitude: <1000m',
+      specialCustomerRequirements: order.customerPO?.customerRemarks || 'Standard Switchgear Manufacturing Spec',
+      engineeringRemarks: 'Project auto-initiated from verified Sales Order / Workflow Stage 4 (Drawing).'
+    };
+
+    const calculatedTargetDate = order.deliveryCommitment?.expectedDeliveryDate
+      ? new Date(new Date(order.deliveryCommitment.expectedDeliveryDate).getTime() - 21 * 24 * 60 * 60 * 1000)
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+    const project = new EngineeringProject({
+      projectNumber,
+      salesOrderId: order._id,
+      orderNumber: order.orderNumber,
+      customerPO: order.customerPO?.poNumber || '',
+      quotationNumber: order.quotationNumber || '',
+      clientId: order.clientId?._id || order.clientId,
+      customerName: order.customerName || order.clientId?.clientName || 'Valued Customer',
+      customerCode: order.customerCode,
+      projectName: order.projectTitle,
+      endUser: order.endUser || 'Direct Industrial Supply',
+      assignedEngineer: engineerId,
+      assignedEngineerName: engineerName,
+      priority: 'HIGH',
+      status: PROJECT_STATUSES.DRAWING_PREPARATION,
+      startDate: new Date(),
+      targetDate: calculatedTargetDate,
+      technicalRemarks: 'Auto-synchronized for Engineering & Drawing Approval Console.',
+      technicalSpecs,
+      timeline: [
+        {
+          event: 'Engineering Project Created',
+          user: engineerId,
+          userName: engineerName,
+          role: 'Design Engineer',
+          timestamp: new Date(),
+          notes: `Engineering Project ${projectNumber} created from Sales Order ${order.orderNumber}. Technical specifications imported.`
+        }
+      ],
+      createdBy: engineerId
+    });
+
+    await project.save();
+
+    // 5 standard switchgear drawings
+    const defaultDrawings = [
+      {
+        type: 'GA',
+        title: `General Arrangement (GA) Drawing - ${primaryProduct.voltageRating || '11kV'} VCB Panel Lineup`,
+        panelNumber: 'Panel 01 - Main Lineup'
+      },
+      {
+        type: 'SLD',
+        title: `Single Line Diagram (SLD) & Power Circuit - ${order.projectTitle}`,
+        panelNumber: 'All Panels'
+      },
+      {
+        type: 'SCHEMATIC',
+        title: 'AC / DC Control & Auxiliary Schematic Diagram',
+        panelNumber: 'Panel 01 - Control Compartment'
+      },
+      {
+        type: 'PROTECTION',
+        title: 'Protection, Metering & CT/PT Secondary Connection Diagram',
+        panelNumber: 'Panel 01 - Relay & Metering Door'
+      },
+      {
+        type: 'FOUNDATION',
+        title: 'Civil Foundation, Cable Trench & Cutout Drawing',
+        panelNumber: 'Civil Scope'
+      }
+    ];
+
+    for (const d of defaultDrawings) {
+      const drawingNumber = await generateNextDrawingNumber(d.type);
+      const dwg = new EngineeringDrawing({
+        drawingNumber,
+        drawingTitle: d.title,
+        drawingType: d.type,
+        projectId: project._id,
+        projectNumber: project.projectNumber,
+        salesOrderId: order._id,
+        panelNumber: d.panelNumber,
+        currentRevision: 'Rev 0',
+        status: DRAWING_STATUSES.IN_PREPARATION,
+        assignedEngineer: project.assignedEngineer,
+        assignedEngineerName: project.assignedEngineerName,
+        plannedDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
+        technicalNotes: 'Standard engineering draft for internal review and customer approval.',
+        revisions: [
+          {
+            revisionNumber: 'Rev 0',
+            revisionDate: new Date(),
+            description: 'Initial engineering draft generated from project scope',
+            changeReason: 'Initial Release',
+            preparedBy: project.assignedEngineer,
+            preparedByName: project.assignedEngineerName,
+            customerApproval: { status: 'Awaiting Submission' }
+          }
+        ],
+        createdBy: engineerId
+      });
+      await dwg.save();
+    }
+
+    await recalculateProjectStats(project._id);
+
+    order.engineeringProjectId = project._id;
+    order.engineeringStatus = 'Engineering In Progress';
+    order.timeline = order.timeline || [];
+    order.timeline.push({
+      event: 'Engineering Project Initiated',
+      status: order.status,
+      notes: `Engineering project ${projectNumber} initiated. Drawings under preparation by ${engineerName}.`,
+      performedBy: engineerId,
+      timestamp: new Date()
+    });
+    await order.save();
+
+    return project;
+  } catch (err) {
+    console.error('Error in syncEngineeringProjectForOrder:', err);
+    return null;
+  }
+};
+
+/**
+ * Sync all active Sales Orders into Engineering Projects
+ */
+export const syncEngineeringOrdersController = async (req, res) => {
+  try {
+    const orders = await SalesOrder.find().populate('clientId enquiryId');
+    const synced = [];
+    for (const order of orders) {
+      const existing = await EngineeringProject.findOne({ salesOrderId: order._id });
+      if (!existing) {
+        const p = await syncEngineeringProjectForOrder(order, req.user);
+        if (p) synced.push(p);
+      }
+    }
+    return res.status(200).json({
+      success: true,
+      message: `Successfully synchronized ${synced.length} order(s) into Engineering Projects.`,
+      syncedCount: synced.length,
+      synced
+    });
+  } catch (error) {
+    console.error('Error in syncEngineeringOrdersController:', error);
+    return res.status(500).json({ success: false, message: 'Failed to sync engineering projects.', error: error.message });
+  }
+};
+
+/**
  * 1. GET /api/engineering/dashboard/stats
  * Dynamic dashboard KPIs, drawing status breakdown, and pending activities
  */
 export const getEngineeringDashboardStats = async (req, res) => {
   try {
-    const [projects, drawings, submissions, clarifications] = await Promise.all([
-      EngineeringProject.find().sort({ updatedAt: -1 }),
+    let projects = await EngineeringProject.find().sort({ updatedAt: -1 });
+
+    // Auto-sync if no engineering projects exist but sales orders exist
+    if (projects.length === 0) {
+      const orders = await SalesOrder.find().populate('clientId enquiryId');
+      for (const order of orders) {
+        await syncEngineeringProjectForOrder(order, req.user);
+      }
+      projects = await EngineeringProject.find().sort({ updatedAt: -1 });
+    }
+
+    const [drawings, submissions, clarifications] = await Promise.all([
       EngineeringDrawing.find(),
       DrawingSubmission.find().sort({ submissionDate: -1 }),
       TechnicalClarification.find({ status: { $nin: ['Resolved', 'Closed'] } }).sort({ dueDate: 1 })
@@ -221,6 +465,14 @@ export const getEngineeringDashboardStats = async (req, res) => {
  */
 export const getAllEngineeringProjects = async (req, res) => {
   try {
+    const totalCount = await EngineeringProject.countDocuments();
+    if (totalCount === 0) {
+      const orders = await SalesOrder.find().populate('clientId enquiryId');
+      for (const order of orders) {
+        await syncEngineeringProjectForOrder(order, req.user);
+      }
+    }
+
     const { status, priority, search, limit = 50, page = 1 } = req.query;
 
     const query = {};

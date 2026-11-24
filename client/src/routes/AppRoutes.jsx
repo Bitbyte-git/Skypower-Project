@@ -58,6 +58,18 @@ import { DrawingSubmissionsList } from '../pages/engineering/DrawingSubmissionsL
 import { CustomerApprovalsList } from '../pages/engineering/CustomerApprovalsList';
 import { TechnicalClarificationsList } from '../pages/engineering/TechnicalClarificationsList';
 
+// Customer Portal Layout & Pages
+import { CustomerPortalLayout } from '../layouts/CustomerPortalLayout';
+import { CustomerLogin } from '../pages/portal/CustomerLogin';
+import { CustomerActivation } from '../pages/portal/CustomerActivation';
+import { CustomerDashboard } from '../pages/portal/CustomerDashboard';
+import { CustomerOrdersList } from '../pages/portal/CustomerOrdersList';
+import { CustomerOrderDetails } from '../pages/portal/CustomerOrderDetails';
+import { CustomerDocuments } from '../pages/portal/CustomerDocuments';
+import { CustomerPayments } from '../pages/portal/CustomerPayments';
+import { CustomerProfile } from '../pages/portal/CustomerProfile';
+import { CustomerNotifications } from '../pages/portal/CustomerNotifications';
+
 export const AppRoutes = () => {
   const { user, isAuthenticated, loading } = useAuth();
 
@@ -70,6 +82,7 @@ export const AppRoutes = () => {
   }
 
   const getHomeRoute = () => {
+    if (user?.role === 'CUSTOMER') return '/portal/dashboard';
     if (user?.role === 'ADMIN') return '/admin/dashboard';
     if (user?.role === 'MANAGER') return '/manager/dashboard';
     if (user?.role === 'PO_TEAM') return '/po/tracking';
@@ -92,6 +105,36 @@ export const AppRoutes = () => {
           )
         }
       />
+
+      {/* Public Customer Portal Routes */}
+      <Route
+        path="/customer/login"
+        element={
+          isAuthenticated && user?.role === 'CUSTOMER' ? (
+            <Navigate to="/portal/dashboard" replace />
+          ) : isAuthenticated ? (
+            <Navigate to={getHomeRoute()} replace />
+          ) : (
+            <CustomerLogin />
+          )
+        }
+      />
+      <Route path="/portal/login" element={<Navigate to="/customer/login" replace />} />
+      <Route path="/customer/activate" element={<CustomerActivation />} />
+
+      {/* Customer Portal Protected Routes Layout (ROLE: CUSTOMER ONLY) */}
+      <Route element={<ProtectedRoute allowedRoles={['CUSTOMER']} />}>
+        <Route element={<CustomerPortalLayout />}>
+          <Route path="/portal" element={<Navigate to="/portal/dashboard" replace />} />
+          <Route path="/portal/dashboard" element={<CustomerDashboard />} />
+          <Route path="/portal/orders" element={<CustomerOrdersList />} />
+          <Route path="/portal/orders/:id" element={<CustomerOrderDetails />} />
+          <Route path="/portal/documents" element={<CustomerDocuments />} />
+          <Route path="/portal/payments" element={<CustomerPayments />} />
+          <Route path="/portal/profile" element={<CustomerProfile />} />
+          <Route path="/portal/notifications" element={<CustomerNotifications />} />
+        </Route>
+      </Route>
 
       {/* Protected Routes Layout */}
       <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'SALES', 'PO_TEAM', 'ACCOUNTANT', 'STOCK_ADMIN', 'DESIGN_ENGINEER', 'ENGINEERING_MANAGER', 'ENGINEERING_REVIEWER']} />}>
@@ -157,8 +200,6 @@ export const AppRoutes = () => {
             element={
               user?.role === 'PO_TEAM' ? (
                 <Navigate to="/departments/workflow?dept=2" replace />
-              ) : user?.role === 'ACCOUNTANT' ? (
-                <Navigate to="/departments/workflow?dept=3" replace />
               ) : user?.role === 'STOCK_ADMIN' ? (
                 <Navigate to="/inventory" replace />
               ) : (
@@ -168,7 +209,7 @@ export const AppRoutes = () => {
           />
 
           {/* 6-Step Multi-Page Client Enquiry -> Offering -> PO Team Workflow */}
-          <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'SALES']} />}>
+          <Route element={<ProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'SALES', 'ACCOUNTANT']} />}>
             <Route path="/enquiries/new" element={<WorkflowWizard />} />
             <Route path="/enquiries/:id/workflow" element={<WorkflowWizard />} />
 

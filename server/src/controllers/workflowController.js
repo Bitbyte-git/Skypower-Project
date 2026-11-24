@@ -213,6 +213,14 @@ export const saveWorkflowDraft = async (req, res, next) => {
       if (commercialPricing) {
         enquiry.commercialPricing = { ...enquiry.commercialPricing, ...commercialPricing };
         enquiry.expectedProjectValue = commercialPricing.totalAmount || enquiry.expectedProjectValue || 0;
+        if (commercialPricing.expectedDeliveryDate) {
+          if (!enquiry.project) enquiry.project = {};
+          enquiry.project.expectedDeliveryDate = commercialPricing.expectedDeliveryDate;
+        }
+        if (commercialPricing.deliveryTerms) {
+          if (!enquiry.project) enquiry.project = {};
+          enquiry.project.deliveryTerms = commercialPricing.deliveryTerms;
+        }
       }
       if (clientCustomId) enquiry.clientCustomId = clientCustomId;
 
@@ -255,11 +263,15 @@ export const saveWorkflowDraft = async (req, res, next) => {
       customerType: client.customerType || 'Contractor',
       offerDate: new Date(),
       expectedProjectValue: initialTotalAmount,
-      project: project || {
-        standardType: 'Standard',
-        projectName: '11kV VCB Switchboard for Project',
-        segment: 'Renewable',
-        subSegment: 'Wind'
+      project: {
+        ...(project || {
+          standardType: 'Standard',
+          projectName: '11kV VCB Switchboard for Project',
+          segment: 'Renewable',
+          subSegment: 'Wind'
+        }),
+        expectedDeliveryDate: commercialPricing?.expectedDeliveryDate || project?.expectedDeliveryDate || new Date(Date.now() + 56 * 24 * 60 * 60 * 1000),
+        deliveryTerms: commercialPricing?.deliveryTerms || 'Within 6 to 8 weeks from the date of technically & commercially clear Purchase Order and approved drawing.'
       },
       products: formattedProducts.length > 0 ? formattedProducts : [
         {
@@ -411,6 +423,14 @@ export const createOfferingRevision = async (req, res, next) => {
         ...enquiry.commercialPricing,
         ...revisedPricing
       };
+      if (revisedPricing.expectedDeliveryDate) {
+        if (!enquiry.project) enquiry.project = {};
+        enquiry.project.expectedDeliveryDate = revisedPricing.expectedDeliveryDate;
+      }
+      if (revisedPricing.deliveryTerms) {
+        if (!enquiry.project) enquiry.project = {};
+        enquiry.project.deliveryTerms = revisedPricing.deliveryTerms;
+      }
     }
 
     const newRevisionRecord = {
@@ -785,7 +805,7 @@ export const updatePOStatus = async (req, res, next) => {
             projectTrackingId: workflow.projectTrackingId,
             departmentCode: 'PO_TEAM',
             departmentName: 'PO Team',
-            action: 'Accepted & Forwarded to Advance Payment',
+            action: 'Accepted',
             actionBy: req.user._id,
             actionByName: req.user.name,
             actionByRole: req.user.role,

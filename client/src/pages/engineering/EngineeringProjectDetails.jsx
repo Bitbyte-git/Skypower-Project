@@ -656,17 +656,17 @@ export const EngineeringProjectDetails = () => {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
+              <table className="w-full min-w-[1050px] text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
-                    <th className="py-3 px-4">Drawing No</th>
-                    <th className="py-3 px-4">Drawing Title</th>
-                    <th className="py-3 px-4">Type</th>
-                    <th className="py-3 px-4">Panel</th>
-                    <th className="py-3 px-4 text-center">Rev</th>
-                    <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-4">File</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
+                    <th className="py-3 px-4 whitespace-nowrap min-w-[160px]">Drawing No</th>
+                    <th className="py-3 px-4 whitespace-nowrap min-w-[240px]">Drawing Title</th>
+                    <th className="py-3 px-4 text-center whitespace-nowrap">Type</th>
+                    <th className="py-3 px-4 whitespace-nowrap min-w-[140px]">Panel</th>
+                    <th className="py-3 px-4 text-center whitespace-nowrap">Rev</th>
+                    <th className="py-3 px-4 text-center whitespace-nowrap min-w-[150px]">Status</th>
+                    <th className="py-3 px-4 text-center whitespace-nowrap">File</th>
+                    <th className="py-3 px-4 text-right whitespace-nowrap min-w-[220px]">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -679,17 +679,17 @@ export const EngineeringProjectDetails = () => {
                   ) : (
                     drawings.map((d) => (
                       <tr key={d._id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="py-3 px-4 font-mono font-bold text-blue-700">{d.drawingNumber}</td>
-                        <td className="py-3 px-4 font-medium text-slate-800 max-w-[200px] truncate">{d.drawingTitle}</td>
-                        <td className="py-3 px-4 text-slate-600 font-mono text-[11px]">{d.drawingType}</td>
-                        <td className="py-3 px-4 text-slate-600">{d.panelNumber}</td>
-                        <td className="py-3 px-4 text-center">
-                          <span className="font-mono font-bold text-slate-800 px-1.5 py-0.5 bg-slate-100 rounded">
+                        <td className="py-3.5 px-4 font-mono font-bold text-blue-700 whitespace-nowrap">{d.drawingNumber}</td>
+                        <td className="py-3.5 px-4 font-medium text-slate-800 whitespace-nowrap">{d.drawingTitle}</td>
+                        <td className="py-3.5 px-4 text-center text-slate-600 font-mono text-[11px] whitespace-nowrap">{d.drawingType}</td>
+                        <td className="py-3.5 px-4 text-slate-600 whitespace-nowrap">{d.panelNumber}</td>
+                        <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                          <span className="font-mono font-bold text-slate-800 px-2 py-0.5 bg-slate-100 rounded-md border border-slate-200">
                             {d.currentRevision}
                           </span>
                         </td>
-                        <td className="py-3 px-4">
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                        <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                          <span className={`inline-flex items-center justify-center px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap border shadow-2xs ${
                             d.status === 'Approved'
                               ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
                               : d.status === 'Submitted'
@@ -703,46 +703,46 @@ export const EngineeringProjectDetails = () => {
                             {d.status}
                           </span>
                         </td>
-                        <td className="py-3 px-4">
+                        <td className="py-3.5 px-4 text-center whitespace-nowrap">
                           {d.fileUrl ? (
                             <a
                               href={d.fileUrl}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-blue-600 hover:underline font-bold inline-flex items-center text-[11px]"
+                              className="text-blue-600 hover:underline font-bold inline-flex items-center text-xs whitespace-nowrap px-2.5 py-1 rounded-lg bg-blue-50/80 border border-blue-200"
                             >
-                              <Download className="w-3 h-3 mr-1" /> PDF / DWG
+                              <Download className="w-3.5 h-3.5 mr-1" /> PDF / DWG
                             </a>
                           ) : (
-                            <span className="text-slate-400 italic text-[11px]">No file</span>
+                            <span className="text-slate-400 italic text-[11px] whitespace-nowrap">No file</span>
                           )}
                         </td>
-                        <td className="py-3 px-4 text-right">
+                        <td className="py-3.5 px-4 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end space-x-1.5">
                             <button
                               onClick={() => { setSelectedDrawing(d); setShowUploadModal(true); }}
-                              className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[10px] font-bold cursor-pointer"
+                              className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold cursor-pointer"
                               title="Upload CAD / PDF file"
                             >
-                              <Upload className="w-3 h-3" />
+                              <Upload className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => { setSelectedDrawing(d); setShowReviewModal(true); }}
-                              className="px-2 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg text-[10px] font-bold cursor-pointer"
+                              className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg text-xs font-bold cursor-pointer"
                               title="Internal Quality Review"
                             >
                               Review
                             </button>
                             <button
                               onClick={() => { setSelectedDrawing(d); setShowRevisionModal(true); }}
-                              className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg text-[10px] font-bold cursor-pointer"
+                              className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-lg text-xs font-bold cursor-pointer"
                               title="Create New Revision"
                             >
                               Revise
                             </button>
                             <button
                               onClick={() => { setSelectedDrawing(d); setShowApprovalModal(true); }}
-                              className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-[10px] font-bold cursor-pointer"
+                              className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold cursor-pointer"
                               title="Customer Approval Stamp"
                             >
                               Approve

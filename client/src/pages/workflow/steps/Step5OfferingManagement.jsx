@@ -620,7 +620,7 @@ export const Step5OfferingManagement = () => {
         {/* ============================================================
             METADATA SUMMARY CARD
             ============================================================ */}
-        <div className="p-4 rounded-xl bg-slate-50/80 border border-slate-200 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="p-4 rounded-xl bg-slate-50/80 border border-slate-200 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="space-y-0.5">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Client ID</span>
             <p className="text-sm font-mono font-extrabold text-[#1E5BB8]">
@@ -643,6 +643,16 @@ export const Step5OfferingManagement = () => {
               {project.segment || 'Renewable'} – {project.subSegment || 'Wind'}
             </p>
             <p className="text-xs text-slate-500">{products.length} Products Configured</p>
+          </div>
+
+          <div className="space-y-0.5">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Committed Delivery</span>
+            <p className="text-sm font-bold text-emerald-700">
+              {pricing.deliverySchedule || '6 to 8 Weeks'}
+            </p>
+            <p className="text-xs text-slate-500 font-medium">
+              Due: {pricing.expectedDeliveryDate ? new Date(pricing.expectedDeliveryDate).toLocaleDateString('en-GB') : (project.expectedDeliveryDate ? new Date(project.expectedDeliveryDate).toLocaleDateString('en-GB') : 'Target 8 Wks')}
+            </p>
           </div>
         </div>
 

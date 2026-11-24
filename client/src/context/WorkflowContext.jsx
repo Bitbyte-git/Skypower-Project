@@ -63,7 +63,11 @@ export const WorkflowProvider = ({ children, initialEnquiryId = null }) => {
     igstAmount: 0,
     totalTaxAmount: 0,
     totalAmount: 0,
-    amountInWords: 'Zero Rupees Only.'
+    amountInWords: 'Zero Rupees Only.',
+    deliverySchedule: '6 to 8 Weeks',
+    deliveryWeeks: 8,
+    expectedDeliveryDate: new Date(Date.now() + 56 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    deliveryTerms: 'Within 6 to 8 weeks from the date of technically & commercially clear Purchase Order and approved drawing.'
   });
 
   // Step 5: Offering Versions & History
@@ -189,7 +193,13 @@ export const WorkflowProvider = ({ children, initialEnquiryId = null }) => {
         if (eq.commercialPricing) {
           setPricing((prev) => ({
             ...prev,
-            ...eq.commercialPricing
+            ...eq.commercialPricing,
+            expectedDeliveryDate: eq.commercialPricing.expectedDeliveryDate
+              ? new Date(eq.commercialPricing.expectedDeliveryDate).toISOString().split('T')[0]
+              : (eq.project?.expectedDeliveryDate ? new Date(eq.project.expectedDeliveryDate).toISOString().split('T')[0] : prev.expectedDeliveryDate),
+            deliverySchedule: eq.commercialPricing.deliverySchedule || prev.deliverySchedule,
+            deliveryWeeks: eq.commercialPricing.deliveryWeeks || prev.deliveryWeeks,
+            deliveryTerms: eq.commercialPricing.deliveryTerms || eq.project?.deliveryTerms || prev.deliveryTerms
           }));
         }
 
@@ -276,7 +286,11 @@ export const WorkflowProvider = ({ children, initialEnquiryId = null }) => {
         enquiryId,
         clientId: client._id,
         clientData: client,
-        project,
+        project: {
+          ...project,
+          expectedDeliveryDate: finalPricing.expectedDeliveryDate,
+          deliveryTerms: finalPricing.deliveryTerms
+        },
         products,
         commercialPricing: finalPricing,
         step: 4

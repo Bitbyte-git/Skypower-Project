@@ -20,7 +20,8 @@ import {
   getAllClarifications,
   createTechnicalClarification,
   updateTechnicalClarification,
-  seedSampleEngineeringProjects
+  seedSampleEngineeringProjects,
+  syncEngineeringOrdersController
 } from '../controllers/engineeringController.js';
 
 const router = Router();
@@ -31,6 +32,7 @@ router.use(requireAuth);
 // Dashboard
 router.get('/dashboard/stats', getEngineeringDashboardStats);
 router.post('/seed-samples', seedSampleEngineeringProjects);
+router.post('/sync-orders', syncEngineeringOrdersController);
 
 // Projects
 router.get('/projects', getAllEngineeringProjects);
